@@ -46,11 +46,21 @@ packages/experimental/ops-manager/
 ├── package.json
 ├── tsconfig.json
 ├── README.zh.md
+├── cordis.patch.yml
+├── plugin-src/                       # DSH Desktop 客户端扩展源码 (esbuild 编译输出至 lib/client/ops.js)
+│   ├── management-rpc.mjs            # 客户端管理端 RPC 封装 (connection.rpc.call('/api', 'ops', ...))
+│   └── client/
+│       ├── build.mjs                 # 客户端产物构建脚本 (window.__ModuleLoader__.load 容器打包)
+│       ├── index.js                  # 客户端插件入口 (注册 settings.section 槽位)
+│       ├── ops-page.js               # Ops 设置主页面 (Injoys/BrowserOS MCP 配置与连通性测试)
+│       └── ops-styles.js             # 对齐 DSH 视觉规范的 CSS 样式 (Light/Dark 主题)
 ├── src/
-│   ├── index.ts                      # Cordis 插件入口 (apply, ctx.tools.register)
+│   ├── index.ts                      # Cordis 插件入口 (apply, ctx.tools.register, ctx.inject)
 │   ├── types.ts                      # 核心领域实体与接口契约
+│   ├── config-store.ts               # MCP 与全局运营配置持久化 ($DSH_HOME/ops-manager/config.json)
+│   ├── ops-rpc.ts                    # 宿主 RPC 端点 (/api/ops，处理 config.get/save, injoys.test, browser.sessions)
 │   │
-│   ├── injoys/                       # Injoys MCP 封装层
+│   ├── injoys/                       # Injoys MCP 封装层 (支持动态 updateConfig 与环境变量兜底)
 │   │   ├── client.ts                 # Injoys 工具代理 (知识库/表格/文档调用)
 │   │   ├── knowledge-base.ts         # 知识库检索与 Grounding 注入
 │   │   ├── calendar-sheet.ts         # 发布日历与指标监控表读写
@@ -58,6 +68,7 @@ packages/experimental/ops-manager/
 │   │
 │   ├── browser/                      # BrowserOS MCP 执行封装
 │   │   ├── session-guard.ts          # 宿主会话连通性与 Cookie 失效检测
+│   │   ├── browser-driver.ts         # 浏览器任务调度与草稿预填规划
 │   │   └── uploader.ts               # 本地大文件上传底层包装
 │   │
 │   ├── adapters/                     # 渠道适配器层 (Adapter Pattern)
@@ -74,40 +85,39 @@ packages/experimental/ops-manager/
 │   │
 │   ├── feedback/                     # 用户互动与社区反馈模块
 │   │   ├── comments-crawler.ts       # 评论区抓取与情感聚类
-│   │   └── issue-extractor.ts        # Bug / Feature 提取与需求池沉淀
+│   │   ├── issue-extractor.ts        # Bug / Feature 提取与需求池沉淀
+│   │   └── trends-discoverer.ts      # 行业趋势与竞品嗅探
 │   │
 │   ├── schedule/                     # DSH 系统自动化任务联动
 │   │   └── schedule-bridge.ts        # ctx.schedule 任务预设与定时回调
 │   │
-│   ├── tools/                        # 面向 Agent 的 9 大 Tool 实现
-│   │   ├── ops-plan-calendar.ts      # 选题与排期规划
-│   │   ├── ops-draft-article.ts      # 公众号文章生成
-│   │   ├── ops-draft-video-meta.ts   # 视频标题/标签/简介生成
-│   │   ├── ops-push-drafts.ts        # 批量推送到各平台草稿箱
-│   │   ├── ops-fetch-metrics.ts      # 采集各平台数据指标
-│   │   ├── ops-generate-review.ts    # 输出运营复盘总结
-│   │   ├── ops-fetch-comments.ts     # 抓取用户评论与反馈
-│   │   ├── ops-extract-feedback.ts   # 沉淀需求到 Injoys / 知识库
-│   │   └── ops-discover-trends.ts    # 行业热点与竞品嗅探
-│   │
-│   └── client/                       # DSH Desktop 客户端展示扩展
-│       └── cards/
-│           ├── draft-review-card.tsx # 多渠道草稿审核与直达链接卡片
-│           └── metrics-summary-card.tsx # 数据监控总览卡片
-└── tests/                            # 单元测试与 Mock 回放测试
+│   └── tools/                        # 面向 Agent 的全套 Tool 实现
+│       └── index.ts                  # 10 大核心运营工具集合
+└── tests/                            # 单元测试与 RPC 契约回放测试
 ```
 
 ---
 
 ## 三、 四阶段分步实施里程碑
 
-### 阶段一：插件基础设施与 Injoys 资产闭环 (M1: Foundation & Injoys Assets)
-* **目标**：跑通 DSH Cordis 插件骨架，与 Injoys MCP 建立稳定连接，实现“知识库检索 ➔ 排期生成 ➔ 表格/文档沉淀”。
+### 阶段一：插件基础设施、MCP 配置中心与 Injoys 资产闭环 (M1: Foundation & Injoys Assets)
+* **目标**：跑通 DSH Cordis 插件骨架与 Desktop 客户端设置页，提供用户可交互的 MCP 配置管理中心，与 Injoys MCP 建立稳定连接，实现“知识库检索 ➔ 排期生成 ➔ 表格/文档沉淀”。
 * **开发任务**：
-  1. 创建 `packages/experimental/ops-manager`，配置 `package.json`、ESM 导出与 TypeScript 配置；
-  2. 封装 `InjoysClient`：实现产品知识库查询（向量检索/关键词召回）、Injoys 表格读写（追加排期行）、Injoys 文档生成接口；
-  3. 实现前 3 个基础内容工具：
+  1. 创建 `packages/experimental/ops-manager`，配置 `package.json`、ESM 导出、TypeScript 配置与客户端打包工具；
+  2. **实现 Desktop 设置页与 MCP 配置中心**：
+     * 在 DSH Desktop 设置模态框中注册 **Ops** 标签页（槽位 `settings.section`，`id: 'ops'`, `order: 60`，排布在 `Jet Hub` 下方）；
+     * 提供 Injoys MCP 服务端 Endpoint 与 Token 动态修改、一键连通性测试与延迟诊断；
+     * 提供 BrowserOS 宿主登录态复用开关与各平台登录态检测大屏；
+     * 配置持久化写入 `$DSH_HOME/ops-manager/config.json`，并支持环境变量 `INJOYS_MCP_ENDPOINT` 与 `INJOYS_MCP_TOKEN` 兜底，运行时修改即时重载生效无需重启；
+  3. 封装 `InjoysClient`：实现产品知识库查询（向量检索/关键词召回）、Injoys 表格读写（追加排期行）、Injoys 文档生成接口；
+  4. 实现前 3 个基础内容工具：
      * `ops_plan_calendar`：结合产品阶段生成周/月排期表；
+     * `ops_draft_article`：撰写微信公众号深度图文，落地为 Injoys 文档；
+     * `ops_draft_video_meta`：解析本地视频文件信息，生成 3 套标题、标签、简介；
+  5. 编写针对 Injoys MCP 与配置中心 RPC 的单元测试。
+* **验收标准**：
+  * 用户在 DSH 客户端左侧「设置」中可看到「Ops」选项卡，可配置和测试 Injoys/BrowserOS MCP 连接；
+  * Agent 能在会话中根据知识库中的产品特性，一键在 Injoys 中生成一张格式规范的发布排期表与公众号初稿。
      * `ops_draft_article`：撰写微信公众号深度图文，落地为 Injoys 文档；
      * `ops_draft_video_meta`：解析本地视频文件信息，生成 3 套标题、标签、简介；
   4. 编写针对 Injoys MCP 的单元测试与协议 Mock。

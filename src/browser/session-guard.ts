@@ -1,9 +1,13 @@
 /**
  * Session Guard for detecting platform login states and guiding authentication.
+ * Supports inspecting host browser cookies and dynamic runtime URL gate detection.
  * @module @deepseek-ai/dsh-ops-manager/browser/session-guard
  */
 
-import type { PlatformId } from '../types.js'
+import { copyFileSync, unlinkSync, existsSync } from 'node:fs'
+import { tmpdir, homedir } from 'node:os'
+import { join } from 'node:path'
+import type { PlatformId, ContentKind } from '../types.js'
 
 export interface PlatformLoginCheckConfig {
   readonly checkUrl: string
@@ -63,6 +67,55 @@ export const PLATFORM_LOGIN_CONFIGS: Record<PlatformId, PlatformLoginCheckConfig
   },
 }
 
+export interface PlatformCookieRule {
+  readonly domain: string
+  readonly cookieNames: readonly string[]
+  readonly friendlyName: string
+}
+
+export const PLATFORM_COOKIE_RULES: Record<PlatformId, PlatformCookieRule> = {
+  wechat_mp: {
+    domain: 'mp.weixin.qq.com',
+    cookieNames: ['data_ticket', 'slave_sid', 'bizuin', 'data_bizuin'],
+    friendlyName: '微信公众号后台',
+  },
+  wechat_channels: {
+    domain: 'channels.weixin.qq.com',
+    cookieNames: ['sessionid', 'wxuin'],
+    friendlyName: '微信视频号助手',
+  },
+  bilibili: {
+    domain: 'bilibili.com',
+    cookieNames: ['SESSDATA'],
+    friendlyName: '哔哩哔哩创作中心',
+  },
+  douyin: {
+    domain: 'douyin.com',
+    cookieNames: ['sessionid', 'sessionid_ss', 'passport_assist_user'],
+    friendlyName: '抖音创作者服务平台',
+  },
+  youtube: {
+    domain: 'youtube.com',
+    cookieNames: ['LOGIN_INFO', 'SAPISID', 'SID'],
+    friendlyName: 'YouTube Studio',
+  },
+  twitter_x: {
+    domain: 'x.com',
+    cookieNames: ['auth_token'],
+    friendlyName: 'X (Twitter)',
+  },
+  product_hunt: {
+    domain: 'producthunt.com',
+    cookieNames: ['_producthunt_session', 'remember_token'],
+    friendlyName: 'Product Hunt',
+  },
+  tiktok: {
+    domain: 'tiktok.com',
+    cookieNames: ['sessionid', 'sessionid_ss'],
+    friendlyName: 'TikTok 创作者中心',
+  },
+}
+
 export interface SessionStatus {
   platform: PlatformId
   loggedIn: boolean
@@ -76,7 +129,113 @@ export interface SessionStatus {
  */
 export class SessionGuard {
   /**
-   * Evaluate whether a URL and title indicates an active logged-in session.
+   * Find candidate host browser cookies SQLite path.
+   */
+  findHostBrowserCookiesPath(): string | null {
+    const candidates: string[] = []
+    const home = homedir()
+
+    // Linux Chrome & Chromium variants
+    candidates.push(
+      join(home, '.config/google-chrome/Default/Cookies'),
+      join(home, '.config/google-chrome/Profile 1/Cookies'),
+      join(home, '.config/chromium/Default/Cookies'),
+      join(home, '.config/browseros/Default/Cookies'),
+      join(home, '.config/microsoft-edge/Default/Cookies'),
+      join(home, '.config/BraveSoftware/Brave-Browser/Default/Cookies'),
+    )
+
+    // macOS
+    candidates.push(
+      join(home, 'Library/Application Support/Google/Chrome/Default/Cookies'),
+      join(home, 'Library/Application Support/Chromium/Default/Cookies'),
+      join(home, 'Library/Application Support/BrowserOS/Default/Cookies'),
+    )
+
+    // Windows
+    if (process.env.LOCALAPPDATA) {
+      candidates.push(
+        join(process.env.LOCALAPPDATA, 'Google/Chrome/User Data/Default/Network/Cookies'),
+        join(process.env.LOCALAPPDATA, 'Google/Chrome/User Data/Default/Cookies'),
+        join(process.env.LOCALAPPDATA, 'Microsoft/Edge/User Data/Default/Network/Cookies'),
+      )
+    }
+
+    return candidates.find(p => existsSync(p)) ?? null
+  }
+
+  /**
+   * Check real host browser session for all platforms by reading host browser cookies.
+   */
+  async checkAllRealSessions(
+    platforms: Array<{ id: PlatformId; name: string; kind: ContentKind; draftEditorUrl: string }>,
+  ): Promise<
+    Array<{
+      id: PlatformId
+      name: string
+      kind: ContentKind
+      draftEditorUrl: string
+      loggedIn: boolean
+      scanRequired: boolean
+      message: string
+    }>
+  > {
+    const cookiePath = this.findHostBrowserCookiesPath()
+    const detectedLoginMap = new Map<PlatformId, boolean>()
+
+    if (cookiePath) {
+      const tmp = join(tmpdir(), `dsh-cookies-${Date.now()}-${Math.random().toString(36).slice(2)}.db`)
+      try {
+        copyFileSync(cookiePath, tmp)
+        const { DatabaseSync } = (await import('node:sqlite')) as any
+        const db = new DatabaseSync(tmp, { readOnly: true })
+        const query = db.prepare('SELECT host_key, name FROM cookies WHERE host_key LIKE ?')
+
+        for (const [id, rule] of Object.entries(PLATFORM_COOKIE_RULES) as Array<[PlatformId, PlatformCookieRule]>) {
+          try {
+            const rows = query.all(`%${rule.domain}%`) as Array<{ host_key: string; name: string }>
+            const cookieNames = new Set(rows.map(r => r.name))
+            const isLoggedIn = rule.cookieNames.some(name => cookieNames.has(name))
+            detectedLoginMap.set(id, isLoggedIn)
+          } catch {
+            detectedLoginMap.set(id, false)
+          }
+        }
+        db.close()
+      } catch {
+        // Fallback if sqlite cannot be read
+      } finally {
+        try {
+          unlinkSync(tmp)
+        } catch {
+          // ignore
+        }
+      }
+    }
+
+    return platforms.map(p => {
+      const isKnown = detectedLoginMap.has(p.id)
+      const loggedIn = detectedLoginMap.get(p.id) ?? false
+      const message = loggedIn
+        ? '已在日常浏览器中登录 (就绪)'
+        : isKnown
+          ? '未检测到登录状态，请在浏览器中完成登录'
+          : '未检测到浏览器会话'
+
+      return {
+        id: p.id,
+        name: p.name,
+        kind: p.kind,
+        draftEditorUrl: p.draftEditorUrl,
+        loggedIn,
+        scanRequired: !loggedIn,
+        message,
+      }
+    })
+  }
+
+  /**
+   * Evaluate whether a runtime URL indicates an active logged-in session.
    */
   evaluateState(platform: PlatformId, currentUrl: string): SessionStatus {
     const config = PLATFORM_LOGIN_CONFIGS[platform]

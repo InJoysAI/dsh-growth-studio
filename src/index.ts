@@ -7,6 +7,8 @@ import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { InjoysClient } from './injoys/client.js'
 import { AdapterRegistry } from './adapters/registry.js'
+import { ConfigStore } from './config-store.js'
+import { registerOpsRpc } from './ops-rpc.js'
 import { createOpsTools } from './tools/index.js'
 
 export const name = 'ops-manager'
@@ -17,22 +19,40 @@ export interface Config {
   defaultProduct?: string
   /** Whether to reuse the host local browser profile for BrowserOS sessions */
   reuseHostBrowserProfile?: boolean
+  /** Injoys MCP connection settings */
+  injoys?: {
+    endpoint?: string
+    token?: string
+  }
+  /** Auto-sync operations results to Injoys sheets and docs */
+  autoSyncToInjoys?: boolean
 }
 
 export const Config: z<Config> = z.object({
   defaultProduct: z.string().default('DeepSeek Harness'),
   reuseHostBrowserProfile: z.boolean().default(true),
+  injoys: z.object({
+    endpoint: z.string().default('http://127.0.0.1:17688/mcp'),
+    token: z.string().default('SP4YowBGMpPJKiW1bUu2gfprMjL_BjqsX18JvV_9v9Y'),
+  }).default({}),
+  autoSyncToInjoys: z.boolean().default(true),
 })
 
 /**
  * Apply the Ops Manager plugin into the Cordis lifecycle.
  * Registers tools, connects to Injoys and BrowserOS MCP adapters,
- * and contributes prompt guidance to the model.
+ * registers Ops management settings RPC, and contributes prompt guidance to the model.
  */
 export function apply(ctx: Context, config: Config): void {
-  const defaultProduct = config.defaultProduct ?? 'DeepSeek Harness'
-  const injoys = new InjoysClient()
+  const configStore = new ConfigStore(ctx, config)
+  const currentConfig = configStore.load()
+  const defaultProduct = currentConfig.defaultProduct ?? 'DeepSeek Harness'
+  const injoys = new InjoysClient(currentConfig.injoys)
   const adapters = new AdapterRegistry()
+
+  ctx.inject(['connection'], (connectionCtx) => {
+    registerOpsRpc(connectionCtx, configStore, injoys, adapters)
+  })
 
   ctx.systemPrompt.section({
     name: 'tool:ops-manager',
@@ -58,6 +78,9 @@ export function apply(ctx: Context, config: Config): void {
     ctx.tools.register(tool)
   }
 }
+
+export * from './config-store.js'
+export * from './ops-rpc.js'
 
 export * from './types.js'
 export * from './injoys/client.js'

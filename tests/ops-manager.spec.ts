@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, beforeEach, afterEach } from 'vitest'
 import { InjoysClient } from '../src/injoys/client.js'
 import { AdapterRegistry } from '../src/adapters/registry.js'
 import { SessionGuard } from '../src/browser/session-guard.js'
@@ -573,4 +573,152 @@ describe('Ops Manager (Stage 4: Overseas Expansion & Multi-Language)', () => {
     const phComment = comments.find(c => c.platform === 'product_hunt')
     expect(phComment?.content).toContain('launch')
   })
+
+  describe('Ops Settings & RPC Management', () => {
+    const originalDshHome = process.env.DSH_HOME
+    beforeEach(async () => {
+      const { tmpdir } = await import('node:os')
+      const { join } = await import('node:path')
+      process.env.DSH_HOME = join(tmpdir(), `dsh-ops-test-${Date.now()}-${Math.random().toString(36).slice(2)}`)
+    })
+
+    afterEach(() => {
+      if (originalDshHome !== undefined) {
+        process.env.DSH_HOME = originalDshHome
+      } else {
+        delete process.env.DSH_HOME
+      }
+    })
+
+    it('manages configuration lifecycle via ConfigStore', async () => {
+      const { ConfigStore } = await import('../src/config-store.js')
+      const store = new ConfigStore(undefined, {
+        defaultProduct: 'Custom Product',
+        injoys: {
+          endpoint: 'http://127.0.0.1:20000/mcp',
+          token: 'custom-token',
+        },
+      })
+
+      const loaded = store.load()
+      expect(loaded.defaultProduct).toBe('Custom Product')
+      expect(loaded.injoys.endpoint).toBe('http://127.0.0.1:20000/mcp')
+      expect(loaded.injoys.token).toBe('custom-token')
+
+      await store.save({
+        defaultProduct: 'Updated Product',
+        reuseHostBrowserProfile: false,
+      })
+
+      const after = store.load()
+      expect(after.defaultProduct).toBe('Updated Product')
+      expect(after.reuseHostBrowserProfile).toBe(false)
+    })
+
+    it('dynamically updates InjoysClient configuration', () => {
+      const client = new InjoysClient({
+        endpoint: 'http://localhost:1111/mcp',
+        token: 'token-a',
+      })
+      expect(client.getConfig()).toEqual({
+        endpoint: 'http://localhost:1111/mcp',
+        token: 'token-a',
+      })
+
+      client.updateConfig({
+        endpoint: 'http://localhost:2222/mcp',
+        token: 'token-b',
+      })
+      expect(client.getConfig()).toEqual({
+        endpoint: 'http://localhost:2222/mcp',
+        token: 'token-b',
+      })
+    })
+
+    it('handles Ops RPC requests through registerOpsRpc', async () => {
+      const { ConfigStore } = await import('../src/config-store.js')
+      const { registerOpsRpc, OPS_API_PATH, OPS_ENDPOINT } = await import('../src/ops-rpc.js')
+      const store = new ConfigStore(undefined)
+      const injoys = new InjoysClient()
+      const adapters = new AdapterRegistry()
+
+      let registeredHandler: ((req: Request) => Promise<Response>) | undefined
+      const mockCtx: any = {
+        connection: {
+          fetch: {
+            register(opts: any) {
+              if (opts.path === OPS_API_PATH) {
+                registeredHandler = opts.fetch
+              }
+            },
+          },
+        },
+      }
+
+      registerOpsRpc(mockCtx, store, injoys, adapters)
+      expect(registeredHandler).toBeDefined()
+
+      // Test config.get
+      const reqGet = new Request('http://localhost/api/ops', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'client-request',
+          rpcId: 'req-1',
+          method: OPS_ENDPOINT,
+          payload: { method: 'config.get', payload: {} },
+        }),
+      })
+
+      const resGet = await registeredHandler!(reqGet)
+      const dataGet = (await resGet.json()) as any
+      expect(dataGet.type).toBe('server-response')
+      expect(dataGet.result.ok).toBe(true)
+      expect(dataGet.result.value.defaultProduct).toBe('DeepSeek Harness')
+
+      // Test config.save
+      const reqSave = new Request('http://localhost/api/ops', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'client-request',
+          rpcId: 'req-2',
+          method: OPS_ENDPOINT,
+          payload: {
+            method: 'config.save',
+            payload: {
+              defaultProduct: 'Brand New Product',
+              injoys: { endpoint: 'http://127.0.0.1:33333/mcp', token: 'new-token' },
+            },
+          },
+        }),
+      })
+
+      const resSave = await registeredHandler!(reqSave)
+      const dataSave = (await resSave.json()) as any
+      expect(dataSave.type).toBe('server-response')
+      expect(dataSave.result.ok).toBe(true)
+      expect(store.load().defaultProduct).toBe('Brand New Product')
+      expect(injoys.getConfig().endpoint).toBe('http://127.0.0.1:33333/mcp')
+
+      // Test browser.sessions
+      const reqSessions = new Request('http://localhost/api/ops', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'client-request',
+          rpcId: 'req-3',
+          method: OPS_ENDPOINT,
+          payload: { method: 'browser.sessions', payload: {} },
+        }),
+      })
+
+      const resSessions = await registeredHandler!(reqSessions)
+      const dataSessions = (await resSessions.json()) as any
+      expect(dataSessions.type).toBe('server-response')
+      expect(dataSessions.result.ok).toBe(true)
+      expect(dataSessions.result.value.statuses.length).toBeGreaterThanOrEqual(4)
+    })
+  })
 })
+

@@ -24,12 +24,102 @@ export interface InjoysClientConfig {
  * calendar table synchronization, and draft document archiving.
  */
 export class InjoysClient {
-  private readonly endpoint: string
-  private readonly token: string
+  private endpoint: string
+  private token: string
 
   constructor(config: InjoysClientConfig = {}) {
-    this.endpoint = config.endpoint ?? 'http://127.0.0.1:17688/mcp'
-    this.token = config.token ?? 'SP4YowBGMpPJKiW1bUu2gfprMjL_BjqsX18JvV_9v9Y'
+    this.endpoint =
+      config.endpoint ?? process.env.INJOYS_MCP_ENDPOINT ?? 'http://127.0.0.1:17688/mcp'
+    this.token =
+      config.token ??
+      process.env.INJOYS_MCP_TOKEN ??
+      'SP4YowBGMpPJKiW1bUu2gfprMjL_BjqsX18JvV_9v9Y'
+  }
+
+  /**
+   * Dynamically update endpoint and token at runtime.
+   */
+  updateConfig(config: InjoysClientConfig): void {
+    if (config.endpoint !== undefined) this.endpoint = config.endpoint
+    if (config.token !== undefined) this.token = config.token
+  }
+
+  /**
+   * Get current active endpoint and token.
+   */
+  getConfig(): InjoysClientConfig {
+    return {
+      endpoint: this.endpoint,
+      token: this.token,
+    }
+  }
+
+  /**
+   * Test connection to Injoys MCP server with latency and status diagnostics.
+   */
+  async testConnection(): Promise<{ ok: boolean; latencyMs: number; message: string }> {
+    const startTime = Date.now()
+    try {
+      const res = await fetch(this.endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json, text/event-stream',
+          'Authorization': `Bearer ${this.token}`,
+        },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: Date.now(),
+          method: 'tools/call',
+          params: {
+            name: 'knowledge.list',
+            arguments: { offset: 0, limit: 1 },
+          },
+        }),
+      })
+
+      const latencyMs = Date.now() - startTime
+      if (res.status === 401 || res.status === 403) {
+        return {
+          ok: false,
+          latencyMs,
+          message: `认证失败 (HTTP ${res.status}): Bearer Token 无效或未授权`,
+        }
+      }
+      if (!res.ok) {
+        return {
+          ok: false,
+          latencyMs,
+          message: `服务端响应错误 (HTTP ${res.status})`,
+        }
+      }
+
+      const data = (await res.json()) as {
+        result?: { structuredContent?: { total?: number } }
+        error?: { message?: string }
+      }
+      if (data.error) {
+        return {
+          ok: false,
+          latencyMs,
+          message: `Injoys 接口报错: ${data.error.message ?? '未知错误'}`,
+        }
+      }
+
+      const totalDocs = data?.result?.structuredContent?.total ?? 0
+      return {
+        ok: true,
+        latencyMs,
+        message: `连接成功 (延迟 ${latencyMs}ms，知识库文档数: ${totalDocs})`,
+      }
+    } catch (err: any) {
+      const latencyMs = Date.now() - startTime
+      return {
+        ok: false,
+        latencyMs,
+        message: err?.message || '无法连接到 Injoys 服务，请检查服务地址与端口',
+      }
+    }
   }
 
   /**
