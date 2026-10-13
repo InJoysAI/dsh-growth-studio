@@ -137,7 +137,7 @@ export function OpsPage({ close, rpcCall }) {
         React.createElement(
           'h2',
           { className: 'dim-ops-title' },
-          'Growth Studio 增长工坊配置',
+          '增长工坊配置',
           React.createElement('span', { className: 'dim-ops-title-badge' }, 'Growth Studio'),
         ),
         React.createElement(
@@ -175,24 +175,24 @@ export function OpsPage({ close, rpcCall }) {
 
     // Notice banner
     notice &&
+    React.createElement(
+      'div',
+      { style: { padding: '10px 24px 0 24px' } },
       React.createElement(
         'div',
-        { style: { padding: '10px 24px 0 24px' } },
+        { className: 'dim-ops-notice', 'data-kind': notice.kind },
+        React.createElement('span', null, notice.text),
         React.createElement(
-          'div',
-          { className: 'dim-ops-notice', 'data-kind': notice.kind },
-          React.createElement('span', null, notice.text),
-          React.createElement(
-            'button',
-            {
-              className: 'dim-ops-input-btn',
-              style: { position: 'static' },
-              onClick: () => setNotice(null),
-            },
-            '关闭',
-          ),
+          'button',
+          {
+            className: 'dim-ops-input-btn',
+            style: { position: 'static' },
+            onClick: () => setNotice(null),
+          },
+          '关闭',
         ),
       ),
+    ),
 
     // Body
     React.createElement(
@@ -213,15 +213,15 @@ export function OpsPage({ close, rpcCall }) {
             'Injoys MCP 服务端配置（资产与知识库中枢）',
           ),
           injoysTestResult &&
-            React.createElement(
-              'span',
-              {
-                className: 'dim-ops-platform-status',
-                'data-status': injoysTestResult.connected ? 'ok' : 'scan',
-              },
-              injoysTestResult.connected ? '✓ ' : '✕ ',
-              injoysTestResult.message,
-            ),
+          React.createElement(
+            'span',
+            {
+              className: 'dim-ops-platform-status',
+              'data-status': injoysTestResult.connected ? 'ok' : 'scan',
+            },
+            injoysTestResult.connected ? '✓ ' : '✕ ',
+            injoysTestResult.message,
+          ),
         ),
         React.createElement(
           'div',
@@ -379,17 +379,17 @@ export function OpsPage({ close, rpcCall }) {
                   'div',
                   { className: 'dim-ops-platform-actions' },
                   !p.loggedIn &&
-                    React.createElement(
-                      'a',
-                      {
-                        className: 'dim-ops-login-link',
-                        href: p.draftEditorUrl,
-                        target: '_blank',
-                        rel: 'noopener noreferrer',
-                        title: '在浏览器中打开此平台登录页面',
-                      },
-                      '去登录 ↗',
-                    ),
+                  React.createElement(
+                    'a',
+                    {
+                      className: 'dim-ops-login-link',
+                      href: p.draftEditorUrl,
+                      target: '_blank',
+                      rel: 'noopener noreferrer',
+                      title: '在浏览器中打开此平台登录页面',
+                    },
+                    '去登录 ↗',
+                  ),
                   React.createElement(
                     'span',
                     {
