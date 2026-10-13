@@ -153,16 +153,6 @@ export function OpsPage({ close, rpcCall }) {
           'button',
           {
             className: 'dim-ops-btn',
-            type: 'button',
-            onClick: handleTestInjoys,
-            disabled: testingInjoys || loading,
-          },
-          testingInjoys ? '正在测试...' : '测试 Injoys 连通性',
-        ),
-        React.createElement(
-          'button',
-          {
-            className: 'dim-ops-btn',
             'data-variant': 'primary',
             type: 'button',
             onClick: handleSave,
@@ -212,15 +202,30 @@ export function OpsPage({ close, rpcCall }) {
             React.createElement('span', { className: 'dim-ops-card-icon' }, '📦'),
             'Injoys MCP 服务端配置（资产与知识库中枢）',
           ),
-          injoysTestResult &&
           React.createElement(
-            'span',
-            {
-              className: 'dim-ops-platform-status',
-              'data-status': injoysTestResult.connected ? 'ok' : 'scan',
-            },
-            injoysTestResult.connected ? '✓ ' : '✕ ',
-            injoysTestResult.message,
+            'div',
+            { style: { display: 'flex', alignItems: 'center', gap: '8px' } },
+            injoysTestResult &&
+            React.createElement(
+              'span',
+              {
+                className: 'dim-ops-platform-status',
+                'data-status': injoysTestResult.connected ? 'ok' : 'scan',
+              },
+              injoysTestResult.connected ? '✓ ' : '✕ ',
+              injoysTestResult.message,
+            ),
+            React.createElement(
+              'button',
+              {
+                className: 'dim-ops-btn',
+                style: { height: '26px', fontSize: '11px', padding: '0 8px' },
+                type: 'button',
+                onClick: handleTestInjoys,
+                disabled: testingInjoys || loading,
+              },
+              testingInjoys ? '测试中...' : '测试连通性',
+            ),
           ),
         ),
         React.createElement(
