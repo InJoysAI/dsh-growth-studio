@@ -12,6 +12,7 @@ import { BrowserDriver, type BrowserOsMcpClient } from './browser/browser-driver
 import { DraftStore, DraftConcurrencyError } from './storage/draft-store.js'
 import { MetricsCollector } from './analytics/metrics-collector.js'
 import type { PlatformId } from './types.js'
+import type { AdapterContext, ArticlePayload, VideoPayload } from './adapters/base.js'
 
 export const OPS_ENDPOINT = 'ops'
 export const OPS_API_PATH = '/api/ops'
@@ -422,19 +423,68 @@ export function registerOpsRpc(
               break
             }
 
-            const variant = draft.channelVariants.find(v => v.platform === platform)
-            const targetUrl = adapters.get(platform)?.draftEditorUrl ?? 'https://mp.weixin.qq.com'
+            const adapter = adapters.get(platform)
+            if (!adapter) {
+              result = {
+                ok: false,
+                error: {
+                  code: 'ops/platform-unsupported',
+                  message: `不支持或未配置的平台: ${platform}`,
+                },
+              }
+              break
+            }
 
-            const prefillRes = await browserDriver.planPrefillWorkflow({
-              platform,
-              targetUrl,
-              fields: {
-                title: variant?.title ?? draft.title,
-                content: variant?.body ?? '',
-                description: variant?.body ?? '',
-              },
-              requiredFields: ['title', ...(variant?.body ? ['content'] : [])],
-            })
+            const variant = draft.channelVariants.find(v => v.platform === platform)
+            if (!variant) {
+              result = {
+                ok: false,
+                error: {
+                  code: 'ops/variant-not-found',
+                  message: `草稿未包含平台 [${platform}] 的发布变体，请先生成或配置变体`,
+                },
+              }
+              break
+            }
+
+            const hasTitle = Boolean(variant.title?.trim())
+            const hasBody = Boolean(variant.body?.trim())
+            if (!hasTitle || !hasBody) {
+              const bodyName = adapter.kind === 'video' ? '简介/描述' : '正文'
+              result = {
+                ok: false,
+                error: {
+                  code: 'ops/material-incomplete',
+                  message: `平台 [${platform}] 变体缺少必要物料（${!hasTitle ? '标题' : ''}${!hasTitle && !hasBody ? '与' : ''}${!hasBody ? bodyName : ''}不能为空）`,
+                },
+              }
+              break
+            }
+
+            const adapterCtx: AdapterContext = {
+              reuseHostProfile: false,
+            }
+
+            let prefillPayload: ArticlePayload | VideoPayload
+            if (adapter.kind === 'video') {
+              prefillPayload = {
+                title: variant.title,
+                description: variant.body,
+                tags: variant.tags ?? [],
+                localVideoPath: variant.mediaPaths?.[0] ?? '',
+                coverPath: variant.coverPath,
+              }
+            } else {
+              prefillPayload = {
+                title: variant.title,
+                digest: variant.body.slice(0, 100),
+                contentMarkdown: variant.body,
+                suggestedTags: variant.tags ?? [],
+                coverPath: variant.coverPath,
+              }
+            }
+
+            const prefillRes = await adapter.prefillDraft(adapterCtx, prefillPayload)
 
             // Only persist prefill results when prefill succeeded
             if (prefillRes.success) {

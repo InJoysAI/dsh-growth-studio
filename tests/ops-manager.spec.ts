@@ -941,6 +941,85 @@ describe('Ops Manager (Stage 4: Overseas Expansion & Multi-Language)', () => {
       expect(dataPrefill.result.value.success).toBe(true)
       expect(dataPrefill.result.value.message).toContain('草稿箱')
 
+      // Test workbench.prefillDraft for bilibili (video adapter routing)
+      const reqPrefillBili = new Request('http://localhost/api/ops', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'client-request',
+          rpcId: 'req-8-bili',
+          method: OPS_ENDPOINT,
+          payload: {
+            method: 'workbench.prefillDraft',
+            payload: {
+              draftId: savedDraftId,
+              platform: 'bilibili',
+            },
+          },
+        }),
+      })
+      const resPrefillBili = await registeredHandler!(reqPrefillBili)
+      const dataPrefillBili = (await resPrefillBili.json()) as any
+      expect(dataPrefillBili.result.ok).toBe(true)
+      expect(dataPrefillBili.result.value.success).toBe(true)
+
+      // Test workbench.prefillDraft rejection on missing platform variant
+      const reqPrefillMissing = new Request('http://localhost/api/ops', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'client-request',
+          rpcId: 'req-8-missing',
+          method: OPS_ENDPOINT,
+          payload: {
+            method: 'workbench.prefillDraft',
+            payload: {
+              draftId: savedDraftId,
+              platform: 'youtube', // draft has no youtube variant
+            },
+          },
+        }),
+      })
+      const resPrefillMissing = await registeredHandler!(reqPrefillMissing)
+      const dataPrefillMissing = (await resPrefillMissing.json()) as any
+      expect(dataPrefillMissing.result.ok).toBe(false)
+      expect(dataPrefillMissing.result.error.code).toBe('ops/variant-not-found')
+
+      // Test workbench.prefillDraft rejection on incomplete materials (empty body)
+      const savedIncomplete = await draftStore.saveDraft({
+        id: 'draft-incomplete-materials',
+        title: '缺少正文的草稿',
+        channelVariants: [
+          {
+            platform: 'wechat_mp',
+            kind: 'article',
+            title: '有标题但无正文',
+            body: '   ', // empty body
+            tags: [],
+          },
+        ],
+      })
+      const reqPrefillIncomplete = new Request('http://localhost/api/ops', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'client-request',
+          rpcId: 'req-8-incomplete',
+          method: OPS_ENDPOINT,
+          payload: {
+            method: 'workbench.prefillDraft',
+            payload: {
+              draftId: savedIncomplete.id,
+              platform: 'wechat_mp',
+            },
+          },
+        }),
+      })
+      const resPrefillIncomplete = await registeredHandler!(reqPrefillIncomplete)
+      const dataPrefillIncomplete = (await resPrefillIncomplete.json()) as any
+      expect(dataPrefillIncomplete.result.ok).toBe(false)
+      expect(dataPrefillIncomplete.result.error.code).toBe('ops/material-incomplete')
+
       // Test workbench.generateArticleDraft (AI generation connected to DraftStore)
       const reqGen = new Request('http://localhost/api/ops', {
         method: 'POST',
@@ -1291,6 +1370,142 @@ describe('Ops Manager (Stage 4: Overseas Expansion & Multi-Language)', () => {
         expect(appendOps.length).toBe(1)
         expect(updateOps.length).toBe(1)
         expect(executedOperations.length).toBe(2)
+      } finally {
+        globalThis.fetch = originalFetch
+      }
+    })
+
+    it('invalidates calendar cache when updateConfig switches remote endpoint', async () => {
+      const injoys = new InjoysClient({ endpoint: 'http://service-a/mcp' })
+      const originalFetch = globalThis.fetch
+      const operationsByEndpoint: Record<string, string[]> = {
+        'http://service-a/mcp': [],
+        'http://service-b/mcp': [],
+      }
+
+      globalThis.fetch = (async (url: string, opts: any) => {
+        const body = JSON.parse(opts.body)
+        const toolName = body.params.name
+        if (toolName === 'spreadsheet.read') {
+          return new Response(
+            JSON.stringify({
+              jsonrpc: '2.0',
+              id: body.id,
+              result: { structuredContent: { rows: [] } },
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          )
+        }
+        if (toolName === 'spreadsheet.applyOperations') {
+          const ops = body.params.arguments.operations
+          for (const op of ops) {
+            operationsByEndpoint[url].push(op.type)
+          }
+          return new Response(
+            JSON.stringify({
+              jsonrpc: '2.0',
+              id: body.id,
+              result: { structuredContent: { ok: true, affected: 1 } },
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          )
+        }
+        return new Response('{}', { status: 200 })
+      }) as any
+
+      try {
+        const item = {
+          id: 'cross-service-item',
+          date: '2026-10-15',
+          platform: 'wechat_mp' as const,
+          kind: 'article' as const,
+          topic: '跨服务测试',
+          status: 'planned' as const,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }
+
+        // 1. Sync on Service A -> appendRow
+        await injoys.syncCalendarItem(item)
+        expect(operationsByEndpoint['http://service-a/mcp']).toEqual(['appendRow'])
+
+        // 2. Switch to Service B
+        injoys.updateConfig({ endpoint: 'http://service-b/mcp' })
+
+        // 3. Sync same item on Service B -> must be appendRow, NOT updateRow!
+        await injoys.syncCalendarItem(item)
+        expect(operationsByEndpoint['http://service-b/mcp']).toEqual(['appendRow'])
+      } finally {
+        globalThis.fetch = originalFetch
+      }
+    })
+
+    it('falls back to appendRow if remote updateRow matched 0 rows', async () => {
+      const injoys = new InjoysClient()
+      const originalFetch = globalThis.fetch
+      const executedOps: string[] = []
+
+      globalThis.fetch = (async (_url: string, opts: any) => {
+        const body = JSON.parse(opts.body)
+        const toolName = body.params.name
+        if (toolName === 'spreadsheet.read') {
+          // Pre-populate so client chooses updateRow
+          return new Response(
+            JSON.stringify({
+              jsonrpc: '2.0',
+              id: body.id,
+              result: {
+                structuredContent: {
+                  rows: [['mismatch-row', '2026-10-15', 'wechat_mp', 'article', 'T', 'planned', '', '', '']],
+                },
+              },
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          )
+        }
+        if (toolName === 'spreadsheet.applyOperations') {
+          const ops = body.params.arguments.operations
+          for (const op of ops) {
+            executedOps.push(op.type)
+          }
+          // If updateRow, simulate remote database returning 0 affected rows
+          if (ops[0]?.type === 'updateRow') {
+            return new Response(
+              JSON.stringify({
+                jsonrpc: '2.0',
+                id: body.id,
+                result: { structuredContent: { ok: true, affected: 0 } },
+              }),
+              { status: 200, headers: { 'Content-Type': 'application/json' } },
+            )
+          }
+          return new Response(
+            JSON.stringify({
+              jsonrpc: '2.0',
+              id: body.id,
+              result: { structuredContent: { ok: true, affected: 1 } },
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          )
+        }
+        return new Response('{}', { status: 200 })
+      }) as any
+
+      try {
+        const item = {
+          id: 'mismatch-row',
+          date: '2026-10-15',
+          platform: 'wechat_mp' as const,
+          kind: 'article' as const,
+          topic: '回退测试',
+          status: 'planned' as const,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }
+
+        await injoys.syncCalendarItem(item)
+        // First tried updateRow, matched 0, then issued appendRow fallback!
+        expect(executedOps).toEqual(['updateRow', 'appendRow'])
       } finally {
         globalThis.fetch = originalFetch
       }

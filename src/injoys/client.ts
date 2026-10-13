@@ -27,8 +27,22 @@ export interface InjoysClientConfig {
 export class InjoysClient {
   private endpoint: string
   private token: string
-  private readonly knownCalendarIds = new Set<string>()
+  private readonly targetCalendarCaches = new Map<string, Set<string>>()
   private calendarLock: Promise<unknown> = Promise.resolve()
+
+  private getTargetKey(): string {
+    return `${this.endpoint}::${this.token}`
+  }
+
+  private getKnownCalendarIds(): Set<string> {
+    const key = this.getTargetKey()
+    let set = this.targetCalendarCaches.get(key)
+    if (!set) {
+      set = new Set<string>()
+      this.targetCalendarCaches.set(key, set)
+    }
+    return set
+  }
 
   private async withCalendarLock<T>(fn: () => Promise<T>): Promise<T> {
     let release!: () => void
@@ -57,10 +71,18 @@ export class InjoysClient {
 
   /**
    * Dynamically update endpoint and token at runtime.
+   * Cleans target caches when connection configuration changes to avoid cross-service state pollution.
    */
   updateConfig(config: InjoysClientConfig): void {
+    const oldKey = this.getTargetKey()
     if (config.endpoint !== undefined) this.endpoint = config.endpoint
     if (config.token !== undefined) this.token = config.token
+    const newKey = this.getTargetKey()
+
+    if (oldKey !== newKey) {
+      this.targetCalendarCaches.delete(oldKey)
+      this.targetCalendarCaches.delete(newKey)
+    }
   }
 
   /**
@@ -277,11 +299,13 @@ export class InjoysClient {
         throw new Error(`Injoys 表格写入失败: 校验现有排期失败 (${err?.message ?? '读取服务未响应'})`)
       }
 
+      const knownIds = this.getKnownCalendarIds()
       for (const row of existingRows) {
-        if (row.id) this.knownCalendarIds.add(row.id)
+        if (row.id) knownIds.add(row.id)
       }
 
-      const exists = existingRows.some(r => r.id === item.id) || this.knownCalendarIds.has(item.id)
+      const existsInRemote = existingRows.some(r => r.id === item.id)
+      const exists = existsInRemote || knownIds.has(item.id)
 
       const rowData = [
         item.id,
@@ -314,7 +338,25 @@ export class InjoysClient {
         throw new Error(`Injoys 表格写入失败: 远端服务未响应或操作被拒绝`)
       }
 
-      this.knownCalendarIds.add(item.id)
+      // Verify updateRow actually affected/matched rows; if updateRow matched 0 rows, fallback to appendRow
+      if (operation.type === 'updateRow' && res && typeof res === 'object') {
+        const affected =
+          (res as any).affected ??
+          (res as any).updatedRows ??
+          (res as any).affectedRows ??
+          (res as any).results?.[0]?.affectedRows ??
+          (res as any).results?.[0]?.affected
+        if (affected === 0) {
+          const appendRes = await this.invokeTool('spreadsheet.applyOperations', {
+            operations: [{ type: 'appendRow', data: rowData }],
+          })
+          if (!appendRes) {
+            throw new Error(`Injoys 表格写入失败: 回退追加操作未响应或被拒绝`)
+          }
+        }
+      }
+
+      knownIds.add(item.id)
       return updated
     })
   }
