@@ -175,20 +175,7 @@ export class SessionGuard {
    */
   async checkAllRealSessions(
     platforms: Array<{ id: PlatformId; name: string; kind: ContentKind; draftEditorUrl: string }>,
-  ): Promise<
-    Array<{
-      id: PlatformId
-      name: string
-      kind: ContentKind
-      draftEditorUrl: string
-      loggedIn: boolean
-      state: SessionState
-      isReady: boolean
-      scanRequired: boolean
-      message: string
-      lastCheckedAt: string
-    }>
-  > {
+  ): Promise<PlatformSessionStatus[]> {
     const cookiePath = this.findHostBrowserCookiesPath()
     const detectedLoginMap = new Map<PlatformId, boolean>()
     const now = new Date().toISOString()
@@ -203,7 +190,8 @@ export class SessionGuard {
 
         for (const [id, rule] of Object.entries(PLATFORM_COOKIE_RULES) as Array<[PlatformId, PlatformCookieRule]>) {
           try {
-            const rows = query.all(`%${rule.domain}%`) as Array<{ host_key: string; name: string }>
+            const domainPattern = id === "bilibili" ? "%bilibili%" : `%${rule.domain}%`
+            const rows = query.all(domainPattern) as Array<{ host_key: string; name: string }>
             const cookieNames = new Set(rows.map(r => r.name))
             const isLoggedIn = rule.cookieNames.some(name => cookieNames.has(name))
             detectedLoginMap.set(id, isLoggedIn)
@@ -235,6 +223,7 @@ export class SessionGuard {
 
       return {
         id: p.id,
+        platform: p.id,
         name: p.name,
         kind: p.kind,
         draftEditorUrl: p.draftEditorUrl,
@@ -319,26 +308,31 @@ export class SessionGuard {
 
       if (matchingTab) {
         const evalResult = this.evaluateState(p.id, matchingTab.url)
+        const isReady = evalResult.loggedIn
         return {
+          id: p.id,
           platform: p.id,
           name: p.name,
           kind: p.kind,
-          state: evalResult.state ?? (evalResult.loggedIn ? 'authenticated' : 'needs_login'),
-          isReady: evalResult.loggedIn,
-          scanRequired: evalResult.scanRequired ?? !evalResult.loggedIn,
+          state: evalResult.state ?? (isReady ? 'authenticated' : 'needs_login'),
+          isReady,
+          loggedIn: isReady,
+          scanRequired: evalResult.scanRequired ?? !isReady,
           draftEditorUrl: p.draftEditorUrl,
           lastCheckedAt: now,
-          message: evalResult.guidanceMessage ?? (evalResult.loggedIn ? '就绪' : '需登录'),
+          message: evalResult.guidanceMessage ?? (isReady ? '就绪' : '需登录'),
         }
       }
 
       // Default to unknown if no matching tab exists yet
       return {
+        id: p.id,
         platform: p.id,
         name: p.name,
         kind: p.kind,
         state: 'unknown',
         isReady: false,
+        loggedIn: false,
         scanRequired: true,
         draftEditorUrl: p.draftEditorUrl,
         lastCheckedAt: now,

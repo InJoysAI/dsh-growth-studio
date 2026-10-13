@@ -11,7 +11,7 @@ import { SessionGuard } from './browser/session-guard.js'
 import { BrowserDriver, type BrowserOsMcpClient } from './browser/browser-driver.js'
 import { DraftStore, DraftConcurrencyError } from './storage/draft-store.js'
 import { MetricsCollector } from './analytics/metrics-collector.js'
-import type { PlatformId } from './types.js'
+import type { PlatformId, PlatformSessionStatus } from './types.js'
 import type { AdapterContext, ArticlePayload, VideoPayload } from './adapters/base.js'
 
 export const OPS_ENDPOINT = 'ops'
@@ -147,6 +147,11 @@ export function registerOpsRpc(
           }
 
           case 'browser.sessions': {
+            const currentConfig = configStore.load()
+            const reuseHost = typeof (payload as any).reuseHostBrowserProfile === 'boolean'
+              ? (payload as any).reuseHostBrowserProfile
+              : Boolean(currentConfig.reuseHostBrowserProfile)
+
             let activeTabs: Array<{ url: string }> = []
             if (browserOsClient) {
               try {
@@ -157,14 +162,29 @@ export function registerOpsRpc(
               }
             }
 
-            // Evaluate unified BrowserOS sessions using active tabs
-            const statuses = sessionGuard.checkBrowserSessions(adapters.list(), activeTabs)
+            let statuses: PlatformSessionStatus[]
+            if (reuseHost) {
+              const realStatuses = await sessionGuard.checkAllRealSessions(adapters.list())
+              if (activeTabs.length > 0) {
+                const browserStatuses = sessionGuard.checkBrowserSessions(adapters.list(), activeTabs)
+                const browserStatusMap = new Map(browserStatuses.map(s => [s.platform, s]))
+                statuses = realStatuses.map(rs => {
+                  const bs = browserStatusMap.get(rs.platform)
+                  if (bs && bs.isReady) return bs
+                  return rs
+                })
+              } else {
+                statuses = realStatuses
+              }
+            } else {
+              statuses = sessionGuard.checkBrowserSessions(adapters.list(), activeTabs)
+            }
 
             result = {
               ok: true,
               value: {
                 statuses,
-                reuseHostBrowserProfile: configStore.load().reuseHostBrowserProfile,
+                reuseHostBrowserProfile: reuseHost,
               },
             }
             break

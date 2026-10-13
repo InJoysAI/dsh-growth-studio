@@ -33,11 +33,13 @@ export type SessionState =
 
 /** Platform session status for workbench display. */
 export interface PlatformSessionStatus {
+  id?: PlatformId | undefined
   platform: PlatformId
   name?: string | undefined
   kind?: ContentKind | undefined
   state: SessionState
   isReady: boolean
+  loggedIn?: boolean | undefined
   accountName?: string | undefined
   scanRequired?: boolean | undefined
   draftEditorUrl?: string | undefined

@@ -113,7 +113,7 @@ export function OpsPage({ close, rpcCall }) {
   const handleRefreshSessions = async () => {
     setRefreshingSessions(true)
     try {
-      const res = await rpcCall('browser.sessions', {})
+      const res = await rpcCall('browser.sessions', { reuseHostBrowserProfile: form.reuseHostBrowserProfile })
       if (res?.statuses) {
         setPlatformSessions(res.statuses)
       }
@@ -355,8 +355,15 @@ export function OpsPage({ close, rpcCall }) {
               React.createElement('input', {
                 type: 'checkbox',
                 checked: form.reuseHostBrowserProfile,
-                onChange: (e) =>
-                  setForm({ ...form, reuseHostBrowserProfile: e.target.checked }),
+                onChange: (e) => {
+                  const checked = e.target.checked
+                  setForm({ ...form, reuseHostBrowserProfile: checked })
+                  rpcCall('browser.sessions', { reuseHostBrowserProfile: checked })
+                    .then((res) => {
+                      if (res?.statuses) setPlatformSessions(res.statuses)
+                    })
+                    .catch(() => {})
+                },
               }),
               React.createElement('span', { className: 'dim-ops-toggle-slider' }),
             ),
@@ -365,10 +372,12 @@ export function OpsPage({ close, rpcCall }) {
           React.createElement(
             'div',
             { className: 'dim-ops-platforms-grid' },
-            platformSessions.map((p) =>
-              React.createElement(
+            platformSessions.map((p) => {
+              const platformId = p.id || p.platform
+              const isReady = Boolean(p.isReady || p.loggedIn || p.state === 'authenticated')
+              return React.createElement(
                 'div',
-                { key: p.id, className: 'dim-ops-platform-item' },
+                { key: platformId, className: 'dim-ops-platform-item' },
                 React.createElement(
                   'div',
                   { className: 'dim-ops-platform-name' },
@@ -378,7 +387,7 @@ export function OpsPage({ close, rpcCall }) {
                 React.createElement(
                   'div',
                   { className: 'dim-ops-platform-actions' },
-                  !p.loggedIn &&
+                  !isReady &&
                   React.createElement(
                     'a',
                     {
@@ -387,6 +396,11 @@ export function OpsPage({ close, rpcCall }) {
                       target: '_blank',
                       rel: 'noopener noreferrer',
                       title: '在浏览器中打开此平台登录页面',
+                      onClick: () => {
+                        try {
+                          window.open(p.draftEditorUrl, '_blank')
+                        } catch {}
+                      },
                     },
                     '去登录 ↗',
                   ),
@@ -394,14 +408,18 @@ export function OpsPage({ close, rpcCall }) {
                     'span',
                     {
                       className: 'dim-ops-platform-status',
-                      'data-status': p.loggedIn ? 'ok' : 'scan',
+                      'data-status': isReady ? 'ok' : 'scan',
                       title: p.message || '',
                     },
-                    p.loggedIn ? '✓ 就绪' : '⚠ 需登录',
+                    isReady
+                      ? '✓ 已就绪'
+                      : p.state === 'no_publish_permission'
+                        ? '⚠ 无发布权限'
+                        : '⚠ 需登录',
                   ),
                 ),
-              ),
-            ),
+              )
+            }),
           ),
         ),
       ),
