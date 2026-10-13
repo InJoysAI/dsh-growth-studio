@@ -126,7 +126,7 @@ export function OpsPage({ close, rpcCall }) {
 
   return React.createElement(
     'div',
-    { className: 'dim-ops-page', 'aria-label': 'Ops Manager Settings' },
+    { className: 'dim-ops-page', 'aria-label': 'Growth Studio Settings' },
     // Header
     React.createElement(
       'div',
@@ -137,13 +137,13 @@ export function OpsPage({ close, rpcCall }) {
         React.createElement(
           'h2',
           { className: 'dim-ops-title' },
-          '运营管理配置',
-          React.createElement('span', { className: 'dim-ops-title-badge' }, 'Ops MCP'),
+          'Growth Studio 增长工坊配置',
+          React.createElement('span', { className: 'dim-ops-title-badge' }, 'Growth Studio'),
         ),
         React.createElement(
           'p',
           { className: 'dim-ops-desc' },
-          '配置 Injoys 资产中枢与 BrowserOS 浏览器执行引擎的 MCP 接入参数及运营规则',
+          '配置 Injoys 资产中枢与 BrowserOS 浏览器执行引擎的 MCP 接入参数及增长运营规则',
         ),
       ),
       React.createElement(

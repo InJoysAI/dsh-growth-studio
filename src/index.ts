@@ -1,6 +1,6 @@
 /**
- * Personal Product Operations & Marketing Manager plugin for DeepSeek Harness.
- * @module @deepseek-ai/dsh-ops-manager
+ * Personal Product Growth Marketing & Operations Studio plugin for DeepSeek Harness.
+ * @module @deepseek-ai/dsh-growth-studio
  */
 
 import type { Context } from '@deepseek-ai/cordis'
@@ -11,7 +11,7 @@ import { ConfigStore } from './config-store.js'
 import { registerOpsRpc } from './ops-rpc.js'
 import { createOpsTools } from './tools/index.js'
 
-export const name = 'ops-manager'
+export const name = 'growth-studio'
 export const inject = ['tools', 'systemPrompt']
 
 export interface Config {
@@ -39,7 +39,7 @@ export const Config: z<Config> = z.object({
 })
 
 /**
- * Apply the Ops Manager plugin into the Cordis lifecycle.
+ * Apply the Growth Studio plugin into the Cordis lifecycle.
  * Registers tools, connects to Injoys and BrowserOS MCP adapters,
  * registers Ops management settings RPC, and contributes prompt guidance to the model.
  */
@@ -55,10 +55,10 @@ export function apply(ctx: Context, config: Config): void {
   })
 
   ctx.systemPrompt.section({
-    name: 'tool:ops-manager',
+    name: 'tool:growth-studio',
     order: 350,
     text: [
-      `The ops-manager tools provide marketing and content operations capabilities for ${defaultProduct}.`,
+      `The growth-studio tools provide marketing and content operations capabilities for ${defaultProduct}.`,
       'Use `ops_plan_calendar` to schedule multi-channel releases and sync to Injoys spreadsheets.',
       'Use `ops_draft_article` for WeChat Official Account in-depth copywriting and Injoys documents.',
       'Use `ops_draft_video_meta` for video titles, tags, and chapter timestamps from local finished videos.',

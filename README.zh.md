@@ -1,15 +1,15 @@
 ---
-description: "面向运营推广的 Ops Manager 插件：编排 Injoys 与 BrowserOS MCP，负责产品知识库检索、多渠道排期、公众号与视频草稿预填。"
+description: "面向运营推广与矩阵获客的 Growth Studio 插件：编排 Injoys 与 BrowserOS MCP，负责产品知识库检索、多渠道排期、公众号与视频草稿预填。"
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-ops-manager
+# @deepseek-ai/dsh-growth-studio
 
 中文
 
 ## 概述
 
-`ops-manager` 是专为独立开发者与个人产品打造的闭环运营推广管理插件。它作为 DeepSeek Harness (DSH) 原生 Cordis 插件运行，协调 Injoys MCP 与 BrowserOS MCP，为 Agent 提供面向多平台运营的全套工具集。
+`dsh-growth-studio` (Growth Studio) 是专为独立开发者与个人产品打造的全渠道增长推广智能体工作台插件。它作为 DeepSeek Harness (DSH) 原生 Cordis 插件运行，协调 Injoys MCP 与 BrowserOS MCP，为 Agent 提供面向多平台运营的全套工具集与场景技能工坊。
 
 ## 目录
 

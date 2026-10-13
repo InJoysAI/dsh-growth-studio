@@ -1,10 +1,10 @@
-# 个人产品运营推广工作台（Ops Workbench）技术架构设计说明书
+# 个人产品增长推广工坊（Growth Studio / dsh-growth-studio）技术架构设计说明书
 
 ## 一、 系统架构全景
 
 ### 1.1 分层架构模型
 
-`deepseek-harness-ops-manager` 采用基于 Cordis 的全插件式微内核分层架构，自顶向下由**客户端视图层**、**宿主 RPC 协议网关层**、**业务领域服务层**、**外部 MCP 驱动中台层**及**本地持久化基础设施**构成：
+`dsh-growth-studio` (Growth Studio) 采用基于 Cordis 的全插件式微内核分层架构，自顶向下由**客户端视图层**、**宿主 RPC 协议网关层**、**业务领域服务层**、**外部 MCP 驱动中台层**及**本地持久化基础设施**构成：
 
 ```mermaid
 graph TD

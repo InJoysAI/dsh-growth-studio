@@ -1,7 +1,7 @@
 {
-  "name": "dsh-ops-manager",
+  "name": "dsh-growth-studio",
   "version": "0.2.1-alpha.2",
-  "description": "deepseek-harness plugin: Multi-channel operations & promotion manager for personal products, integrating Injoys & BrowserOS MCP",
+  "description": "deepseek-harness plugin: Growth Studio - Multi-channel operations, content generation & growth marketing agent workbench, integrating Injoys & BrowserOS MCP",
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",

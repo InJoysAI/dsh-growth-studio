@@ -1,15 +1,13 @@
 ---
-description: "面向运营推广的 Ops Manager 插件：编排 Injoys 与 BrowserOS MCP，负责产品知识库检索、多渠道排期、公众号与视频草稿预填。"
+description: "Growth Studio plugin for DeepSeek Harness: Orchestrates Injoys & BrowserOS MCP for knowledge retrieval, cross-platform calendar planning, copy generation, and draft prefilling."
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-ops-manager
+# @deepseek-ai/dsh-growth-studio
 
-中文
+## Overview
 
-## 概述
-
-`ops-manager` 是专为独立开发者与个人产品打造的闭环运营推广管理插件。它作为 DeepSeek Harness (DSH) 原生 Cordis 插件运行，协调 Injoys MCP 与 BrowserOS MCP，为 Agent 提供面向多平台运营的全套工具集。
+`dsh-growth-studio` (Growth Studio) is an all-in-one growth marketing and operations agent workbench plugin built for personal products and indie hackers. Running as a native Cordis plugin in DeepSeek Harness (DSH), it orchestrates Injoys MCP and BrowserOS MCP to provide full-cycle growth tooling and scenario skill studios for AI agents.
 
 ## 目录
 

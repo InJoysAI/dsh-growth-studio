@@ -1,10 +1,10 @@
-# 个人产品运营推广工作台（Ops Workbench）产品需求文档 (PRD)
+# 个人产品增长推广工坊（Growth Studio / dsh-growth-studio）产品需求文档 (PRD)
 
 ## 一、 文档概述
 
 | 文档版本 | 状态 | 编写日期 | 适用系统 |
 | :--- | :--- | :--- | :--- |
-| **v1.0.0** | 评审初稿 (Draft) | 2026-10-13 | DeepSeek Harness (DSH) 桌面端 / Cordis 插件体系 |
+| **v1.0.0** | 评审初稿 (Draft) | 2026-10-13 | DeepSeek Harness (DSH) 桌面端 / Growth Studio 插件体系 |
 
 ---
 
@@ -12,7 +12,7 @@
 
 ### 2.1 现状与痛点
 
-目前 `deepseek-harness-ops-manager` 虽已实现底层 Injoys MCP 与 BrowserOS MCP 驱动及若干 AI 运营工具，但在桌面客户端侧仅体现为一个极简的「配置表单页面」，存在以下显著问题：
+目前 `dsh-growth-studio` (Growth Studio) 虽已实现底层 Injoys MCP 与 BrowserOS MCP 驱动及若干 AI 运营工具，但在桌面客户端侧仅体现为一个极简的「配置表单页面」，存在以下显著问题：
 
 1. **界面吸引力弱，工具属性割裂**：用户只能看到几个表单输入框和简单的状态列表，缺乏运营全局视角与沉浸式操作体验。
 2. **“策-采-编-发-评”全链路割裂**：

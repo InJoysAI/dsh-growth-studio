@@ -6,7 +6,7 @@ import { build } from 'esbuild'
 const sourceDirectory = dirname(fileURLToPath(import.meta.url))
 const packageRoot = resolve(sourceDirectory, '../..')
 const outputPath = resolve(packageRoot, 'lib/client/ops.js')
-const loaderId = 'dsh-ops-manager'
+const loaderId = 'dsh-growth-studio'
 
 const result = await build({
   entryPoints: [resolve(sourceDirectory, 'index.js')],
