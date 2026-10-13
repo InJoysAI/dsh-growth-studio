@@ -43,7 +43,8 @@ export const DEFAULT_OPS_CONFIG: OpsManagerConfig = {
 }
 
 export function resolveDshHome(ctx?: Context): string {
-  const profileHome = (ctx as any)?.profileContext?.home
+  const profileContext = ctx?.get ? ctx.get("profileContext", false) : (ctx as any)?.profileContext
+  const profileHome = profileContext?.home
   if (typeof profileHome === 'string' && profileHome.length > 0) return profileHome
   if (process.env.DSH_HOME && process.env.DSH_HOME.trim().length > 0) return process.env.DSH_HOME.trim()
   return join(homedir(), '.dsh')

@@ -1,3 +1,5 @@
+import { Context } from "@deepseek-ai/cordis"
+import * as GrowthStudio from "../src/index.js"
 import { describe, expect, it, beforeEach, afterEach } from 'vitest'
 import { InjoysClient } from '../src/injoys/client.js'
 import { AdapterRegistry } from '../src/adapters/registry.js'
@@ -1585,7 +1587,68 @@ describe('Ops Manager (Stage 4: Overseas Expansion & Multi-Language)', () => {
       }
     })
   })
+
+  describe("Cordis Plugin Lifecycle & Optional Services", () => {
+    it("activates cleanly into Cordis lifecycle without without inject errors", async () => {
+      const root = new Context()
+      const registeredTools: string[] = []
+      root.provide("tools" as any, {
+        register(tool: any) {
+          registeredTools.push(tool.name)
+        },
+      })
+      root.provide("systemPrompt" as any, {
+        section(_sec: any) {},
+      })
+
+      const fiber = root.plugin(GrowthStudio as any, {})
+      await fiber
+
+      expect(registeredTools).toHaveLength(11)
+      expect(registeredTools).toContain("ops_plan_calendar")
+      expect(registeredTools).toContain("ops_push_drafts")
+    })
+
+    it("bridges browserOsClient from Cordis context when provided", async () => {
+      const root = new Context()
+      root.provide("tools" as any, { register() {} })
+      root.provide("systemPrompt" as any, { section() {} })
+      let toolCalled = ""
+      root.provide("browserOsClient" as any, {
+        callTool: async (tool: string) => {
+          toolCalled = tool
+          return { success: true }
+        },
+      })
+
+      const fiber = root.plugin(GrowthStudio as any, {})
+      await fiber
+      expect(fiber).toBeDefined()
+    })
+
+    it("bridges mcp service when provided and registers RPC endpoints under connection", async () => {
+      const root = new Context()
+      root.provide("tools" as any, { register() {} })
+      root.provide("systemPrompt" as any, { section() {} })
+      root.provide("mcp" as any, {
+        callTool: async () => ({ success: true }),
+      })
+      let registeredRoute: any = null
+      root.provide("connection" as any, {
+        fetch: {
+          register(route: any) {
+            registeredRoute = route
+          },
+        },
+      })
+
+      const fiber = root.plugin(GrowthStudio as any, {})
+      await fiber
+
+      expect(registeredRoute).toBeDefined()
+      expect(registeredRoute.path).toBe("/api/ops")
+      expect(registeredRoute.methods).toContain("POST")
+    })
+  })
+
 })
-
-
-

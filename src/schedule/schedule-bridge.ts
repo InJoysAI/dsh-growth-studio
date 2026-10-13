@@ -74,9 +74,10 @@ export class ScheduleBridge {
     }
 
     // Connect to host ctx.schedule if available and sessionId provided
-    if (this.ctx?.schedule && params.sessionId) {
+    const scheduleService = this.ctx?.get ? this.ctx.get("schedule", false) : (this.ctx as any)?.schedule
+    if (scheduleService && params.sessionId) {
       try {
-        await this.ctx.schedule.create(params.sessionId, {
+        await scheduleService.create(params.sessionId, {
           title,
           prompt,
           cron: {

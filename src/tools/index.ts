@@ -31,7 +31,7 @@ export function createOpsTools(
   metricsCollector?: MetricsCollector,
 ): ToolDefinition[] {
   const actualDraftStore = draftStore ?? new DraftStore(ctx)
-  const isMockMetrics = Boolean((ctx as any)?.mockOffline)
+  const isMockMetrics = Boolean(ctx?.get ? ctx.get("mockOffline", false) : (ctx as any)?.mockOffline)
   const actualMetricsCollector = metricsCollector ?? new MetricsCollector({ mockOffline: isMockMetrics })
   const reviewReporter = new ReviewReporter(injoys)
   const commentsCrawler = new CommentsCrawler()

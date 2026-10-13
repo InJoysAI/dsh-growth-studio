@@ -42,12 +42,12 @@ export function registerOpsRpc(
   draftStore?: DraftStore,
   browserOsClient?: BrowserOsMcpClient,
 ): void {
-  const connection = (ctx as any).connection
+  const connection = ctx?.get ? (ctx.get("connection", false) ?? (ctx as any).connection) : (ctx as any).connection
   if (!connection?.fetch?.register) return
 
   const sessionGuard = new SessionGuard()
   const actualDraftStore = draftStore ?? new DraftStore(ctx)
-  const isDryRunAllowed = Boolean((ctx as any)?.allowDryRun)
+  const isDryRunAllowed = Boolean(ctx?.get ? ctx.get("allowDryRun", false) : (ctx as any)?.allowDryRun)
   const browserDriver = new BrowserDriver(browserOsClient, { allowDryRun: isDryRunAllowed })
   adapters.setBrowserOsClient(browserOsClient, { allowDryRun: isDryRunAllowed })
   const metricsCollector = new MetricsCollector({ browserOsClient })

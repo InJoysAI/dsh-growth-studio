@@ -52,12 +52,20 @@ export function apply(ctx: Context, config: Config): void {
   const injoys = new InjoysClient(currentConfig.injoys)
 
   // Resolve or bridge BrowserOS client from Cordis context if available
+  // Use ctx.get() to safely inspect optional services without triggering Cordis "without inject" errors
+  const rawBrowserOs = ctx.get
+    ? (ctx.get("browserOsClient", false) ?? ctx.get("browseros", false))
+    : undefined
+  const rawMcp = ctx.get
+    ? (ctx.get("mcp", false) ?? ctx.get("mcpHub", false) ?? ctx.get("mcpClient", false))
+    : undefined
+
   const browserOsClient: BrowserOsMcpClient | undefined =
-    (ctx as any).browserOsClient ??
-    ((ctx as any).mcp
+    rawBrowserOs ??
+    (rawMcp && typeof rawMcp.callTool === "function"
       ? {
           callTool: async (tool: string, args: Record<string, unknown> = {}) => {
-            return (ctx as any).mcp.callTool('browseros', tool, args)
+            return rawMcp.callTool("browseros", tool, args)
           },
         }
       : undefined)
