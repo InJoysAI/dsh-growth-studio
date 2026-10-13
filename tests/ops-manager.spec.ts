@@ -1510,7 +1510,82 @@ describe('Ops Manager (Stage 4: Overseas Expansion & Multi-Language)', () => {
         globalThis.fetch = originalFetch
       }
     })
+
+    it('prevents config race conditions during in-flight calendar sync (pins target and serializes updateConfig)', async () => {
+      const injoys = new InjoysClient({ endpoint: 'http://service-a/mcp' })
+      const originalFetch = globalThis.fetch
+      const requestLog: Array<{ url: string; tool: string }> = []
+
+      globalThis.fetch = (async (url: string, opts: any) => {
+        const body = JSON.parse(opts.body)
+        const toolName = body.params.name
+        requestLog.push({ url, tool: toolName })
+
+        if (toolName === 'spreadsheet.read') {
+          // Simulate slow network read on Service A
+          await new Promise(resolve => setTimeout(resolve, 30))
+          return new Response(
+            JSON.stringify({
+              jsonrpc: '2.0',
+              id: body.id,
+              result: { structuredContent: { rows: [] } },
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          )
+        }
+
+        if (toolName === 'spreadsheet.applyOperations') {
+          return new Response(
+            JSON.stringify({
+              jsonrpc: '2.0',
+              id: body.id,
+              result: { structuredContent: { ok: true, affected: 1 } },
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          )
+        }
+
+        return new Response('{}', { status: 200 })
+      }) as any
+
+      try {
+        const item = {
+          id: 'inflight-race-item',
+          date: '2026-10-15',
+          platform: 'wechat_mp' as const,
+          kind: 'article' as const,
+          topic: '竞态防护测试',
+          status: 'planned' as const,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }
+
+        // Start syncing on Service A
+        const syncPromise = injoys.syncCalendarItem(item)
+
+        // While read is in-flight on Service A, attempt to mutate config to Service B
+        await new Promise(resolve => setTimeout(resolve, 5))
+        injoys.updateConfig({ endpoint: 'http://service-b/mcp' })
+
+        await syncPromise
+
+        // Verify that during the in-flight sync, BOTH read and applyOperations went to Service A!
+        expect(requestLog[0]).toEqual({ url: 'http://service-a/mcp', tool: 'spreadsheet.read' })
+        expect(requestLog[1]).toEqual({ url: 'http://service-a/mcp', tool: 'spreadsheet.applyOperations' })
+
+        // Now that in-flight sync is done, config is switched to Service B for subsequent tasks
+        expect(injoys.getConfig().endpoint).toBe('http://service-b/mcp')
+
+        // Subsequent sync cleanly routes to Service B
+        await injoys.syncCalendarItem({ ...item, id: 'next-item-service-b' })
+        expect(requestLog[2]).toEqual({ url: 'http://service-b/mcp', tool: 'spreadsheet.read' })
+        expect(requestLog[3]).toEqual({ url: 'http://service-b/mcp', tool: 'spreadsheet.applyOperations' })
+      } finally {
+        globalThis.fetch = originalFetch
+      }
+    })
   })
 })
+
 
 

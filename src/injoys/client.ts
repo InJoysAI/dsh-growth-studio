@@ -30,12 +30,14 @@ export class InjoysClient {
   private readonly targetCalendarCaches = new Map<string, Set<string>>()
   private calendarLock: Promise<unknown> = Promise.resolve()
 
-  private getTargetKey(): string {
-    return `${this.endpoint}::${this.token}`
+  private getTargetKey(config?: { endpoint: string; token: string }): string {
+    const endpoint = config?.endpoint ?? this.endpoint
+    const token = config?.token ?? this.token
+    return `${endpoint}::${token}`
   }
 
-  private getKnownCalendarIds(): Set<string> {
-    const key = this.getTargetKey()
+  private getKnownCalendarIds(config?: { endpoint: string; token: string }): Set<string> {
+    const key = this.getTargetKey(config)
     let set = this.targetCalendarCaches.get(key)
     if (!set) {
       set = new Set<string>()
@@ -166,14 +168,20 @@ export class InjoysClient {
   /**
    * Invoke a tool directly on the InJoys MCP server via JSON-RPC.
    */
-  async invokeTool(name: string, args: Record<string, unknown>): Promise<unknown> {
+  async invokeTool(
+    name: string,
+    args: Record<string, unknown>,
+    targetConfig?: { endpoint: string; token: string },
+  ): Promise<unknown> {
+    const endpoint = targetConfig?.endpoint ?? this.endpoint
+    const token = targetConfig?.token ?? this.token
     try {
-      const res = await fetch(this.endpoint, {
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json, text/event-stream',
-          'Authorization': `Bearer ${this.token}`,
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
           jsonrpc: '2.0',
@@ -252,8 +260,8 @@ export class InjoysClient {
    * Read existing calendar entries from Injoys Spreadsheet.
    * Throws an Error if spreadsheet.read fails or returns tool error.
    */
-  async listCalendarItems(): Promise<CalendarItem[]> {
-    const res = (await this.invokeTool('spreadsheet.read', {})) as {
+  async listCalendarItems(targetConfig?: { endpoint: string; token: string }): Promise<CalendarItem[]> {
+    const res = (await this.invokeTool('spreadsheet.read', {}, targetConfig)) as {
       rows?: Array<Array<string>>
     } | null
 
@@ -285,6 +293,8 @@ export class InjoysClient {
    */
   async syncCalendarItem(item: CalendarItem): Promise<CalendarItem> {
     return this.withCalendarLock(async () => {
+      // Pin connection target config at the start of this workflow to prevent mid-task mutation
+      const targetConfig = { endpoint: this.endpoint, token: this.token }
       const updatedAt = new Date().toISOString()
       const updated: CalendarItem = {
         ...item,
@@ -294,12 +304,12 @@ export class InjoysClient {
       // Idempotent operation: check if item.id exists to avoid duplicate rows
       let existingRows: CalendarItem[] = []
       try {
-        existingRows = await this.listCalendarItems()
+        existingRows = await this.listCalendarItems(targetConfig)
       } catch (err: any) {
         throw new Error(`Injoys 表格写入失败: 校验现有排期失败 (${err?.message ?? '读取服务未响应'})`)
       }
 
-      const knownIds = this.getKnownCalendarIds()
+      const knownIds = this.getKnownCalendarIds(targetConfig)
       for (const row of existingRows) {
         if (row.id) knownIds.add(row.id)
       }
@@ -330,9 +340,11 @@ export class InjoysClient {
             data: rowData,
           }
 
-      const res = await this.invokeTool('spreadsheet.applyOperations', {
-        operations: [operation],
-      })
+      const res = await this.invokeTool(
+        'spreadsheet.applyOperations',
+        { operations: [operation] },
+        targetConfig,
+      )
 
       if (!res) {
         throw new Error(`Injoys 表格写入失败: 远端服务未响应或操作被拒绝`)
@@ -347,9 +359,11 @@ export class InjoysClient {
           (res as any).results?.[0]?.affectedRows ??
           (res as any).results?.[0]?.affected
         if (affected === 0) {
-          const appendRes = await this.invokeTool('spreadsheet.applyOperations', {
-            operations: [{ type: 'appendRow', data: rowData }],
-          })
+          const appendRes = await this.invokeTool(
+            'spreadsheet.applyOperations',
+            { operations: [{ type: 'appendRow', data: rowData }] },
+            targetConfig,
+          )
           if (!appendRes) {
             throw new Error(`Injoys 表格写入失败: 回退追加操作未响应或被拒绝`)
           }

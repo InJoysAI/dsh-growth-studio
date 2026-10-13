@@ -48,7 +48,7 @@ graph TD
 | **SessionGuard** 会话探测 | `src/browser/session-guard.ts` | 探测 BrowserOS 实例登录态，支持四态流转 | 四态枚举与 Tab 探活逻辑已就绪，待绑定活动 BrowserOS 实例 | 🟡 契约就绪，待 Live 验收 | **Phase 0**（统一BrowserOS） |
 | **MetricsCollector** 指标采集 | `src/analytics/metrics-collector.ts` | 从各平台大屏采集真实指标，区分曝光/播放 | 已重构为严格可空语义（离线返回 null，mock 显式隔离）；各平台大屏真实 DOM 解析器待接入 | 🟡 待实现 | **Phase 0**（公号+B站） |
 | **InjoysClient.listCalendarItems** | `src/injoys/client.ts` | 读取 Injoys 排期表格行 | 已接入 `spreadsheet.read` 远端调用，错误不吞，如实抛出 | 🟢 已实现 | **Phase 0**（表格读取） |
-| **InjoysClient.syncCalendarItem** | `src/injoys/client.ts` | 排期行幂等写入与错误抛出 | 串行写锁 + 目标隔离已知 ID 缓存 + updateRow 命中行数校验兜底，配置切换即失效，杜绝跨服务/并发重复追加 | 🟢 已实现 | **Phase 0**（单向导出） |
+| **InjoysClient.syncCalendarItem** | `src/injoys/client.ts` | 排期行幂等写入与错误抛出 | 串行写锁 + 目标隔离已知 ID 缓存 + 任务期连接配置锁定（防中途热更新割裂读写） + updateRow 命中行数校验兜底 | 🟢 已实现 | **Phase 0**（单向导出） |
 | **InjoysClient.testConnection** | `src/injoys/client.ts` | 连通性测试 | 真实发起 HTTP 请求并校验状态码 | 🟢 已实现 | 基线已就绪 |
 | **InjoysClient.invokeTool** | `src/injoys/client.ts` | 通用 MCP JSON-RPC 调用 | 真实向 MCP 发起请求，严格校验 HTTP 状态与 `result.isError` | 🟢 已实现 | 基线已就绪 |
 | **ContentDraft** 本地持久化 | `src/storage/draft-store.ts` | 草稿实体、平台变体、乐观锁、本地存盘 | 原子写入、串行写锁保护内部回写、`expectedVersion` 并发控制 | 🟢 已实现 | **Phase 0** |
