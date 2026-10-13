@@ -44,11 +44,11 @@ graph TD
 
 | 模块 / 组件 | 源码路径 | 文档规格描述 | 当前代码实际实现 | 状态评级 | 交付阶段 |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **BrowserDriver** 预填编排 | `src/browser/browser-driver.ts` | 编排 BrowserOS 执行真实多字段/附件预填 | 编排管线与断开/失败错误反馈已就绪，未连 BrowserOS 时明确拒绝 | 🟡 契约就绪，待 Live 验收 | **Phase 0**（公号+B站） |
+| **BrowserDriver** 预填编排 | `src/browser/browser-driver.ts` | 编排 BrowserOS 执行真实多字段/附件预填 | 严格导航错误立即终止；逐项校验必要字段（标题/正文/描述缺失直接报错，阻断假成功保存）；仅采纳远端草稿 ID，移除本地假 ID | 🟡 契约就绪，待 Live 验收 | **Phase 0**（公号+B站） |
 | **SessionGuard** 会话探测 | `src/browser/session-guard.ts` | 探测 BrowserOS 实例登录态，支持四态流转 | 四态枚举与 Tab 探活逻辑已就绪，待绑定活动 BrowserOS 实例 | 🟡 契约就绪，待 Live 验收 | **Phase 0**（统一BrowserOS） |
 | **MetricsCollector** 指标采集 | `src/analytics/metrics-collector.ts` | 从各平台大屏采集真实指标，区分曝光/播放 | 已重构为严格可空语义（离线返回 null，mock 显式隔离）；各平台大屏真实 DOM 解析器待接入 | 🟡 待实现 | **Phase 0**（公号+B站） |
 | **InjoysClient.listCalendarItems** | `src/injoys/client.ts` | 读取 Injoys 排期表格行 | 已接入 `spreadsheet.read` 远端调用，错误不吞，如实抛出 | 🟢 已实现 | **Phase 0**（表格读取） |
-| **InjoysClient.syncCalendarItem** | `src/injoys/client.ts` | 排期行幂等写入与错误抛出 | 已接入 `spreadsheet.applyOperations`，带先查后写幂等与失败抛出 | 🟢 已实现 | **Phase 0**（单向导出） |
+| **InjoysClient.syncCalendarItem** | `src/injoys/client.ts` | 排期行幂等写入与错误抛出 | 串行写锁 + 已知 ID 集合双重防护，并发导出不再重复追加 `appendRow` | 🟢 已实现 | **Phase 0**（单向导出） |
 | **InjoysClient.testConnection** | `src/injoys/client.ts` | 连通性测试 | 真实发起 HTTP 请求并校验状态码 | 🟢 已实现 | 基线已就绪 |
 | **InjoysClient.invokeTool** | `src/injoys/client.ts` | 通用 MCP JSON-RPC 调用 | 真实向 MCP 发起请求，严格校验 HTTP 状态与 `result.isError` | 🟢 已实现 | 基线已就绪 |
 | **ContentDraft** 本地持久化 | `src/storage/draft-store.ts` | 草稿实体、平台变体、乐观锁、本地存盘 | 原子写入、串行写锁保护内部回写、`expectedVersion` 并发控制 | 🟢 已实现 | **Phase 0** |

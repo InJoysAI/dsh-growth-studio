@@ -34,6 +34,7 @@ export class WeChatArticleAdapter implements PlatformAdapter {
         content: article.contentMarkdown,
         tags: article.suggestedTags.join(','),
       },
+      requiredFields: ['title', 'content'],
     })
   }
 }
@@ -65,6 +66,7 @@ export abstract class BaseVideoAdapter implements PlatformAdapter {
         description: video.description,
         tags: video.tags.join(','),
       },
+      requiredFields: ['title', 'description'],
     })
   }
 }
@@ -126,6 +128,7 @@ export class TwitterXAdapter implements PlatformAdapter {
         content: isVideo ? payload.description : payload.contentMarkdown,
         tags: isVideo ? payload.tags.join(' ') : payload.suggestedTags.join(' '),
       },
+      requiredFields: ['title', 'content'],
     })
   }
 }
@@ -157,6 +160,7 @@ export class ProductHuntAdapter implements PlatformAdapter {
         description: article.contentMarkdown,
         topics: article.suggestedTags.join(','),
       },
+      requiredFields: ['name', 'description'],
     })
   }
 }

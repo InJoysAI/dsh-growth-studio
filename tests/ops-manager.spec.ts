@@ -1153,6 +1153,149 @@ describe('Ops Manager (Stage 4: Overseas Expansion & Multi-Language)', () => {
       })
       expect(docId).toBeNull()
     })
+
+    it('terminates immediately when navigate returns isError: true without proceeding to fill or save', async () => {
+      const callLog: string[] = []
+      const navFailingClient = {
+        callTool: async (tool: string) => {
+          callLog.push(tool)
+          if (tool === 'navigate') {
+            return { isError: true, message: 'DNS resolution failure' }
+          }
+          return { ok: true }
+        },
+      }
+      const driver = new BrowserDriver(navFailingClient)
+      const res = await driver.planPrefillWorkflow({
+        platform: 'wechat_mp',
+        targetUrl: 'https://mp.weixin.qq.com',
+        fields: { title: '测试', content: '正文' },
+      })
+      expect(res.success).toBe(false)
+      expect(res.message).toContain('导航至')
+      // Did NOT call snapshot, act, or save!
+      expect(callLog).toEqual(['tabs', 'navigate'])
+    })
+
+    it('strictly fails when content/body filling fails even if title and save button would succeed', async () => {
+      const callLog: string[] = []
+      const contentFailingClient = {
+        callTool: async (tool: string, args?: any) => {
+          callLog.push(`${tool}:${args?.kind || ''}`)
+          if (tool === 'act' && args?.kind === 'fill') {
+            if (args.selector?.includes('content')) {
+              return { isError: true, message: '编辑器正文未能定位' }
+            }
+            return { ok: true }
+          }
+          if (tool === 'act' && args?.kind === 'click') {
+            return { ok: true } // Save button would have succeeded
+          }
+          return { ok: true }
+        },
+      }
+      const driver = new BrowserDriver(contentFailingClient)
+      const res = await driver.planPrefillWorkflow({
+        platform: 'wechat_mp',
+        targetUrl: 'https://mp.weixin.qq.com',
+        fields: { title: '测试标题', content: '测试正文' },
+      })
+      expect(res.success).toBe(false)
+      expect(res.message).toContain('必要字段填入失败')
+      // Save button click was NEVER executed
+      expect(callLog.some(c => c.includes('click'))).toBe(false)
+    })
+
+    it('does not generate fake local draftId when remote platform response provides none', async () => {
+      const mockClient = {
+        callTool: async (tool: string) => {
+          if (tool === 'act') return { ok: true } // No draftId returned
+          return { ok: true }
+        },
+      }
+      const driver = new BrowserDriver(mockClient)
+      const res = await driver.planPrefillWorkflow({
+        platform: 'wechat_mp',
+        targetUrl: 'https://mp.weixin.qq.com',
+        fields: { title: '测试标题' },
+      })
+      expect(res.success).toBe(true)
+      expect(res.draftId).toBeUndefined()
+    })
+
+    it('serializes concurrent syncCalendarItem calls to avoid duplicate appendRow', async () => {
+      const injoys = new InjoysClient()
+      const originalFetch = globalThis.fetch
+      const executedOperations: any[] = []
+      let existingSpreadsheetRows: any[] = []
+
+      globalThis.fetch = (async (_url: string, opts: any) => {
+        const body = JSON.parse(opts.body)
+        const toolName = body.params.name
+        if (toolName === 'spreadsheet.read') {
+          return new Response(
+            JSON.stringify({
+              jsonrpc: '2.0',
+              id: body.id,
+              result: {
+                structuredContent: {
+                  rows: existingSpreadsheetRows,
+                },
+              },
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          )
+        }
+        if (toolName === 'spreadsheet.applyOperations') {
+          const ops = body.params.arguments.operations
+          for (const op of ops) {
+            executedOperations.push(op)
+            if (op.type === 'appendRow') {
+              existingSpreadsheetRows.push(op.data)
+            }
+          }
+          return new Response(
+            JSON.stringify({
+              jsonrpc: '2.0',
+              id: body.id,
+              result: { structuredContent: { ok: true } },
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          )
+        }
+        return new Response('{}', { status: 200 })
+      }) as any
+
+      try {
+        const itemToSync = {
+          id: 'concurrent-cal-item-1',
+          date: '2026-10-15',
+          platform: 'wechat_mp' as const,
+          kind: 'article' as const,
+          topic: '并发排期测试',
+          status: 'planned' as const,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }
+
+        // Two simultaneous sync requests with the same item.id
+        await Promise.all([
+          injoys.syncCalendarItem(itemToSync),
+          injoys.syncCalendarItem(itemToSync),
+        ])
+
+        const appendOps = executedOperations.filter(op => op.type === 'appendRow')
+        const updateOps = executedOperations.filter(op => op.type === 'updateRow')
+
+        // Exactly ONE appendRow, the second MUST be updateRow
+        expect(appendOps.length).toBe(1)
+        expect(updateOps.length).toBe(1)
+        expect(executedOperations.length).toBe(2)
+      } finally {
+        globalThis.fetch = originalFetch
+      }
+    })
   })
 })
+
 

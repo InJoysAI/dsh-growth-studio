@@ -27,6 +27,24 @@ export interface InjoysClientConfig {
 export class InjoysClient {
   private endpoint: string
   private token: string
+  private readonly knownCalendarIds = new Set<string>()
+  private calendarLock: Promise<unknown> = Promise.resolve()
+
+  private async withCalendarLock<T>(fn: () => Promise<T>): Promise<T> {
+    let release!: () => void
+    const nextLock = new Promise<void>(resolve => {
+      release = resolve
+    })
+    const prevLock = this.calendarLock
+    this.calendarLock = nextLock
+
+    try {
+      await prevLock.catch(() => {})
+      return await fn()
+    } finally {
+      release()
+    }
+  }
 
   constructor(config: InjoysClientConfig = {}) {
     this.endpoint =
@@ -244,53 +262,61 @@ export class InjoysClient {
    * Throws an Error if the Injoys MCP operation fails.
    */
   async syncCalendarItem(item: CalendarItem): Promise<CalendarItem> {
-    const updatedAt = new Date().toISOString()
-    const updated: CalendarItem = {
-      ...item,
-      updatedAt,
-    }
+    return this.withCalendarLock(async () => {
+      const updatedAt = new Date().toISOString()
+      const updated: CalendarItem = {
+        ...item,
+        updatedAt,
+      }
 
-    // Idempotent operation: check if item.id exists to avoid duplicate rows
-    let existingRows: CalendarItem[] = []
-    try {
-      existingRows = await this.listCalendarItems()
-    } catch (err: any) {
-      throw new Error(`Injoys 表格写入失败: 校验现有排期失败 (${err?.message ?? '读取服务未响应'})`)
-    }
-    const exists = existingRows.some(r => r.id === item.id)
+      // Idempotent operation: check if item.id exists to avoid duplicate rows
+      let existingRows: CalendarItem[] = []
+      try {
+        existingRows = await this.listCalendarItems()
+      } catch (err: any) {
+        throw new Error(`Injoys 表格写入失败: 校验现有排期失败 (${err?.message ?? '读取服务未响应'})`)
+      }
 
-    const rowData = [
-      item.id,
-      item.date,
-      item.platform,
-      item.kind,
-      item.topic,
-      item.status,
-      item.draftUrl ?? '',
-      item.publishedUrl ?? '',
-      updatedAt,
-    ]
+      for (const row of existingRows) {
+        if (row.id) this.knownCalendarIds.add(row.id)
+      }
 
-    const operation = exists
-      ? {
-          type: 'updateRow',
-          condition: { column: 0, value: item.id },
-          data: rowData,
-        }
-      : {
-          type: 'appendRow',
-          data: rowData,
-        }
+      const exists = existingRows.some(r => r.id === item.id) || this.knownCalendarIds.has(item.id)
 
-    const res = await this.invokeTool('spreadsheet.applyOperations', {
-      operations: [operation],
+      const rowData = [
+        item.id,
+        item.date,
+        item.platform,
+        item.kind,
+        item.topic,
+        item.status,
+        item.draftUrl ?? '',
+        item.publishedUrl ?? '',
+        updatedAt,
+      ]
+
+      const operation = exists
+        ? {
+            type: 'updateRow',
+            condition: { column: 0, value: item.id },
+            data: rowData,
+          }
+        : {
+            type: 'appendRow',
+            data: rowData,
+          }
+
+      const res = await this.invokeTool('spreadsheet.applyOperations', {
+        operations: [operation],
+      })
+
+      if (!res) {
+        throw new Error(`Injoys 表格写入失败: 远端服务未响应或操作被拒绝`)
+      }
+
+      this.knownCalendarIds.add(item.id)
+      return updated
     })
-
-    if (!res) {
-      throw new Error(`Injoys 表格写入失败: 远端服务未响应或操作被拒绝`)
-    }
-
-    return updated
   }
 
   /**

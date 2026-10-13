@@ -433,6 +433,7 @@ export function registerOpsRpc(
                 content: variant?.body ?? '',
                 description: variant?.body ?? '',
               },
+              requiredFields: ['title', ...(variant?.body ? ['content'] : [])],
             })
 
             // Only persist prefill results when prefill succeeded
