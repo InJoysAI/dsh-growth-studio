@@ -97,6 +97,25 @@ describe('Ops Manager (Stage 1 & 2)', () => {
     })
     expect(failingRes.success).toBe(false)
     expect(failingRes.message).toContain('网络超时')
+
+    // 4. Driver with save button rejection/isError returns failure honestly (cannot fake success)
+    const rejectSaveClient = {
+      callTool: async (tool: string, args?: any) => {
+        if (tool === 'act' && args?.kind === 'click') {
+          return { isError: true, message: '保存草稿按钮被禁用或权限拒绝' }
+        }
+        return { ok: true }
+      },
+    }
+    const rejectSaveDriver = new BrowserDriver(rejectSaveClient)
+    const rejectRes = await rejectSaveDriver.planPrefillWorkflow({
+      platform: 'bilibili',
+      targetUrl: 'https://member.bilibili.com/platform/upload/video/frame',
+      fields: { title: '测试视频' },
+    })
+    expect(rejectRes.success).toBe(false)
+    expect(rejectRes.message).toContain('保存草稿')
+    expect(rejectRes.requiresUserAction).toBe(true)
   })
 
   it('plans multi-channel marketing calendar via ops_plan_calendar tool', async () => {
@@ -136,6 +155,12 @@ describe('Ops Manager (Stage 1 & 2)', () => {
 
   it('drafts WeChat article and saves to Injoys via ops_draft_article tool', async () => {
     const injoys = new InjoysClient()
+    injoys.invokeTool = async (name: string) => {
+      if (name === 'document.create') {
+        return { document: { documentId: 'injoys_doc_real_456' } }
+      }
+      return null
+    }
     const registry = new AdapterRegistry()
     const tools = createOpsTools(injoys, registry)
     const draftTool = tools.find(t => t.name === 'ops_draft_article')
@@ -160,7 +185,7 @@ describe('Ops Manager (Stage 1 & 2)', () => {
       execContext,
     )
 
-    expect(result.docId).toBeDefined()
+    expect(result.docId).toBe('injoys_doc_real_456')
     expect(result.title).toContain('如何实现个人产品的多渠道自动化运营')
     expect(result.wordCount).toBeGreaterThan(1000)
   })
@@ -287,6 +312,12 @@ describe('Ops Manager (Stage 3: Analytics, Feedback & Schedule)', () => {
 
   it('calculates performance metrics and generates review via ReviewReporter', async () => {
     const injoys = new InjoysClient()
+    injoys.invokeTool = async (name: string) => {
+      if (name === 'document.create') {
+        return { document: { documentId: 'doc_review_real_789' } }
+      }
+      return null
+    }
     const collector = new MetricsCollector({ mockOffline: true })
     const reporter = new ReviewReporter(injoys)
 
@@ -999,6 +1030,28 @@ describe('Ops Manager (Stage 4: Overseas Expansion & Multi-Language)', () => {
       const deleted = await store.deleteDraft(draft1.id)
       expect(deleted).toBe(true)
       expect(await store.getDraft(draft1.id)).toBeNull()
+
+      // Concurrent edit vs updatePrefillResult: ensure title is not overwritten
+      const baseDraft = await store.saveDraft({
+        id: 'concurrent-draft-1',
+        title: 'base',
+        topic: 'topic',
+      })
+      expect(baseDraft.version).toBe(1)
+
+      await Promise.all([
+        store.saveDraft({ id: 'concurrent-draft-1', title: 'edited' }),
+        store.updatePrefillResult('concurrent-draft-1', 'wechat_mp', {
+          draftId: 'prefill-123',
+          draftUrl: 'https://mp.weixin.qq.com/s/123',
+        }),
+      ])
+
+      const finalDraft = await store.getDraft('concurrent-draft-1')
+      expect(finalDraft).toBeDefined()
+      expect(finalDraft?.version).toBe(3)
+      expect(finalDraft?.title).toBe('edited')
+      expect(finalDraft?.prefillResults?.wechat_mp?.draftId).toBe('prefill-123')
     })
 
     it('validates SessionGuard four-state lifecycle including no_publish_permission and active tabs', async () => {
@@ -1062,6 +1115,43 @@ describe('Ops Manager (Stage 4: Overseas Expansion & Multi-Language)', () => {
           updatedAt: new Date().toISOString(),
         }),
       ).rejects.toThrow('Injoys 表格写入失败')
+    })
+
+    it('detects isError: true from remote MCP and returns null', async () => {
+      const injoys = new InjoysClient()
+      const originalFetch = globalThis.fetch
+      globalThis.fetch = (async () => {
+        return new Response(
+          JSON.stringify({
+            jsonrpc: '2.0',
+            id: 1,
+            result: {
+              isError: true,
+              structuredContent: { error: 'PermissionDenied' },
+            },
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        )
+      }) as any
+
+      try {
+        const res = await injoys.invokeTool('spreadsheet.applyOperations', {})
+        expect(res).toBeNull()
+      } finally {
+        globalThis.fetch = originalFetch
+      }
+    })
+
+    it('returns null instead of fake doc ID when saveArticleDocument fails', async () => {
+      const failingInjoys = new InjoysClient({ endpoint: 'http://127.0.0.1:99999/down' })
+      const docId = await failingInjoys.saveArticleDocument({
+        id: 'draft-fail-test',
+        title: '测试文档标题',
+        digest: '摘要',
+        contentMarkdown: '# 正文',
+        suggestedTags: [],
+      })
+      expect(docId).toBeNull()
     })
   })
 })

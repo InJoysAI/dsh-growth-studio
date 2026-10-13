@@ -147,8 +147,14 @@ export class InjoysClient {
       })
 
       if (!res.ok) return null
-      const data = (await res.json()) as { result?: { structuredContent?: unknown } }
-      return data?.result?.structuredContent ?? null
+      const data = (await res.json()) as {
+        error?: { code?: number; message?: string }
+        result?: { isError?: boolean; structuredContent?: unknown; content?: unknown }
+      }
+      if (data.error || data?.result?.isError === true) {
+        return null
+      }
+      return data?.result?.structuredContent ?? data?.result?.content ?? null
     } catch {
       return null
     }
@@ -204,30 +210,32 @@ export class InjoysClient {
 
   /**
    * Read existing calendar entries from Injoys Spreadsheet.
+   * Throws an Error if spreadsheet.read fails or returns tool error.
    */
   async listCalendarItems(): Promise<CalendarItem[]> {
-    try {
-      const res = (await this.invokeTool('spreadsheet.read', {})) as {
-        rows?: Array<Array<string>>
-      } | null
+    const res = (await this.invokeTool('spreadsheet.read', {})) as {
+      rows?: Array<Array<string>>
+    } | null
 
-      if (res?.rows && Array.isArray(res.rows) && res.rows.length > 0) {
-        return res.rows.map((row, idx) => ({
-          id: row[0] || `cal_${idx}_${Date.now()}`,
-          date: row[1] || new Date().toISOString().slice(0, 10),
-          platform: (row[2] as PlatformId) || 'wechat_mp',
-          kind: (row[3] as any) || 'article',
-          topic: row[4] || '未命名排期项',
-          status: (row[5] as any) || 'planned',
-          draftUrl: row[6] || undefined,
-          publishedUrl: row[7] || undefined,
-          createdAt: row[8] || new Date().toISOString(),
-          updatedAt: row[8] || new Date().toISOString(),
-        }))
-      }
-    } catch {
-      // Fallback to empty array if Injoys spreadsheet not reachable
+    if (!res) {
+      throw new Error('Injoys 表格读取失败: 远端服务未响应或操作被拒绝')
     }
+
+    if (res.rows && Array.isArray(res.rows)) {
+      return res.rows.map((row, idx) => ({
+        id: row[0] || `cal_${idx}_${Date.now()}`,
+        date: row[1] || new Date().toISOString().slice(0, 10),
+        platform: (row[2] as PlatformId) || 'wechat_mp',
+        kind: (row[3] as any) || 'article',
+        topic: row[4] || '未命名排期项',
+        status: (row[5] as any) || 'planned',
+        draftUrl: row[6] || undefined,
+        publishedUrl: row[7] || undefined,
+        createdAt: row[8] || new Date().toISOString(),
+        updatedAt: row[8] || new Date().toISOString(),
+      }))
+    }
+
     return []
   }
 
@@ -243,13 +251,13 @@ export class InjoysClient {
     }
 
     // Idempotent operation: check if item.id exists to avoid duplicate rows
-    let exists = false
+    let existingRows: CalendarItem[] = []
     try {
-      const existingRows = await this.listCalendarItems()
-      exists = existingRows.some(r => r.id === item.id)
-    } catch {
-      // ignore check error
+      existingRows = await this.listCalendarItems()
+    } catch (err: any) {
+      throw new Error(`Injoys 表格写入失败: 校验现有排期失败 (${err?.message ?? '读取服务未响应'})`)
     }
+    const exists = existingRows.some(r => r.id === item.id)
 
     const rowData = [
       item.id,
@@ -287,11 +295,13 @@ export class InjoysClient {
 
   /**
    * Create or update a formatted document in Injoys for a WeChat article.
+   * Returns document ID or null if creation failed.
    */
-  async saveArticleDocument(draft: ArticleDraft): Promise<string> {
+  async saveArticleDocument(draft: ArticleDraft): Promise<string | null> {
     try {
       const res = (await this.invokeTool('document.create', {
         displayName: draft.title.slice(0, 80),
+        content: draft.contentMarkdown,
       })) as { document?: { documentId?: string } } | null
 
       if (res?.document?.documentId) {
@@ -301,16 +311,18 @@ export class InjoysClient {
       // ignore
     }
 
-    return draft.injoysDocId ?? `doc_wx_${Date.now()}`
+    return null
   }
 
   /**
    * Create or update a video script and metadata record in Injoys.
+   * Returns document ID or null if creation failed.
    */
-  async saveVideoDocument(draft: VideoMetadataDraft): Promise<string> {
+  async saveVideoDocument(draft: VideoMetadataDraft): Promise<string | null> {
     try {
       const res = (await this.invokeTool('document.create', {
         displayName: (draft.titleVariants[0] ?? '视频发布分镜').slice(0, 80),
+        content: draft.description,
       })) as { document?: { documentId?: string } } | null
 
       if (res?.document?.documentId) {
@@ -320,16 +332,18 @@ export class InjoysClient {
       // ignore
     }
 
-    return draft.id || `doc_video_${Date.now()}`
+    return null
   }
 
   /**
    * Save an operational review summary document to Injoys.
+   * Returns document ID or null if creation failed.
    */
-  async saveReviewDocument(report: WeeklyReviewReport): Promise<string> {
+  async saveReviewDocument(report: WeeklyReviewReport): Promise<string | null> {
     try {
       const res = (await this.invokeTool('document.create', {
         displayName: `运营复盘总结_${report.period}`,
+        content: `### 运营复盘总结 (${report.period})\n- 总曝光/播放: ${report.totalViews}\n- 总互动: ${report.totalEngagements}\n- 综合互动率: ${report.overallEngagementRate}%\n- 爆款率: ${report.viralRate}%\n\n核心经验:\n${report.keyLearnings.map(l => `- ${l}`).join('\n')}`,
       })) as { document?: { documentId?: string } } | null
 
       if (res?.document?.documentId) {
@@ -339,7 +353,7 @@ export class InjoysClient {
       // fallback
     }
 
-    return report.injoysDocId ?? `doc_review_${Date.now()}`
+    return null
   }
 
   /**

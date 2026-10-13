@@ -128,11 +128,24 @@ export class BrowserDriver {
       }
     }
 
+    // Helper to test if MCP tool result denotes error
+    const isToolError = (res: any): boolean => {
+      if (!res) return true
+      if (res.error) return true
+      if (res.isError === true) return true
+      if (res.ok === false) return true
+      return false
+    }
+
     // 2. Snapshot the page to observe interactive elements
-    await client.callTool('snapshot', {})
+    const snapRes = await client.callTool('snapshot', {})
+    if (isToolError(snapRes)) {
+      throw new Error(`页面结构提取失败 (snapshot): ${snapRes?.error ?? '工具执行错误'}`)
+    }
 
     // 3. Fill text fields (title, body, tags, description)
-    let anyFilled = false
+    let filledCount = 0
+    const fillErrors: string[] = []
     for (const [fieldName, val] of Object.entries(task.fields)) {
       if (!val) continue
       try {
@@ -141,10 +154,18 @@ export class BrowserDriver {
           selector: `[name="${fieldName}"], [placeholder*="${fieldName}"], #${fieldName}`,
           value: val,
         })
-        if (!actRes?.error) anyFilled = true
-      } catch {
-        // continue
+        if (!isToolError(actRes)) {
+          filledCount++
+        } else {
+          fillErrors.push(`${fieldName}: ${actRes?.error ?? 'fill 错误'}`)
+        }
+      } catch (err: any) {
+        fillErrors.push(`${fieldName}: ${err?.message ?? '异常'}`)
       }
+    }
+
+    if (filledCount === 0) {
+      throw new Error(`所有物料字段填入均失败 (${fillErrors.join('; ') || '未能匹配任何输入框'})`)
     }
 
     // 4. If uploadFilePath is specified, trigger upload
@@ -152,8 +173,8 @@ export class BrowserDriver {
       const uploadRes = await client.callTool('upload', {
         path: task.uploadFilePath,
       })
-      if (uploadRes?.error) {
-        throw new Error(`附件上传失败: ${uploadRes.error}`)
+      if (isToolError(uploadRes)) {
+        throw new Error(`附件上传失败: ${uploadRes?.error ?? 'upload 执行错误'}`)
       }
     }
 
@@ -166,8 +187,8 @@ export class BrowserDriver {
       selector: draftButtonSelector,
     })
 
-    if (clickRes?.error && !anyFilled) {
-      throw new Error(`无法定位并点击“保存草稿”按钮: ${clickRes.error}`)
+    if (isToolError(clickRes)) {
+      throw new Error(`无法定位或点击“保存草稿”按钮: ${clickRes?.error ?? clickRes?.message ?? '按钮未响应或被拒绝'}`)
     }
 
     return {

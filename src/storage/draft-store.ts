@@ -59,6 +59,25 @@ export class DraftStore {
     return join(this.draftsDir, `${safeId}.json`)
   }
 
+  private async withWriteLock<T>(id: string, fn: () => Promise<T>): Promise<T> {
+    const prevLock = this.writeLocks.get(id) ?? Promise.resolve()
+    let releaseLock!: () => void
+    const nextLock = new Promise<void>((resolve) => {
+      releaseLock = resolve
+    })
+    this.writeLocks.set(id, nextLock)
+
+    try {
+      await prevLock
+      return await fn()
+    } finally {
+      releaseLock()
+      if (this.writeLocks.get(id) === nextLock) {
+        this.writeLocks.delete(id)
+      }
+    }
+  }
+
   /**
    * Save or update a draft. Auto-increments version and updates timestamps.
    * Throws DraftConcurrencyError if expectedVersion is provided and does not match.
@@ -69,17 +88,7 @@ export class DraftStore {
   ): Promise<ContentDraft> {
     const id = input.id ?? `draft_${Date.now()}_${randomBytes(4).toString('hex')}`
 
-    // Serialize concurrent writes per draft ID to eliminate in-process race conditions
-    const prevLock = this.writeLocks.get(id) ?? Promise.resolve()
-    let releaseLock!: () => void
-    const nextLock = new Promise<void>((resolve) => {
-      releaseLock = resolve
-    })
-    this.writeLocks.set(id, nextLock)
-
-    try {
-      await prevLock
-
+    return this.withWriteLock(id, async () => {
       const now = new Date().toISOString()
       const existing = await this.getDraft(id)
 
@@ -122,12 +131,7 @@ export class DraftStore {
       renameSync(tmpPath, filePath)
 
       return draft
-    } finally {
-      releaseLock()
-      if (this.writeLocks.get(id) === nextLock) {
-        this.writeLocks.delete(id)
-      }
-    }
+    })
   }
 
   /**
@@ -185,48 +189,70 @@ export class DraftStore {
   }
 
   /**
-   * Record prefill result for a platform.
+   * Record prefill result for a platform atomically without overwriting concurrent edits.
    */
   async updatePrefillResult(
     draftId: string,
     platform: PlatformId,
     result: { draftId?: string; draftUrl?: string },
   ): Promise<ContentDraft | null> {
-    const draft = await this.getDraft(draftId)
-    if (!draft) return null
+    return this.withWriteLock(draftId, async () => {
+      const freshDraft = await this.getDraft(draftId)
+      if (!freshDraft) return null
 
-    const prefillResults = draft.prefillResults ?? {}
-    prefillResults[platform] = {
-      draftId: result.draftId,
-      draftUrl: result.draftUrl,
-      prefilledAt: new Date().toISOString(),
-    }
+      const prefillResults = { ...(freshDraft.prefillResults ?? {}) }
+      prefillResults[platform] = {
+        draftId: result.draftId,
+        draftUrl: result.draftUrl,
+        prefilledAt: new Date().toISOString(),
+      }
 
-    return this.saveDraft({
-      ...draft,
-      status: 'prefilled',
-      prefillResults,
+      const updatedDraft: ContentDraft = {
+        ...freshDraft,
+        status: 'prefilled',
+        prefillResults,
+        version: freshDraft.version + 1,
+        updatedAt: new Date().toISOString(),
+      }
+
+      const filePath = this.getFilePath(draftId)
+      const tmpPath = `${filePath}.tmp.${Date.now()}`
+      writeFileSync(tmpPath, JSON.stringify(updatedDraft, null, 2), 'utf-8')
+      renameSync(tmpPath, filePath)
+
+      return updatedDraft
     })
   }
 
   /**
-   * Mark draft as published and record platform callback URL.
+   * Mark draft as published and record platform callback URL atomically.
    */
   async markPublished(
     draftId: string,
     platform: PlatformId,
     publishedUrl: string,
   ): Promise<ContentDraft | null> {
-    const draft = await this.getDraft(draftId)
-    if (!draft) return null
+    return this.withWriteLock(draftId, async () => {
+      const freshDraft = await this.getDraft(draftId)
+      if (!freshDraft) return null
 
-    const publishedUrls = draft.publishedUrls ?? {}
-    publishedUrls[platform] = publishedUrl
+      const publishedUrls = { ...(freshDraft.publishedUrls ?? {}) }
+      publishedUrls[platform] = publishedUrl
 
-    return this.saveDraft({
-      ...draft,
-      status: 'published',
-      publishedUrls,
+      const updatedDraft: ContentDraft = {
+        ...freshDraft,
+        status: 'published',
+        publishedUrls,
+        version: freshDraft.version + 1,
+        updatedAt: new Date().toISOString(),
+      }
+
+      const filePath = this.getFilePath(draftId)
+      const tmpPath = `${filePath}.tmp.${Date.now()}`
+      writeFileSync(tmpPath, JSON.stringify(updatedDraft, null, 2), 'utf-8')
+      renameSync(tmpPath, filePath)
+
+      return updatedDraft
     })
   }
 }

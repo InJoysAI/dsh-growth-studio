@@ -156,10 +156,8 @@ export function registerOpsRpc(
               }
             }
 
-            // If browserOsClient is attached, evaluate unified BrowserOS sessions
-            const statuses = browserOsClient
-              ? sessionGuard.checkBrowserSessions(adapters.list(), activeTabs)
-              : await sessionGuard.checkAllRealSessions(adapters.list())
+            // Evaluate unified BrowserOS sessions using active tabs
+            const statuses = sessionGuard.checkBrowserSessions(adapters.list(), activeTabs)
 
             result = {
               ok: true,
@@ -351,12 +349,10 @@ export function registerOpsRpc(
               }
             }
 
-            const statuses = browserOsClient
-              ? sessionGuard.checkBrowserSessions(adapters.list(), activeTabs)
-              : await sessionGuard.checkAllRealSessions(adapters.list())
+            const statuses = sessionGuard.checkBrowserSessions(adapters.list(), activeTabs)
 
             const platformMetrics = await metricsCollector.fetchPlatformMetrics(['wechat_mp', 'bilibili'], '7d')
-            const calendarItems = await injoys.listCalendarItems()
+            const calendarItems = await injoys.listCalendarItems().catch(() => [])
             const injoysHealth = await injoys.testConnection().catch(() => ({ ok: false, latencyMs: 0, message: '' }))
 
             let totalImpressions: number | null = null

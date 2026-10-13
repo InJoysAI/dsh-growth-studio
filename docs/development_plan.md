@@ -46,13 +46,15 @@ graph TD
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **BrowserDriver** 预填编排 | `src/browser/browser-driver.ts` | 编排 BrowserOS 执行真实多字段/附件预填 | 编排管线与断开/失败错误反馈已就绪，未连 BrowserOS 时明确拒绝 | 🟡 契约就绪，待 Live 验收 | **Phase 0**（公号+B站） |
 | **SessionGuard** 会话探测 | `src/browser/session-guard.ts` | 探测 BrowserOS 实例登录态，支持四态流转 | 四态枚举与 Tab 探活逻辑已就绪，待绑定活动 BrowserOS 实例 | 🟡 契约就绪，待 Live 验收 | **Phase 0**（统一BrowserOS） |
-| **MetricsCollector** 指标采集 | `src/analytics/metrics-collector.ts` | 从各平台大屏采集真实指标，区分曝光/播放 | 已重构为严格可空语义（离线返回 null，mock 显式隔离） | 🟡 契约就绪，待 Live 验收 | **Phase 0**（公号+B站） |
-| **InjoysClient.listCalendarItems** | `src/injoys/client.ts` | 读取 Injoys 排期表格行 | 已接入 `spreadsheet.read` 远端调用 | 🟢 已实现 | **Phase 0**（表格读取） |
-| **InjoysClient.syncCalendarItem** | `src/injoys/client.ts` | 排期行幂等写入与错误抛出 | 已接入 `spreadsheet.applyOperations`，带排重检查与失败抛出 | 🟢 已实现 | **Phase 0**（单向导出） |
+| **MetricsCollector** 指标采集 | `src/analytics/metrics-collector.ts` | 从各平台大屏采集真实指标，区分曝光/播放 | 已重构为严格可空语义（离线返回 null，mock 显式隔离）；各平台大屏真实 DOM 解析器待接入 | 🟡 待实现 | **Phase 0**（公号+B站） |
+| **InjoysClient.listCalendarItems** | `src/injoys/client.ts` | 读取 Injoys 排期表格行 | 已接入 `spreadsheet.read` 远端调用，错误不吞，如实抛出 | 🟢 已实现 | **Phase 0**（表格读取） |
+| **InjoysClient.syncCalendarItem** | `src/injoys/client.ts` | 排期行幂等写入与错误抛出 | 已接入 `spreadsheet.applyOperations`，带先查后写幂等与失败抛出 | 🟢 已实现 | **Phase 0**（单向导出） |
 | **InjoysClient.testConnection** | `src/injoys/client.ts` | 连通性测试 | 真实发起 HTTP 请求并校验状态码 | 🟢 已实现 | 基线已就绪 |
-| **InjoysClient.invokeTool** | `src/injoys/client.ts` | 通用 MCP JSON-RPC 调用 | 真实向 MCP 发起 JSON-RPC 请求 | 🟢 已实现 | 基线已就绪 |
-| **ContentDraft** 本地持久化 | `src/storage/draft-store.ts` | 草稿实体、平台变体、乐观锁、本地存盘 | 已实现原子写入、进程内锁序列化与 `expectedVersion` 乐观并发控制 | 🟢 已实现 | **Phase 0** |
-| **AdapterRegistry** 适配器注册 | `src/adapters/registry.ts` | 8 平台基础配置信息 | 平台基础元数据完整定义 | 🟢 已实现 | 基线已就绪 |
+| **InjoysClient.invokeTool** | `src/injoys/client.ts` | 通用 MCP JSON-RPC 调用 | 真实向 MCP 发起请求，严格校验 HTTP 状态与 `result.isError` | 🟢 已实现 | 基线已就绪 |
+| **ContentDraft** 本地持久化 | `src/storage/draft-store.ts` | 草稿实体、平台变体、乐观锁、本地存盘 | 原子写入、串行写锁保护内部回写、`expectedVersion` 并发控制 | 🟢 已实现 | **Phase 0** |
+| **AI 内容生成管线** | `src/tools/index.ts` | 结合 Injoys 知识库与 LLM Prompt 深度生成图文 | 基础契约接入 DraftStore；真实 LLM Prompt 动态生成待接入 | 🟡 待实现 | **Phase 0** |
+| **客户端草稿工作台 UI** | `plugin-src/client/` | 可视化草稿箱管理、多变体编辑与预填操作入口 | 当前仅具备配置页与基础概览，草稿管理工作台 UI 待接入 | 🔴 待实现 | **Phase 0** |
+| **AdapterRegistry** 适配器注册 | `src/adapters/registry.ts` | 8 平台基础配置信息与驱动注入 | 完整元数据定义，支持注入与热更新 BrowserOS 驱动 | 🟢 已实现 | 基线已就绪 |
 | **WeChatArticleAdapter** 适配器 | `src/adapters/registry.ts` | 微信公众号图文草稿箱预填 | 逻辑框架与 BrowserDriver 注入已就绪，待在 Live BrowserOS 环境联调 | 🟡 契约就绪，待 Live 验收 | **Phase 0** |
 | **BilibiliVideoAdapter** 适配器 | `src/adapters/registry.ts` | B站视频元数据预填 | 逻辑框架与 BrowserDriver 注入已就绪，待在 Live BrowserOS 环境联调 | 🟡 契约就绪，待 Live 验收 | **Phase 0** |
 | **CommentsCrawler** 评论抓取 | `src/feedback/comments-crawler.ts` | 真实抓取多平台评论数据 | 生成固定 mock 评论数组 | 🔴 占位待实现 | **Phase 1** |
@@ -66,7 +68,7 @@ graph TD
 ## 三、 四阶段分步实施里程碑
 
 > [!IMPORTANT]
-> **当前交付结论**：文档整改及部分基础契约完成，Phase 0 真实闭环尚待在真实 BrowserOS 与平台账号环境下实测验收。
+> **当前交付结论**：部分整改已落实，仍有代码缺陷与实现缺口；修复后再进入真实环境验收。
 
 ### Phase 0：双平台最小完整闭环 (M0: WeChat MP + Bilibili Minimal Closed Loop)
 * **核心目标**：打通 **"微信公众号 + 哔哩哔哩"** 两个高价值平台的端到端闭环：**排期读取/导出 ➔ AI 文案生成 ➔ 本地持久化与多渠道微调 ➔ BrowserOS 真实草稿箱预填 ➔ 人工确认发布后回填 URL ➔ 真实基础指标采集**。

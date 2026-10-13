@@ -11,6 +11,7 @@ import { ConfigStore } from './config-store.js'
 import { DraftStore } from './storage/draft-store.js'
 import { registerOpsRpc } from './ops-rpc.js'
 import { createOpsTools } from './tools/index.js'
+import type { BrowserOsMcpClient } from './browser/browser-driver.js'
 
 export const name = 'growth-studio'
 export const inject = ['tools', 'systemPrompt']
@@ -49,11 +50,23 @@ export function apply(ctx: Context, config: Config): void {
   const currentConfig = configStore.load()
   const defaultProduct = currentConfig.defaultProduct ?? 'DeepSeek Harness'
   const injoys = new InjoysClient(currentConfig.injoys)
-  const adapters = new AdapterRegistry()
+
+  // Resolve or bridge BrowserOS client from Cordis context if available
+  const browserOsClient: BrowserOsMcpClient | undefined =
+    (ctx as any).browserOsClient ??
+    ((ctx as any).mcp
+      ? {
+          callTool: async (tool: string, args: Record<string, unknown> = {}) => {
+            return (ctx as any).mcp.callTool('browseros', tool, args)
+          },
+        }
+      : undefined)
+
+  const adapters = new AdapterRegistry(browserOsClient)
   const draftStore = new DraftStore(ctx)
 
   ctx.inject(['connection'], (connectionCtx) => {
-    registerOpsRpc(connectionCtx, configStore, injoys, adapters, draftStore)
+    registerOpsRpc(connectionCtx, configStore, injoys, adapters, draftStore, browserOsClient)
   })
 
   ctx.systemPrompt.section({

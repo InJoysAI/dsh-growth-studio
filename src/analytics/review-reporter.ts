@@ -88,8 +88,11 @@ export class ReviewReporter {
       nextActions,
     }
 
-    // Save formatted report to Injoys Documents
-    report.injoysDocId = await this.injoys.saveReviewDocument(report)
+    // Save formatted report to Injoys Documents if connected
+    const docId = await this.injoys.saveReviewDocument(report)
+    if (docId) {
+      report.injoysDocId = docId
+    }
 
     return report
   }

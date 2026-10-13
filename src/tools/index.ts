@@ -180,7 +180,7 @@ export function createOpsTools(
         type: 'object',
         additionalProperties: false,
         properties: {
-          docId: { type: 'string', required: true },
+          docId: { type: 'string' },
           title: { type: 'string', required: true },
           digest: { type: 'string', required: true },
           wordCount: { type: 'number', required: true },
@@ -189,7 +189,7 @@ export function createOpsTools(
       render: (_args, value) => [
         {
           type: 'text',
-          text: `### ✍️ 微信公众号图文草稿撰写完成\n- **标题**: ${value.title}\n- **摘要**: ${value.digest}\n- **Injoys 文档编号**: \`${value.docId}\`\n- **字数**: 约 ${value.wordCount} 字\n\n*(已沉淀至 Injoys 文档资产库，可直接调用 \`ops_push_drafts\` 预填到公众平台草稿箱)*`,
+          text: `### ✍️ 微信公众号图文草稿撰写完成\n- **标题**: ${value.title}\n- **摘要**: ${value.digest}\n- **Injoys 文档编号**: ${value.docId ? `\`${value.docId}\`` : '*(未同步)*'}\n- **字数**: 约 ${value.wordCount} 字\n\n*(已沉淀至本地草稿库，可直接调用 \`ops_push_drafts\` 预填到公众平台草稿箱)*`,
         },
       ],
     },
@@ -232,7 +232,7 @@ export function createOpsTools(
         id: draftId,
         title,
         topic: args.topic,
-        injoysDocId,
+        injoysDocId: injoysDocId ?? undefined,
         channelVariants: [
           {
             platform: 'wechat_mp',
@@ -247,7 +247,7 @@ export function createOpsTools(
 
       return {
         draftId,
-        docId: injoysDocId,
+        docId: injoysDocId ?? undefined,
         title,
         digest,
         wordCount: contentMarkdown.length,
@@ -288,13 +288,13 @@ export function createOpsTools(
           titleVariant3: { type: 'string', required: true },
           tags: { type: 'array', items: { type: 'string' }, required: true },
           description: { type: 'string', required: true },
-          injoysDocId: { type: 'string', required: true },
+          injoysDocId: { type: 'string' },
         },
       },
       render: (_args, value) => [
         {
           type: 'text',
-          text: `### 🎬 视频文案与发布元数据已就绪\n**备选标题组合**：\n1. ${value.titleVariant1}\n2. ${value.titleVariant2}\n3. ${value.titleVariant3}\n\n**推荐标签**：${value.tags.join(' ')}\n\n**视频简介**：\n${value.description}\n\n*(已沉淀至 Injoys 分镜脚本库，编号: \`${value.injoysDocId}\`)*`,
+          text: `### 🎬 视频文案与发布元数据已就绪\n**备选标题组合**：\n1. ${value.titleVariant1}\n2. ${value.titleVariant2}\n3. ${value.titleVariant3}\n\n**推荐标签**：${value.tags.join(' ')}\n\n**视频简介**：\n${value.description}\n\n*(已沉淀至本地草稿库${value.injoysDocId ? `，Injoys 编号: \`${value.injoysDocId}\`` : ''})*`,
         },
       ],
     },
@@ -325,7 +325,7 @@ export function createOpsTools(
         id: draftId,
         title: titleVariants[0],
         topic: args.videoPath,
-        injoysDocId,
+        injoysDocId: injoysDocId ?? undefined,
         channelVariants: [
           {
             platform: 'bilibili',
@@ -347,7 +347,7 @@ export function createOpsTools(
         titleVariant3: titleVariants[2],
         tags,
         description,
-        injoysDocId,
+        injoysDocId: injoysDocId ?? undefined,
       }
     },
   })
