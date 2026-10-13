@@ -27,7 +27,8 @@ graph TD
 
     subgraph DomainLayer ["3. 业务领域服务层 (Domain Services)"]
         WorkbenchAggregator["工作台总览聚合器 (Overview Service)"]
-        ToolHubManager["AI 工具治理与沙箱引擎 (ToolHub & Sandbox)"]
+        ToolHubManager["AI 工具治理与沙箱引擎 (ToolHubManager)"]
+        SkillEngine["场景技能工坊引擎 (SkillEngine: 提示词与工具 SOP 编排)"]
         SessionGuard["会话哨兵 (SessionGuard: SQLite 真实 Cookie 探测)"]
         CalendarEngine["内容排期规划引擎 (Calendar Engine)"]
         ContentStudioEngine["多端内容创作引擎 (Content Studio)"]
@@ -401,11 +402,11 @@ DSH 底层 RPC 网关对响应格式要求极为严格，任何非标准结构�
 
 ---
 
-### 3.9 AI 工具中枢与沙箱 RPC 端点 (AI Tool Hub RPC)
+### 3.9 AI 工具中枢、技能工坊与沙箱 RPC 端点 (AI Tool Hub & Skill Studio RPC)
 
-针对工具爆炸式增长带来的管理、沙箱调试与按需激活需求，提供全套工具生命周期治理接口：
+针对工具爆炸式增长带来的管理、沙箱调试、MCP 协议路由与技能场景编排需求，提供全套生命周期治理接口：
 
-#### 3.9.1 `tools.catalog`（获取全量工具目录与激活状态）
+#### 3.9.1 `tools.catalog`（获取全量工具目录与驱动类型）
 * **请求参数**：`{}`
 * **响应数据**：
   ```typescript
@@ -417,23 +418,24 @@ DSH 底层 RPC 网关对响应格式要求极为严格，任何非标准结构�
         name: string             // 如 "ops_plan_calendar"
         displayName: string      // 如 "多渠道排期规划"
         description: string
+        toolType: 'mcp' | 'native' // 驱动类型：外部 MCP 协议 或 本地 Native
+        mcpServer?: string       // 若为 MCP，指定服务源（如 "injoys", "browseros"）
         enabled: boolean         // 当前是否激活注入给模型
         parametersSchema: Record<string, unknown> // JSON Schema 定义
         callCount: number        // 累计调用次数
         avgLatencyMs: number     // 平均调用耗时
       }>
     }>
-    activePreset: string         // 当前激活的场景技能包 (如 "release_campaign")
+    activeSkillId: string        // 当前激活的场景技能包 ID (如 "release_launch")
   }
   ```
 
-#### 3.9.2 `tools.toggle`（单工具或技能包开关）
+#### 3.9.2 `tools.toggle`（单工具软开关）
 * **请求参数**：
   ```typescript
   interface ToggleToolRequest {
-    toolName?: string            // 指定单个 Tool 开关
-    enabled?: boolean
-    preset?: 'release_campaign' | 'daily_inspection' | 'overseas_launch' | 'all'
+    toolName: string             // 指定单个 Tool 开关
+    enabled: boolean
   }
   ```
 * **响应数据**：
@@ -445,7 +447,57 @@ DSH 底层 RPC 网关对响应格式要求极为严格，任何非标准结构�
   }
   ```
 
-#### 3.9.3 `tools.executeSandbox`（可视化单步沙箱执行）
+#### 3.9.3 `skills.list`（获取所有预设与自定义技能包）
+* **请求参数**：`{}`
+* **响应数据**：
+  ```typescript
+  interface SkillsListResponse {
+    skills: Array<{
+      id: string                 // 如 "release_launch"
+      name: string               // 如 "新版本发布全网推广包"
+      icon: string               // 如 "📦"
+      category: string           // 如 "launch"
+      description: string
+      isPreset: boolean          // 是否官方预设
+      systemPrompt: string       // 注入的场景 SOP 提示词
+      boundTools: string[]       // 绑定的 4~6 个工具名称列表
+      outputCardType: string     // 绑定的前端卡片渲染器标识
+    }>
+    activeSkillId: string        // 当前激活技能包 ID
+  }
+  ```
+
+#### 3.9.4 `skills.setActive`（切换当前激活技能包）
+* **请求参数**：`{ skillId: string }`
+* **响应数据**：
+  ```typescript
+  interface SetActiveSkillResponse {
+    success: boolean
+    activeSkillId: string
+    injectedToolsCount: number
+    injectedTools: string[]
+  }
+  ```
+
+#### 3.9.5 `skills.save`（创建或编辑自定义技能包）
+* **请求参数**：
+  ```typescript
+  interface SaveSkillRequest {
+    skill: {
+      id?: string
+      name: string
+      icon: string
+      category: string
+      description: string
+      systemPrompt: string
+      boundTools: string[]
+      outputCardType?: string
+    }
+  }
+  ```
+* **响应数据**：`{ success: boolean; skillId: string }`
+
+#### 3.9.6 `tools.executeSandbox`（可视化单步沙箱执行）
 * **请求参数**：
   ```typescript
   interface ExecuteSandboxRequest {
@@ -457,6 +509,7 @@ DSH 底层 RPC 网关对响应格式要求极为严格，任何非标准结构�
   ```typescript
   interface ExecuteSandboxResponse {
     toolName: string
+    driverType: 'mcp' | 'native'
     success: boolean
     latencyMs: number
     rawOutput: unknown           // 结构化返回值
@@ -465,7 +518,7 @@ DSH 底层 RPC 网关对响应格式要求极为严格，任何非标准结构�
   }
   ```
 
-#### 3.9.4 `tools.telemetry`（获取调用遥测与审计流水）
+#### 3.9.7 `tools.telemetry`（获取调用遥测与审计流水）
 * **请求参数**：`{ limit?: number }`
 * **响应数据**：
   ```typescript
@@ -474,11 +527,13 @@ DSH 底层 RPC 网关对响应格式要求极为严格，任何非标准结构�
       totalCalls: number
       successRate: string        // 如 "99.4%"
       avgLatencyMs: number
+      mcpHealthScore: number     // MCP 服务健康度评分 0-100
     }
     recentLogs: Array<{
       id: string
       timestamp: string
       toolName: string
+      driverType: 'mcp' | 'native'
       source: 'agent_auto' | 'sandbox_manual'
       status: 'success' | 'failed'
       latencyMs: number
@@ -537,6 +592,38 @@ export interface CalendarItem {
   publishedUrl?: string
   createdAt: string
   updatedAt: string
+}
+
+export type ToolDriverType = 'mcp' | 'native'
+
+export interface ToolCatalogItem {
+  name: string
+  displayName: string
+  description: string
+  category: 'planning' | 'creative' | 'publishing' | 'analytics' | 'system'
+  driverType: ToolDriverType
+  mcpServer?: string // 'injoys' | 'browseros' | 'custom'
+  enabled: boolean
+  parametersSchema: Record<string, unknown>
+  callCount: number
+  avgLatencyMs: number
+}
+
+export interface SkillDefinition {
+  id: string
+  name: string
+  icon: string
+  category: 'launch' | 'growth' | 'listening' | 'planning' | 'creation' | 'custom'
+  description: string
+  isPreset: boolean
+  systemPrompt: string
+  boundTools: string[] // 工具白名单（4~6个）
+  outputCardType?: string
+  qualityGateRules?: Array<{
+    ruleId: string
+    description: string
+    validator: string // 验证规则表达式或函数名
+  }>
 }
 ```
 
@@ -671,46 +758,138 @@ graph LR
 
 ---
 
-### 5.5 动态工具编排与上下文过载保护机制 (Dynamic Tool Registry & Context Protection)
+### 5.5 「MCP + Skill + Native Tools」三层动态编排与上下文过载保护机制
 
-当运营工具拓展到数十个时，若将所有工具定义一次性注入给模型，会导致：
-1. **System Prompt 上下文过载**：数十个 JSON Schema 会消耗数千 Token，降低模型的推理速度并增加成本；
-2. **工具选择幻觉（Tool Selection Confusion）**：相似功能的工具（如多个平台的元数据生成）容易让模型在规划时犹豫不决或误选。
+当运营工作台工具矩阵扩展至数十个时，若将所有工具定义一次性注入给模型，会导致两大核心隐患：
+1. **System Prompt 上下文过载**：数十个 JSON Schema 会消耗数千 Token，不仅成本飙升，更挤占了大模型分析产品卖点与生成长文的核心上下文窗口；
+2. **工具选择幻觉（Tool Selection Confusion）**：相似功能的工具（如多个平台的元数据生成、不同排期读写）容易让模型在规划阶段出现幻觉、误选甚至循环调用。
 
-#### 5.5.1 架构设计：Cordis 驱动的动态工具路由器 (Dynamic Tool Router)
+为此，系统确立了**“外部 MCP 协议集成 ➔ 本地 Native 工具库 ➔ Skill 场景认知工坊”**的三层运行架构，由 `ToolHubManager` 与 `SkillEngine` 协同完成动态上下文切片与沙箱治理。
+
+---
+
+#### 5.5.1 三层能力协同架构设计 (Three-Tier Capability Architecture)
 
 ```mermaid
 graph TD
-    subgraph DshCore ["DSH 模型层 (LLM Inference)"]
-        ActiveTools["当前有效工具列表<br/>(只保留当前场景 4~6 个)"]
+    subgraph Layer1 ["4. 外部 MCP 协议集成层 (External Protocols)"]
+        InjoysMCP["Injoys MCP Server<br/>(知识库 / 资产 / 表格)"]
+        BrowserOSMCP["BrowserOS MCP Server<br/>(浏览器 / CDP / 填报)"]
+        CustomMCP["扩展第三方 MCP Servers<br/>(API / Search / 监控)"]
     end
 
-    subgraph ToolHub ["Ops Manager: ToolHubManager"]
-        FullCatalog["全量工具注册表 (30+ Tools Catalog)"]
-        PresetSelector{"场景技能包 / 用户勾选"}
-        SandboxRunner["单步沙箱执行器 (Sandbox Runner)"]
-        TelemetryRecorder["调用审计与遥测日志库"]
+    subgraph Layer2 ["3. 本地 Native 工具层 (Local Computation)"]
+        NativeCards["WYSIWYG 卡片渲染器 (Cards)"]
+        NativeNLP["SEO / 关键词 / 调性清洗工具"]
+        NativeSched["排期冲突检测与调度器"]
     end
 
-    subgraph UI ["工作台客户端"]
-        HubUI["AI 工具中枢 Tab<br/>(开关 / 沙箱 / 日志)"]
+    subgraph ToolHub ["Ops Manager 核心治理中枢"]
+        Catalog["全量工具注册中心 (Catalog: 30+ Tools)"]
+        SkillEngine["场景技能工坊引擎 (SkillEngine)"]
+        SandboxRunner["单步隔离沙箱执行器 (Sandbox Runner)"]
+        TelemetryLogger["遥测监控与审计日志库 (Telemetry)"]
     end
 
-    FullCatalog --> PresetSelector
-    PresetSelector -->|动态过滤与注册| ActiveTools
-    HubUI <-->|tools.catalog / tools.toggle| ToolHub
-    HubUI <-->|tools.executeSandbox| SandboxRunner
-    SandboxRunner --> TelemetryRecorder
-    ActiveTools -->|Agent 实际执行| TelemetryRecorder
+    subgraph DshRuntime ["DSH 大模型对话运行时 (LLM Session)"]
+        SopPrompt["场景 System Prompt (角色设定 / 语气约束 / SOP)"]
+        ActiveToolSlice["动态工具切片 (精简 4~6 个白名单 Tools)"]
+    end
+
+    InjoysMCP -->|JSON-RPC 2.0| Catalog
+    BrowserOSMCP -->|CDP/RPC| Catalog
+    CustomMCP -->|Stdio/SSE| Catalog
+    NativeCards --> Catalog
+    NativeNLP --> Catalog
+    NativeSched --> Catalog
+
+    Catalog --> SkillEngine
+    SkillEngine -->|激活选定技能包| SopPrompt
+    SkillEngine -->|白名单动态过滤注入| ActiveToolSlice
+
+    Catalog <-->|免对话独立直测| SandboxRunner
+    ActiveToolSlice -->|Agent 实际运行| TelemetryLogger
+    SandboxRunner -->|沙箱手动调用| TelemetryLogger
 ```
 
-1. **场景化工具包按需注入 (Contextual Slicing)**：
-   * 采用 Cordis 的生命周期控制，仅在执行特定任务阶段（例如在创作室或在日历流水中）或根据用户在工作台勾选的“预设包”，将最精准的子集注册到 `ctx.tools` 中；
-   * 保证任何单次 LLM 对话上下文中的工具数量维持在 **5~8 个黄金区间**内。
-2. **沙箱单步隔离运行器 (Sandbox Runner)**：
-   * 客户端发起的 `tools.executeSandbox` 请求直接绕过 AI 聊天会话，由 `SandboxRunner` 接收入参直接调用底层 Tool 的 `execute(args, context)` 函数；
-   * 捕获 execution time、返回值及 `presentCall` / `render` 生成的卡片数据，即时回传给工作台界面展示；
-   * 全过程接入 `TelemetryRecorder`，实现毫秒级排障与审计。
+1. **外部连接层 (MCP Layer)**：
+   * 采用标准 Model Context Protocol（JSON-RPC 2.0 规范），负责跨进程、跨网络与外部系统通信；
+   * 屏蔽各平台底层细节，暴露出标准的 Tool Schema。
+2. **本地逻辑层 (Native Tools Layer)**：
+   * 内联于插件 Node.js 进程中执行，不依赖任何外部网络；
+   * 提供毫秒级的文本排版、敏感词检查、多平台卡片预渲染及调度校验。
+3. **业务认知层 (Skill Studio Layer)**：
+   * 作为面对最终用户的核心抽象，将“冷冰冰的原子工具”转化为“解决具体业务问题的专家技能”；
+   * 一个技能包由 **场景 SOP 提示词** + **4~6 个精准工具白名单** + **质量检测规则** 共同构成。
+
+---
+
+#### 5.5.2 Cordis 驱动的动态上下文切片机制 (Contextual Slicing & Injection)
+
+在 DeepSeek Harness 会话建立时，`SkillEngine` 拦截上下文组装流水线：
+1. **全局工具阻断**：默认不对大模型注入全部 30+ 个工具定义；
+2. **场景白名单激活**：根据当前客户端选中的技能包（例如 `release_launch`），仅取出绑定的 5 个工具 Schema；
+3. **提示词融合 (Prompt Augmentation)**：将技能包专有的 `systemPrompt`（角色规则、格式规范、禁忌条款）拼接至系统提示词末尾；
+4. **Token 开销压缩**：单次提示词的工具描述从传统的 **~4500 Token 骤降至 ~600 Token**，节约 85% 以上的系统上下文消耗，并杜绝模型选错工具。
+
+---
+
+#### 5.5.3 运行时时序图：Agent 智能调用 vs 沙箱单步直测
+
+##### 1. 大模型在特定 Skill 下的交互链路
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as 开发者
+    participant UI as 工作台 / DSH 聊天框
+    participant Skill as SkillEngine
+    participant LLM as DeepSeek 模型
+    participant Hub as ToolHubManager
+    participant MCP as 外部 MCP 服务 (Injoys/BrowserOS)
+
+    User->>UI: 发送指令: "为 v1.2.0 生成全网发布排期与小红书草稿"
+    UI->>Skill: 获取当前激活技能包 (如 release_launch)
+    Skill-->>LLM: 注入专属 SOP 提示词 + 5 个白名单工具 Schema
+    LLM->>LLM: 意图理解与规划决策
+    LLM->>Hub: 发起工具调用: ops_plan_calendar(args)
+    Hub->>MCP: 转发请求至 InjoysClient (JSON-RPC)
+    MCP-->>Hub: 返回表格更新结果
+    Hub-->>LLM: 回传工具输出
+    LLM-->>UI: 渲染最终结构化回答与可视化日历卡片
+```
+
+##### 2. 开发者在沙箱中的单步调试链路 (无会话直通)
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Dev as 开发者 / 运营人员
+    participant SandboxUI as 工具沙箱界面 (Playground)
+    participant Runner as SandboxRunner
+    participant Driver as MCP / Native 驱动
+    participant Telemetry as TelemetryRecorder
+
+    Dev->>SandboxUI: 选择工具 (ops_push_drafts) 并填写参数表单
+    Dev->>SandboxUI: 点击 "⚡ 单步运行"
+    SandboxUI->>Runner: RPC 请求: tools.executeSandbox
+    Note over Runner: 绕过 LLM 会话，直接调用底层执行函数
+    Runner->>Driver: 执行具体驱动 (如 BrowserOS 写入)
+    Driver-->>Runner: 返回执行结果与耗时 (如 312ms)
+    Runner->>Telemetry: 记录审计日志 (source: sandbox_manual)
+    Runner-->>SandboxUI: 返回 JSON 原始值 + 前端渲染卡片预览
+    SandboxUI-->>Dev: 界面毫秒级展示执行状态与 WYSIWYG 预览
+```
+
+---
+
+#### 5.5.4 自定义 MCP 与 Skill 的热插拔扩展机制 (Extensibility & Hot-Plugging)
+
+1. **第三方 MCP 服务器动态发现与绑定**：
+   * 工作台监听 `$DSH_HOME/ops-manager/mcp_servers.json` 或设置界面的动态输入；
+   * 当用户新增一个合规 MCP 服务时，`ToolHubManager` 触发 `tools/list` 协议握手，解析出其工具列表；
+   * 自动给新增工具打上 `toolType: 'mcp'` 与 `mcpServer: custom_name` 标签，即时纳入全景目录；
+2. **用户自定义技能包保存与导出**：
+   * 开发者在 Skill Studio 中自定义完成的技能包，直接持久化写入本地配置存储；
+   * 支持通过导出为独立的 `.skill.json` 文件在团队不同成员的 DSH 客户端之间快速同步。
 
 ---
 

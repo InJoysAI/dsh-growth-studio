@@ -290,53 +290,133 @@ sequenceDiagram
 
 ### 5.5 模块四：AI 运营工具中枢与技能工坊 (AI Ops Tools Hub & Skill Studio)
 
-随着运营工作台的持续演进，AI 调用的原生 Tool 数量将从初期的十余个快速扩展至数十个（文案仿写、SEO 关键词提炼、分镜生图 Prompt、账号防封轮转、多语言翻译、各平台 OpenAPI 等）。为防止**模型上下文膨胀（Token 消耗暴增）**、**工具选择幻觉（Tool Hallucination）**以及**缺乏人工直接干预机制**，工作台设立专门的「AI 工具中枢与技能工坊」模块：
+随着运营工作台的持续演进，AI 调用的工具数量将从初期的十余个快速扩展至数十个（文案仿写、SEO 关键词提炼、分镜生图 Prompt、账号防封轮转、多语言翻译、各平台 OpenAPI 等）。为防止**模型上下文膨胀（Token 消耗暴增）**、**工具选择幻觉（Tool Hallucination）**以及**缺乏人工直接干预机制**，工作台设立专门的「AI 运营工具中枢与技能工坊」模块，构建**“MCP 外部连接层 ➔ Native 本地逻辑层 ➔ Skill 场景认知工坊”**的三层能力体系。
 
-#### 5.5.1 全景工具目录与分类架构 (Tool Catalog by Lifecycle)
-将所有 AI 运营工具按营销生命周期划分为 5 大领域卡片视图：
+#### 5.5.1 三层能力架构模型 (Three-Tier Capability Architecture)
+
+工具中枢将所有的底层工具与上层场景解耦为清晰的三层模型：
+
+| 层次 | 核心载体 | 扮演角色 | 在工作台中的具体落地 | 管理机制 |
+| :--- | :--- | :--- | :--- | :--- |
+| **外部连接层** | **MCP**<br/>*(Model Context Protocol)* | **“手和脚” (能力连接器)**<br/>通过标准化 JSON-RPC 协议打通宿主桌面与外部系统 | • **Injoys MCP**：知识库文档检索、资产沉淀、排期表格读写<br/>• **BrowserOS MCP**：浏览器控制、会话探活、多平台草稿预填<br/>• **扩展 MCP**：后续接入的官方 API、第三方数据源、搜索引擎 | 端点配置、认证密钥管理、心跳探活与延迟遥测 |
+| **本地逻辑层** | **Native Tools**<br/>*(Cordis 原生工具)* | **“业务骨架” (本地处理与渲染)**<br/>无外部网络依赖的纯本地算法计算与卡片渲染 | • **Card Renderers**：多平台所见即所得卡片实时渲染<br/>• **NLP Helpers**：SEO 关键词提取、文案字数统计、差异对比<br/>• **Schedule Helpers**：本地排期状态计算、发布冲突检测 | 宿主内联运行、毫秒级响应、无外部网络故障风险 |
+| **业务认知层** | **Skill**<br/>*(场景技能包 / SOP 预设)* | **“大脑与工作流” (场景编排)**<br/>将特定运营场景的 Prompt 模板、约束规范与精选工具打包 | • `📦 新版本发布推广技能包`<br/>• `🌍 全球出海冷启动技能包`<br/>• `🔍 舆情与数据巡检技能包`<br/>• `💡 热点选题与排期策划技能包`<br/>• `✍️ 跨平台爆款内容改编技能包` | 场景切片激活（4~6 个工具白名单）、Token 过载保护、SOP 流程控制 |
+
+```mermaid
+graph LR
+    subgraph 能力提供源
+        MCP["外部 MCP 服务 (Injoys / BrowserOS / Custom)"]
+        Native["本地 Native Tools (算法 / 渲染器)"]
+    end
+
+    subgraph ToolHub ["Ops Manager: AI 工具中枢与技能工坊"]
+        Catalog["全景工具目录 (Catalog & Toggles)"]
+        Sandbox["单步调试沙箱 (Playground)"]
+        SkillStudio["技能工坊 (Skill Studio & Presets)"]
+        Telemetry["调用审计与遥测 (Telemetry)"]
+    end
+
+    subgraph LLMRuntime ["DSH 大模型会话运行时"]
+        ActiveAgent["场景 Agent (精简 4~6 个白名单工具 + 专属 SOP Prompt)"]
+    end
+
+    MCP --> Catalog
+    Native --> Catalog
+    Catalog --> SkillStudio
+    SkillStudio -->|按需场景切片注入| ActiveAgent
+    Catalog <-->|免会话直测| Sandbox
+    ActiveAgent --> Telemetry
+    Sandbox --> Telemetry
+```
+
+---
+
+#### 5.5.2 全景工具目录与分类架构 (Tool Catalog by Lifecycle)
+将所有 AI 运营工具按营销生命周期划分为 5 大领域卡片视图，并明确标注驱动类型：
 1. **策划与选题 (Planning)**：
-   * `ops_plan_calendar`：多渠道排期自动规划并同步表格；
-   * `ops_discover_trends`：技术热点与爆款切入点动态嗅探；
-   * `ops_keyword_research`：SEO 核心词与搜索意图流量词挖掘；
+   * `ops_plan_calendar` *(MCP: Injoys)*：多渠道排期自动规划并同步表格；
+   * `ops_discover_trends` *(Native / Search)*：技术热点与爆款切入点动态嗅探；
+   * `ops_keyword_research` *(Native)*：SEO 核心词与搜索意图流量词挖掘；
 2. **创意与生成 (Creative)**：
-   * `ops_draft_article`：微信公众号图文草稿与长文撰写；
-   * `ops_draft_video_meta`：视频 AB 测试多候选标题、简介与标签生成；
-   * `ops_draft_launch_kit`：Product Hunt 发布物料与 Twitter 极客推文串生成；
-   * `ops_generate_hooks`：视频前 3 秒黄金吸睛钩子与首帧分镜生成；
+   * `ops_draft_article` *(Native / Injoys)*：微信公众号图文草稿与长文撰写；
+   * `ops_draft_video_meta` *(Native)*：视频 AB 测试多候选标题、简介与标签生成；
+   * `ops_draft_launch_kit` *(Native)*：Product Hunt 发布物料与 Twitter 极客推文串生成；
+   * `ops_generate_hooks` *(Native)*：视频前 3 秒黄金吸睛钩子与首帧分镜生成；
 3. **分发与执行 (Publishing & Automation)**：
-   * `ops_push_drafts`：通过 BrowserOS 免扫码批量预填各大平台草稿箱；
-   * `ops_publish_now`：针对已通过审核的平台执行正式一键定时发布；
+   * `ops_push_drafts` *(MCP: BrowserOS)*：通过 BrowserOS 免扫码批量预填各大平台草稿箱；
+   * `ops_publish_now` *(MCP: BrowserOS)*：针对已通过审核的平台执行正式一键定时发布；
 4. **分析与监听 (Analytics & Listening)**：
-   * `ops_fetch_metrics`：全网创作者数据大屏多维采集；
-   * `ops_generate_review`：周度/月度曝光、转化与 ROI 复盘报告计算；
-   * `ops_fetch_comments`：跨渠道受众真实评论抓取；
-   * `ops_extract_feedback`：用户问题聚类（Bug/Feature）与需求池反哺；
+   * `ops_fetch_metrics` *(MCP: BrowserOS)*：全网创作者数据大屏多维采集；
+   * `ops_generate_review` *(Native / Injoys)*：周度/月度曝光、转化与 ROI 复盘报告计算；
+   * `ops_fetch_comments` *(MCP: BrowserOS)*：跨渠道受众真实评论抓取；
+   * `ops_extract_feedback` *(Native / Injoys)*：用户问题聚类（Bug/Feature）与需求池反哺；
 5. **系统与调度 (System & Schedule)**：
-   * `ops_setup_schedule`：向 DSH 自动化任务中心注册定时巡检任务；
-   * `ops_inspect_sessions`：宿主 Chrome 真实 Cookie 保活与有效性探活。
+   * `ops_setup_schedule` *(Native: DSH Host)*：向 DSH 自动化任务中心注册定时巡检任务；
+   * `ops_inspect_sessions` *(Native / SQLite)*：宿主 Chrome 真实 Cookie 保活与有效性探活。
 
-#### 5.5.2 动态按需激活与技能包编排 (Selective Tool Activation & Presets)
-* **防止 Token 污染与上下文过载**：大模型执行特定任务时，无需将全部数十个工具全量加载至 System Prompt 中。
-* **一键预设场景技能包 (Skill Presets)**：
-  * `📦 新版本推广发帖包`：仅激活日历、长文、视频元数据、推文串与预填工具；
-  * `🔍 日常巡检与舆情包`：仅激活指标抓取、评论监控、需求聚类与周报工具；
-  * `🌍 全球出海冷启动包`：仅激活 Product Hunt、Twitter、海外时区策略工具；
-* **每个 Tool 独立软开关**：卡片右侧提供 Toggle 开关，开发者可随时禁用/启用某个工具。
+---
 
-#### 5.5.3 可视化单步调试沙箱 (Interactive Tool Playground / Sandbox)
-* **无会话直测能力**：运营人员无需在 AI 聊天框中等待多轮思考，在工作台界面点击任意工具卡片的 **「在沙箱中运行 ⚡」**：
+#### 5.5.3 技能工坊与场景技能包编排 (Skill Studio & Preset Architecture)
+
+为彻底解决大模型在面临数十个工具时的“工具选择幻觉”与 Token 资源浪费，工作台引入**技能包（Skill）**作为核心使用单元。
+
+##### 1. Skill 标准规范 (Skill Specification Schema)
+每个 Skill 是一个自包含的场景化业务包，包含以下核心维度：
+* **元数据定义 (Metadata)**：唯一标识 `id`、展示名称 `name`、图标 `icon`、所属领域 `category`、简要说明 `description`；
+* **场景提示词与调性约束 (System Prompt & Guidelines)**：
+  * 专长角色定位（如“硅谷 Product Hunt 顶级猎手”、“微信公众号 10w+ 爆款主编”）；
+  * 语气风格规则、违禁词规范及格式排版约束；
+* **绑定工具白名单 (Bound Tools Whitelist)**：
+  * 精确指定该技能允许大模型调用的工具集合（严格限制在 4~6 个）；
+  * 阻断无关工具进入 Prompt 上下文；
+* **输出规范与卡片渲染 (Output Schema & Card Renderer)**：
+  * 约定结构化输出字段，并绑定对应前端 WYSIWYG 卡片组件进行渲染；
+* **质量检测门禁 (Quality Gate Rules)**：
+  * 生成物料自动化核验准则（如：是否包含版本号、是否包含明确 CTA、标签数量是否在 3~5 个内）。
+
+##### 2. 内置五大官方场景技能包
+1. **📦 新版本发布全网推广技能包 (`release_launch`)**：
+   * 目标：新版本上线时一站式输出全网宣发物料；
+   * 绑定工具：`ops_plan_calendar`、`ops_draft_article`、`ops_draft_video_meta`、`ops_draft_launch_kit`、`ops_push_drafts`；
+2. **🌍 全球出海冷启动技能包 (`overseas_growth`)**：
+   * 目标：攻坚 Product Hunt、X/Twitter 及 Reddit，贴合欧美极客与海外工程师审美；
+   * 绑定工具：`ops_draft_launch_kit`、`ops_keyword_research`、`ops_push_drafts`；
+3. **🔍 舆情监听与需求提炼技能包 (`social_listening`)**：
+   * 目标：自动抓取多端评论，提取 Bug 与 Feature 建议，沉淀至 Injoys 需求池；
+   * 绑定工具：`ops_fetch_comments`、`ops_extract_feedback`、`ops_fetch_metrics`；
+4. **💡 热点趋势与周度排期策划技能包 (`trend_planning`)**：
+   * 目标：结合行业热点自动规划下周多平台发布日历，避免断更；
+   * 绑定工具：`ops_discover_trends`、`ops_keyword_research`、`ops_plan_calendar`；
+5. **✍️ 跨平台爆款内容改编技能包 (`omni_adaptation`)**：
+   * 目标：将长文快速解构成视频脚本、推文串、小红书图文卡片等不同体裁；
+   * 绑定工具：`ops_draft_article`、`ops_generate_hooks`、`ops_draft_video_meta`。
+
+##### 3. 技能工坊界面功能 (Skill Studio UI)
+* **技能卡片切换器**：在工作台顶部支持一键切换当前激活技能包，实时变更对话环境与工具白名单；
+* **技能包编辑器**：支持运营人员直接在线查看/克隆内置技能包，自定义微调 Prompt 模板与工具勾选；
+* **导入与导出**：支持以 JSON/YAML 格式导出自定义技能，方便团队内部沉淀和共享优质运营工作流。
+
+---
+
+#### 5.5.4 可视化单步调试沙箱 (Interactive Tool Playground / Sandbox)
+* **无会话直测能力**：运营人员或开发者无需在 AI 聊天框中等待漫长的多轮思考，在工作台界面点击任意工具卡片的 **「在沙箱中运行 ⚡」**：
   * 自动根据 Tool 的 JSON Schema 动态生成参数输入表单（如输入 `period: "week"`, `focusVersion: "v0.2.1"`）；
-  * 点击 **「单步运行」**，直接向宿主发起执行；
+  * 点击 **「单步运行」**，直接向底层服务发起调用（可直通 MCP 或本地 Native 函数）；
   * 实时展示执行耗时（例如 `248ms`）、结构化 JSON 原始输出以及 DSH 自定义卡片渲染效果（WYSIWYG Card Preview）；
-  * 极大降低开发者编写或调试运营指令时的验证成本。
+  * 极大降低开发者编写新工具、调试 Prompt 模板或排查 MCP 网络故障的成本。
 
-#### 5.5.4 工具调用审计与性能遥测 (Telemetry & Execution Logs)
-* **大盘指标统计**：展示今日工具调用总频次、平均响应延迟、成功率（例如 `99.2%`）；
+---
+
+#### 5.5.5 工具调用审计与性能遥测 (Telemetry & Execution Logs)
+* **大盘指标统计**：展示今日工具调用总频次、平均响应延迟、成功率（例如 `99.2%`）、MCP 连通探活健康分；
 * **调用时间线流水 (Audit Stream)**：
-  * 每一条记录包含：触发时间、工具名、触发来源（`AI 对话自主触发` 或 `工作台沙箱手动调用`）、入参摘要、执行状态、耗时与报错详情（点击可一键重试）。
+  * 每一条记录包含：触发时间、工具名、驱动类型 (`MCP` / `Native`)、触发来源（`AI 对话自主触发` 或 `工作台沙箱手动调用`）、入参摘要、执行状态、耗时与报错详情（点击可一键重试）。
 
-#### 5.5.5 自定义工具扩展机制 (Extensibility & Custom Tools)
-* 支持独立开发者通过定义标准的 Tool Schema（输入参数、说明、执行脚本）快速热插拔接入新平台（如小红书、知乎、CSDN、掘金），无需重新构建插件核心包。
+---
+
+#### 5.5.6 热插拔扩展机制 (Extensibility & Custom Tools/MCP)
+* **自定义 MCP 接入**：在设置中心支持动态新增任意标准 MCP 服务器（如第三方社媒 API MCP、SEO 搜索引擎 MCP），工作台自动扫描并挂载其 Tools；
+* **自定义 Native 工具**：支持独立开发者通过定义标准的 Tool Schema 与执行函数快速接入新平台（如小红书、知乎、CSDN），即插即用无需重构插件核心包。
 
 ---
 
