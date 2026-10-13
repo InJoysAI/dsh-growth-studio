@@ -8,8 +8,8 @@ import type { ConfigStore } from './config-store.js'
 import { InjoysClient } from './injoys/client.js'
 import type { AdapterRegistry } from './adapters/registry.js'
 import { SessionGuard } from './browser/session-guard.js'
-import { BrowserDriver } from './browser/browser-driver.js'
-import { DraftStore } from './storage/draft-store.js'
+import { BrowserDriver, type BrowserOsMcpClient } from './browser/browser-driver.js'
+import { DraftStore, DraftConcurrencyError } from './storage/draft-store.js'
 import { MetricsCollector } from './analytics/metrics-collector.js'
 import type { PlatformId } from './types.js'
 
@@ -39,14 +39,17 @@ export function registerOpsRpc(
   injoys: InjoysClient,
   adapters: AdapterRegistry,
   draftStore?: DraftStore,
+  browserOsClient?: BrowserOsMcpClient,
 ): void {
   const connection = (ctx as any).connection
   if (!connection?.fetch?.register) return
 
   const sessionGuard = new SessionGuard()
   const actualDraftStore = draftStore ?? new DraftStore(ctx)
-  const browserDriver = new BrowserDriver()
-  const metricsCollector = new MetricsCollector()
+  const isDryRunAllowed = Boolean((ctx as any)?.allowDryRun)
+  const browserDriver = new BrowserDriver(browserOsClient, { allowDryRun: isDryRunAllowed })
+  adapters.setBrowserOsClient(browserOsClient, { allowDryRun: isDryRunAllowed })
+  const metricsCollector = new MetricsCollector({ browserOsClient })
 
   connection.fetch.register({
     path: OPS_API_PATH,
@@ -143,7 +146,21 @@ export function registerOpsRpc(
           }
 
           case 'browser.sessions': {
-            const statuses = await sessionGuard.checkAllRealSessions(adapters.list())
+            let activeTabs: Array<{ url: string }> = []
+            if (browserOsClient) {
+              try {
+                const tabsRes = await browserOsClient.callTool('tabs', { action: 'list' })
+                activeTabs = Array.isArray(tabsRes?.tabs) ? tabsRes.tabs : []
+              } catch {
+                // Ignore error if listing tabs fails
+              }
+            }
+
+            // If browserOsClient is attached, evaluate unified BrowserOS sessions
+            const statuses = browserOsClient
+              ? sessionGuard.checkBrowserSessions(adapters.list(), activeTabs)
+              : await sessionGuard.checkAllRealSessions(adapters.list())
+
             result = {
               ok: true,
               value: {
@@ -182,10 +199,26 @@ export function registerOpsRpc(
 
           case 'drafts.save': {
             const draftInput = (payload.draft ?? payload) as any
-            const draft = await actualDraftStore.saveDraft(draftInput)
-            result = {
-              ok: true,
-              value: { draft },
+            const expectedVersion = typeof payload.expectedVersion === 'number' ? payload.expectedVersion : undefined
+            try {
+              const draft = await actualDraftStore.saveDraft(draftInput, { expectedVersion })
+              result = {
+                ok: true,
+                value: { draft },
+              }
+            } catch (err) {
+              if (err instanceof DraftConcurrencyError) {
+                result = {
+                  ok: false,
+                  error: {
+                    code: 'ops/concurrency-conflict',
+                    message: err.message,
+                    details: { currentVersion: err.currentVersion, expectedVersion: err.expectedVersion },
+                  },
+                }
+              } else {
+                throw err
+              }
             }
             break
           }
@@ -212,27 +245,139 @@ export function registerOpsRpc(
             break
           }
 
-          case 'workbench.overview': {
+          case 'workbench.generateArticleDraft': {
+            const topic = String(payload.topic ?? '新特性发布')
+            const targetPlatform = (payload.targetPlatform as PlatformId) || 'wechat_mp'
             const cfg = configStore.load()
-            const statuses = await sessionGuard.checkAllRealSessions(adapters.list())
-            const platformMetrics = await metricsCollector.fetchPlatformMetrics(['wechat_mp', 'bilibili'], '7d')
-            const calendarItems = await injoys.listCalendarItems()
+            const kb = await injoys.getKnowledgeContext(cfg.defaultProduct)
 
-            let totalImpressions = 0
-            let totalPlays = 0
-            let totalLikes = 0
-            let totalComments = 0
-            let totalShares = 0
+            const title = `深度拆解：${topic} —— ${kb.productName} 架构实操`
+            const digest = `基于 ${kb.productName} 核心理念，全面解析 ${topic} 在实际生产中的应用。`
+            const contentMarkdown = `# ${title}\n\n> **导语**：${digest}\n\n## 一、 背景与痛点\n围绕 ${topic}，探讨开发者的核心痛点与解决思路。\n\n## 二、 架构实践\n深入 ${kb.productName} 模块化设计。\n`
 
-            for (const m of platformMetrics) {
-              if (m.impressions) totalImpressions += m.impressions
-              if (m.plays) totalPlays += m.plays
-              if (m.likes) totalLikes += m.likes
-              if (m.comments) totalComments += m.comments
-              if (m.shares) totalShares += m.shares
+            const draft = await actualDraftStore.saveDraft({
+              title,
+              topic,
+              channelVariants: [
+                {
+                  platform: targetPlatform,
+                  kind: 'article',
+                  title,
+                  body: contentMarkdown,
+                  tags: ['技术分享', 'AI'],
+                },
+              ],
+              status: 'ready_for_review',
+            })
+
+            const docId = await injoys.saveArticleDocument({
+              id: draft.id,
+              title,
+              digest,
+              contentMarkdown,
+              suggestedTags: ['技术分享', 'AI'],
+            })
+
+            if (docId) {
+              await actualDraftStore.saveDraft({
+                ...draft,
+                injoysDocId: docId,
+              })
             }
 
-            const readyCount = statuses.filter(s => s.isReady || s.loggedIn).length
+            result = {
+              ok: true,
+              value: {
+                id: draft.id,
+                title: draft.title,
+                digest,
+                contentMarkdown,
+                wordCount: contentMarkdown.length,
+                draftSaved: true,
+                injoysDocId: docId,
+              },
+            }
+            break
+          }
+
+          case 'workbench.generateVideoMeta': {
+            const topic = String(payload.topic ?? '硬核实战')
+            const platform = (payload.platform as PlatformId) || 'bilibili'
+            const titleCandidates = [
+              { title: `【硬核】手把手带你玩转 ${topic}`, angle: '硬核实战型', estimatedCtr: '高点击率' },
+              { title: `告别重复造轮子：${topic} 实操全记录`, angle: '痛点揭秘型', estimatedCtr: '高转化率' },
+              { title: `我用这套智能体工作流做 ${topic}，太香了！`, angle: '自媒体爆款型', estimatedCtr: '高完播率' },
+            ]
+            const description = `本期视频详细演示 ${topic} 的完整落地过程。\n欢迎点赞、投币、收藏支持！`
+            const tags = ['AI智能体', '独立开发', '效率工具', 'Python', '全栈']
+
+            const draft = await actualDraftStore.saveDraft({
+              title: titleCandidates[0].title,
+              topic,
+              channelVariants: [
+                {
+                  platform,
+                  kind: 'video',
+                  title: titleCandidates[0].title,
+                  body: description,
+                  tags,
+                },
+              ],
+              status: 'ready_for_review',
+            })
+
+            result = {
+              ok: true,
+              value: {
+                id: draft.id,
+                titleCandidates,
+                description,
+                tags,
+                coverPromptSuggestion: `极简科技感封面，中心突出关键词 "${topic}"`,
+              },
+            }
+            break
+          }
+
+          case 'workbench.overview': {
+            const cfg = configStore.load()
+            let activeTabs: Array<{ url: string }> = []
+            if (browserOsClient) {
+              try {
+                const tabsRes = await browserOsClient.callTool('tabs', { action: 'list' })
+                activeTabs = Array.isArray(tabsRes?.tabs) ? tabsRes.tabs : []
+              } catch {
+                // Ignore tab query failure
+              }
+            }
+
+            const statuses = browserOsClient
+              ? sessionGuard.checkBrowserSessions(adapters.list(), activeTabs)
+              : await sessionGuard.checkAllRealSessions(adapters.list())
+
+            const platformMetrics = await metricsCollector.fetchPlatformMetrics(['wechat_mp', 'bilibili'], '7d')
+            const calendarItems = await injoys.listCalendarItems()
+            const injoysHealth = await injoys.testConnection().catch(() => ({ ok: false, latencyMs: 0, message: '' }))
+
+            let totalImpressions: number | null = null
+            let totalPlays: number | null = null
+            let totalLikes: number | null = null
+            let totalComments: number | null = null
+            let totalShares: number | null = null
+            let totalFollowersDelta: number | null = null
+
+            for (const m of platformMetrics) {
+              if (m.impressions !== null) totalImpressions = (totalImpressions ?? 0) + m.impressions
+              if (m.plays !== null) totalPlays = (totalPlays ?? 0) + m.plays
+              if (m.likes !== null) totalLikes = (totalLikes ?? 0) + m.likes
+              if (m.comments !== null) totalComments = (totalComments ?? 0) + m.comments
+              if (m.shares !== null) totalShares = (totalShares ?? 0) + m.shares
+              if (m.followerDelta !== null && m.followerDelta !== undefined) {
+                totalFollowersDelta = (totalFollowersDelta ?? 0) + m.followerDelta
+              }
+            }
+
+            const readyCount = statuses.filter(s => s.state === 'authenticated' || (s as any).loggedIn).length
 
             result = {
               ok: true,
@@ -244,7 +389,7 @@ export function registerOpsRpc(
                   totalLikes,
                   totalComments,
                   totalShares,
-                  totalFollowersDelta: 345,
+                  totalFollowersDelta,
                   scheduledCount: calendarItems.length,
                   readyChannelsCount: readyCount,
                   totalChannelsCount: 2, // Phase 0 WeChat MP + Bilibili
@@ -262,7 +407,7 @@ export function registerOpsRpc(
                 ],
                 calendarItems,
                 feedbackItems: [],
-                injoysConnected: true,
+                injoysConnected: injoysHealth.ok,
               },
             }
             break
@@ -294,6 +439,7 @@ export function registerOpsRpc(
               },
             })
 
+            // Only persist prefill results when prefill succeeded
             if (prefillRes.success) {
               await actualDraftStore.updatePrefillResult(draftId, platform, {
                 draftId: prefillRes.draftId,
@@ -302,8 +448,11 @@ export function registerOpsRpc(
             }
 
             result = {
-              ok: true,
+              ok: prefillRes.success,
               value: prefillRes,
+              error: prefillRes.success
+                ? undefined
+                : { code: 'ops/prefill-failed', message: prefillRes.message },
             }
             break
           }

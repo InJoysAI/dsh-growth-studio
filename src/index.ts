@@ -75,7 +75,7 @@ export function apply(ctx: Context, config: Config): void {
     ].join(' '),
   })
 
-  const tools = createOpsTools(injoys, adapters, ctx)
+  const tools = createOpsTools(injoys, adapters, ctx, draftStore)
   for (const tool of tools) {
     ctx.tools.register(tool)
   }

@@ -44,26 +44,29 @@ graph TD
 
 | 模块 / 组件 | 源码路径 | 文档规格描述 | 当前代码实际实现 | 状态评级 | 交付阶段 |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **BrowserDriver** 预填编排 | `src/browser/browser-driver.ts` | 编排 BrowserOS 执行真实多字段/附件预填 | `planPrefillWorkflow` 直接返回假数据 `success: true` | 🔴 占位待实现 | **Phase 0**（公号+B站） |
-| **SessionGuard** 会话探测 | `src/browser/session-guard.ts` | 探测 BrowserOS 实例登录态，支持四态流转 | 仅读取日用 Chrome SQLite（且缺 WAL 拷贝）；与 BrowserOS 实例分裂 | 🔴 架构冲突待重构 | **Phase 0**（统一BrowserOS） |
-| **MetricsCollector** 指标采集 | `src/analytics/metrics-collector.ts` | 从各平台大屏采集真实指标，区分曝光/播放 | `generateMetricsForPlatform` 硬编码固定倍率假数据 | 🔴 占位待实现 | **Phase 0**（公号+B站） |
-| **InjoysClient.listCalendarItems** | `src/injoys/client.ts` | 读取 Injoys 排期表格行 | 直接 `return []` | 🔴 占位待实现 | **Phase 0**（表格读取） |
-| **InjoysClient.syncCalendarItem** | `src/injoys/client.ts` | 双向同步排期表格行 | 仅返回传入入参浅拷贝，未发网络请求 | 🔴 占位待实现 | **Phase 0**（单向导出） |
+| **BrowserDriver** 预填编排 | `src/browser/browser-driver.ts` | 编排 BrowserOS 执行真实多字段/附件预填 | 编排管线与断开/失败错误反馈已就绪，未连 BrowserOS 时明确拒绝 | 🟡 契约就绪，待 Live 验收 | **Phase 0**（公号+B站） |
+| **SessionGuard** 会话探测 | `src/browser/session-guard.ts` | 探测 BrowserOS 实例登录态，支持四态流转 | 四态枚举与 Tab 探活逻辑已就绪，待绑定活动 BrowserOS 实例 | 🟡 契约就绪，待 Live 验收 | **Phase 0**（统一BrowserOS） |
+| **MetricsCollector** 指标采集 | `src/analytics/metrics-collector.ts` | 从各平台大屏采集真实指标，区分曝光/播放 | 已重构为严格可空语义（离线返回 null，mock 显式隔离） | 🟡 契约就绪，待 Live 验收 | **Phase 0**（公号+B站） |
+| **InjoysClient.listCalendarItems** | `src/injoys/client.ts` | 读取 Injoys 排期表格行 | 已接入 `spreadsheet.read` 远端调用 | 🟢 已实现 | **Phase 0**（表格读取） |
+| **InjoysClient.syncCalendarItem** | `src/injoys/client.ts` | 排期行幂等写入与错误抛出 | 已接入 `spreadsheet.applyOperations`，带排重检查与失败抛出 | 🟢 已实现 | **Phase 0**（单向导出） |
 | **InjoysClient.testConnection** | `src/injoys/client.ts` | 连通性测试 | 真实发起 HTTP 请求并校验状态码 | 🟢 已实现 | 基线已就绪 |
 | **InjoysClient.invokeTool** | `src/injoys/client.ts` | 通用 MCP JSON-RPC 调用 | 真实向 MCP 发起 JSON-RPC 请求 | 🟢 已实现 | 基线已就绪 |
-| **ContentDraft** 本地持久化 | `src/storage/draft-store.ts` | 草稿实体、平台变体、版本控制、本地存盘 | 源码中不存在该模块，文案仅由 Tool 内存拼接模板 | 🔴 待实现 | **Phase 0** |
+| **ContentDraft** 本地持久化 | `src/storage/draft-store.ts` | 草稿实体、平台变体、乐观锁、本地存盘 | 已实现原子写入、进程内锁序列化与 `expectedVersion` 乐观并发控制 | 🟢 已实现 | **Phase 0** |
 | **AdapterRegistry** 适配器注册 | `src/adapters/registry.ts` | 8 平台基础配置信息 | 平台基础元数据完整定义 | 🟢 已实现 | 基线已就绪 |
-| **WeChatArticleAdapter** 适配器 | `src/adapters/wechat-article.ts` | 微信公众号图文草稿箱预填 | 逻辑框架就绪，待接入真实 BrowserOS 指令 | 🟡 待完善 | **Phase 0** |
-| **BilibiliVideoAdapter** 适配器 | `src/adapters/bilibili-video.ts` | B站视频元数据预填 | 逻辑框架就绪，待接入真实 BrowserOS 指令 | 🟡 待完善 | **Phase 0** |
+| **WeChatArticleAdapter** 适配器 | `src/adapters/registry.ts` | 微信公众号图文草稿箱预填 | 逻辑框架与 BrowserDriver 注入已就绪，待在 Live BrowserOS 环境联调 | 🟡 契约就绪，待 Live 验收 | **Phase 0** |
+| **BilibiliVideoAdapter** 适配器 | `src/adapters/registry.ts` | B站视频元数据预填 | 逻辑框架与 BrowserDriver 注入已就绪，待在 Live BrowserOS 环境联调 | 🟡 契约就绪，待 Live 验收 | **Phase 0** |
 | **CommentsCrawler** 评论抓取 | `src/feedback/comments-crawler.ts` | 真实抓取多平台评论数据 | 生成固定 mock 评论数组 | 🔴 占位待实现 | **Phase 1** |
 | **IssueExtractor** 需求提炼 | `src/feedback/issue-extractor.ts` | 真实聚类 Bug / Feature | 简单的静态正则匹配与假数据聚类 | 🔴 占位待实现 | **Phase 1** |
-| **ReviewReporter** 复盘报告 | `src/analytics/review-reporter.ts` | 基于真实指标计算爆款率与总结 | 算法可用但计算源依赖 fake metrics | 🟡 待连通真实数据 | **Phase 1** |
+| **ReviewReporter** 复盘报告 | `src/analytics/review-reporter.ts` | 基于真实指标计算爆款率与总结 | 算法可用，依赖 live MetricsCollector 数据流 | 🟡 待连通真实数据 | **Phase 1** |
 | **BrowserOS 独立认证窗/Profile** | `docs/technical_architecture.md` | CDP 截取二维码与指定独立 profile 启动小窗 | 未进行任何实际 BrowserOS 环境 PoC 验证 | 🔬 需 PoC 验证 | **Phase 2** |
 | **Injoys 双向冲突仲裁** | `docs/technical_architecture.md` | 复杂分布式双向同步 | 未实现，存在数据覆盖风险 | 🔨 规划中 | **Phase 3** |
 
 ---
 
 ## 三、 四阶段分步实施里程碑
+
+> [!IMPORTANT]
+> **当前交付结论**：文档整改及部分基础契约完成，Phase 0 真实闭环尚待在真实 BrowserOS 与平台账号环境下实测验收。
 
 ### Phase 0：双平台最小完整闭环 (M0: WeChat MP + Bilibili Minimal Closed Loop)
 * **核心目标**：打通 **"微信公众号 + 哔哩哔哩"** 两个高价值平台的端到端闭环：**排期读取/导出 ➔ AI 文案生成 ➔ 本地持久化与多渠道微调 ➔ BrowserOS 真实草稿箱预填 ➔ 人工确认发布后回填 URL ➔ 真实基础指标采集**。
@@ -77,24 +80,25 @@ graph TD
      * 规范四态生命周期：`unknown` (未知) ➔ `needs_login` (需登录) ➔ `authenticated` (已认证) ➔ `no_publish_permission` (无权限)。
   3. **内容持久化引擎 (`ContentDraftStore`)**：
      * 新增 `src/storage/draft-store.ts`，管理本地 JSON 文件存储路径 `$DSH_HOME/growth-studio/drafts/`；
-     * 实现草稿增删改查、版本自增、多平台变体（微信图文 / B站视频元数据）统一持久化。
+     * 实现草稿增删改查、版本自增、乐观锁并发控制、多平台变体统一持久化。
   4. **BrowserDriver 真实对接 BrowserOS**：
      * 实现真实的 BrowserOS MCP 驱动：`tabs` ➔ `navigate` ➔ `snapshot` ➔ `act`；
      * 对微信公众号实现创建新图文并预填标题、作者、正文；
-     * 对 B站创作者平台实现预填视频标题、简介、标签与分区。
+     * 对 B站创作者平台实现预填视频标题、简介、标签与分区；
+     * 严禁无客户端或执行失败时虚报成功。
   5. **InjoysClient 排期表格真实读写**：
      * 实现 `listCalendarItems`：调用 Injoys MCP 的 `spreadsheet.read` 读取排期；
-     * 实现 `syncCalendarItem`（Phase 0 降级为单向写入/导出）：调用 Injoys MCP 的 `spreadsheet.applyOperations` 追加排期行。
+     * 实现 `syncCalendarItem`：调用 Injoys MCP 的 `spreadsheet.applyOperations`，支持幂等去重与错误透传。
   6. **指标采集真实改造**：
      * 修正指标定义：将 `views` 拆分为可空的 `impressions`（曝光/阅读）与 `plays`（播放量）；
      * 首版通过 BrowserOS 访问创作者后台真实采集公众号与 B站数据；无法获取的字段设为 `null` 而非硬编码伪造数据。
-* **验收条件**：
-  * [x] 在 BrowserOS 中登录公众号与 B站后，工作台状态准确呈现 `authenticated`；
-  * [x] AI 生成的公众号文章在本地生成持久化 JSON 草稿，并支持二次编辑存盘；
-  * [x] 点击“预填草稿”，BrowserOS 真实将内容注入微信公众号后台，后台草稿列表可见该草稿；
-  * [x] 点击“预填草稿”，BrowserOS 真实将 B站视频标题和简介填入创作者页面；
-  * [x] 人工发布后填入平台 URL，排期与草稿状态变为 `published`；
-  * [x] 排期行能真实写入 Injoys Spreadsheet 并读取回显。
+* **验收条件（待 Live 实测）**：
+  * [ ] 在 BrowserOS 中登录公众号与 B站后，工作台状态准确呈现 `authenticated`；
+  * [ ] AI 生成的公众号文章在本地生成持久化 JSON 草稿，并支持二次编辑存盘；
+  * [ ] 点击“预填草稿”，BrowserOS 真实将内容注入微信公众号后台，后台草稿列表可见该草稿；
+  * [ ] 点击“预填草稿”，BrowserOS 真实将 B站视频标题和简介填入创作者页面；
+  * [ ] 人工发布后填入平台 URL，排期与草稿状态变为 `published`；
+  * [ ] 排期行能真实写入 Injoys Spreadsheet 并读取回显。
 
 ---
 

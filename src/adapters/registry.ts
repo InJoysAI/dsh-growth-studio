@@ -5,7 +5,7 @@
 
 import type { PlatformId, DraftPrefillResult } from '../types.js'
 import type { PlatformAdapter, AdapterContext, ArticlePayload, VideoPayload } from './base.js'
-import { BrowserDriver } from '../browser/browser-driver.js'
+import { BrowserDriver, type BrowserDriverOptions, type BrowserOsMcpClient } from '../browser/browser-driver.js'
 
 export class WeChatArticleAdapter implements PlatformAdapter {
   readonly id = 'wechat_mp'
@@ -13,7 +13,11 @@ export class WeChatArticleAdapter implements PlatformAdapter {
   readonly kind = 'article' as const
   readonly draftEditorUrl = 'https://mp.weixin.qq.com/cgi-bin/appmsg?t=media/appmsg_edit'
 
-  private readonly driver = new BrowserDriver()
+  private readonly driver: BrowserDriver
+
+  constructor(driver?: BrowserDriver) {
+    this.driver = driver ?? new BrowserDriver()
+  }
 
   async checkLogin(_ctx: AdapterContext): Promise<boolean> {
     return true
@@ -40,7 +44,11 @@ export abstract class BaseVideoAdapter implements PlatformAdapter {
   readonly kind = 'video' as const
   abstract readonly draftEditorUrl: string
 
-  private readonly driver = new BrowserDriver()
+  private readonly driver: BrowserDriver
+
+  constructor(driver?: BrowserDriver) {
+    this.driver = driver ?? new BrowserDriver()
+  }
 
   async checkLogin(_ctx: AdapterContext): Promise<boolean> {
     return true
@@ -97,7 +105,11 @@ export class TwitterXAdapter implements PlatformAdapter {
   readonly kind = 'post' as const
   readonly draftEditorUrl = 'https://x.com/compose/post'
 
-  private readonly driver = new BrowserDriver()
+  private readonly driver: BrowserDriver
+
+  constructor(driver?: BrowserDriver) {
+    this.driver = driver ?? new BrowserDriver()
+  }
 
   async checkLogin(_ctx: AdapterContext): Promise<boolean> {
     return true
@@ -124,7 +136,11 @@ export class ProductHuntAdapter implements PlatformAdapter {
   readonly kind = 'article' as const
   readonly draftEditorUrl = 'https://www.producthunt.com/posts/new'
 
-  private readonly driver = new BrowserDriver()
+  private readonly driver: BrowserDriver
+
+  constructor(driver?: BrowserDriver) {
+    this.driver = driver ?? new BrowserDriver()
+  }
 
   async checkLogin(_ctx: AdapterContext): Promise<boolean> {
     return true
@@ -148,18 +164,28 @@ export class ProductHuntAdapter implements PlatformAdapter {
 export class AdapterRegistry {
   private readonly adapters = new Map<PlatformId, PlatformAdapter>()
 
-  constructor() {
+  constructor(browserOsClient?: BrowserOsMcpClient, options?: BrowserDriverOptions) {
+    this.initAdapters(browserOsClient, options)
+  }
+
+  initAdapters(browserOsClient?: BrowserOsMcpClient, options?: BrowserDriverOptions): void {
+    const driver = new BrowserDriver(browserOsClient, options)
     // Domestic platforms
-    this.register(new WeChatArticleAdapter())
-    this.register(new BilibiliVideoAdapter())
-    this.register(new ChannelsVideoAdapter())
-    this.register(new DouyinVideoAdapter())
+    this.register(new WeChatArticleAdapter(driver))
+    this.register(new BilibiliVideoAdapter(driver))
+    this.register(new ChannelsVideoAdapter(driver))
+    this.register(new DouyinVideoAdapter(driver))
 
     // Overseas platforms (Phase 4)
-    this.register(new YouTubeAdapter())
-    this.register(new TikTokAdapter())
-    this.register(new TwitterXAdapter())
-    this.register(new ProductHuntAdapter())
+    this.register(new YouTubeAdapter(driver))
+    this.register(new TikTokAdapter(driver))
+    this.register(new TwitterXAdapter(driver))
+    this.register(new ProductHuntAdapter(driver))
+  }
+
+  setBrowserOsClient(browserOsClient?: BrowserOsMcpClient, options?: BrowserDriverOptions): void {
+    this.adapters.clear()
+    this.initAdapters(browserOsClient, options)
   }
 
   register(adapter: PlatformAdapter): void {

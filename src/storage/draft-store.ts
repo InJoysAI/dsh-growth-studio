@@ -1,6 +1,7 @@
 /**
  * Local persistent draft storage for Growth Studio.
  * Persists ContentDraft entities to $DSH_HOME/growth-studio/drafts/{id}.json
+ * Supports optimistic concurrency control and in-process write serialization.
  * @module @deepseek-ai/dsh-ops-manager/storage/draft-store
  */
 
@@ -11,8 +12,25 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { ContentDraft, PlatformId } from '../types.js'
 import { resolveDshHome } from '../config-store.js'
 
+export class DraftConcurrencyError extends Error {
+  constructor(
+    message: string,
+    public readonly currentVersion: number,
+    public readonly expectedVersion: number,
+  ) {
+    super(message)
+    this.name = 'DraftConcurrencyError'
+  }
+}
+
+export interface SaveDraftOptions {
+  /** If specified, verifies that the existing draft matches this version before updating. */
+  expectedVersion?: number
+}
+
 export class DraftStore {
   private readonly draftsDir: string
+  private readonly writeLocks = new Map<string, Promise<void>>()
 
   constructor(ctx?: Context, customDir?: string) {
     if (customDir) {
@@ -43,40 +61,73 @@ export class DraftStore {
 
   /**
    * Save or update a draft. Auto-increments version and updates timestamps.
+   * Throws DraftConcurrencyError if expectedVersion is provided and does not match.
    */
-  async saveDraft(input: Partial<ContentDraft> & { title: string }): Promise<ContentDraft> {
-    const now = new Date().toISOString()
+  async saveDraft(
+    input: Partial<ContentDraft> & { title: string },
+    options?: SaveDraftOptions,
+  ): Promise<ContentDraft> {
     const id = input.id ?? `draft_${Date.now()}_${randomBytes(4).toString('hex')}`
-    const existing = await this.getDraft(id)
 
-    const draft: ContentDraft = {
-      id,
-      title: input.title,
-      topic: input.topic ?? existing?.topic ?? input.title,
-      targetAudience: input.targetAudience ?? existing?.targetAudience,
-      channelVariants: input.channelVariants ?? existing?.channelVariants ?? [],
-      status: input.status ?? existing?.status ?? 'draft',
-      version: existing ? existing.version + 1 : 1,
-      injoysDocId: input.injoysDocId ?? existing?.injoysDocId,
-      prefillResults: {
-        ...(existing?.prefillResults ?? {}),
-        ...(input.prefillResults ?? {}),
-      },
-      publishedUrls: {
-        ...(existing?.publishedUrls ?? {}),
-        ...(input.publishedUrls ?? {}),
-      },
-      createdAt: existing ? existing.createdAt : now,
-      updatedAt: now,
+    // Serialize concurrent writes per draft ID to eliminate in-process race conditions
+    const prevLock = this.writeLocks.get(id) ?? Promise.resolve()
+    let releaseLock!: () => void
+    const nextLock = new Promise<void>((resolve) => {
+      releaseLock = resolve
+    })
+    this.writeLocks.set(id, nextLock)
+
+    try {
+      await prevLock
+
+      const now = new Date().toISOString()
+      const existing = await this.getDraft(id)
+
+      if (options?.expectedVersion !== undefined) {
+        const currentVersion = existing ? existing.version : 0
+        if (currentVersion !== options.expectedVersion) {
+          throw new DraftConcurrencyError(
+            `草稿并发冲突: 草稿 [${id}] 当前版本为 v${currentVersion}，期望版本为 v${options.expectedVersion}`,
+            currentVersion,
+            options.expectedVersion,
+          )
+        }
+      }
+
+      const draft: ContentDraft = {
+        id,
+        title: input.title,
+        topic: input.topic ?? existing?.topic ?? input.title,
+        targetAudience: input.targetAudience ?? existing?.targetAudience,
+        channelVariants: input.channelVariants ?? existing?.channelVariants ?? [],
+        status: input.status ?? existing?.status ?? 'draft',
+        version: existing ? existing.version + 1 : 1,
+        injoysDocId: input.injoysDocId ?? existing?.injoysDocId,
+        prefillResults: {
+          ...(existing?.prefillResults ?? {}),
+          ...(input.prefillResults ?? {}),
+        },
+        publishedUrls: {
+          ...(existing?.publishedUrls ?? {}),
+          ...(input.publishedUrls ?? {}),
+        },
+        createdAt: existing ? existing.createdAt : now,
+        updatedAt: now,
+      }
+
+      const filePath = this.getFilePath(id)
+      const tmpPath = `${filePath}.tmp.${Date.now()}`
+
+      writeFileSync(tmpPath, JSON.stringify(draft, null, 2), 'utf-8')
+      renameSync(tmpPath, filePath)
+
+      return draft
+    } finally {
+      releaseLock()
+      if (this.writeLocks.get(id) === nextLock) {
+        this.writeLocks.delete(id)
+      }
     }
-
-    const filePath = this.getFilePath(id)
-    const tmpPath = `${filePath}.tmp.${Date.now()}`
-
-    writeFileSync(tmpPath, JSON.stringify(draft, null, 2), 'utf-8')
-    renameSync(tmpPath, filePath)
-
-    return draft
   }
 
   /**

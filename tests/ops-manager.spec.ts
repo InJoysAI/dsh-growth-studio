@@ -49,17 +49,54 @@ describe('Ops Manager (Stage 1 & 2)', () => {
     expect(wxLogin.guidanceMessage).toContain('微信公众号')
   })
 
-  it('plans prefill workflows using BrowserDriver', async () => {
-    const driver = new BrowserDriver()
-    const res = await driver.planPrefillWorkflow({
+  it('plans prefill workflows using BrowserDriver with honest execution and error handling', async () => {
+    // 1. Disconnected driver must NOT fake success
+    const disconnectedDriver = new BrowserDriver()
+    const disconnectedRes = await disconnectedDriver.planPrefillWorkflow({
       platform: 'bilibili',
       targetUrl: 'https://member.bilibili.com/platform/upload/video/frame',
       fields: { title: '测试视频' },
       uploadFilePath: '/path/to/demo.mp4',
     })
+    expect(disconnectedRes.success).toBe(false)
+    expect(disconnectedRes.message).toContain('未连接')
+    expect(disconnectedRes.requiresUserAction).toBe(true)
 
-    expect(res.success).toBe(true)
-    expect(res.draftUrl).toContain('bilibili')
+    // 2. Driver with mock BrowserOS client succeeds
+    const mockClient = {
+      callTool: async (tool: string) => {
+        if (tool === 'navigate') return { ok: true }
+        if (tool === 'snapshot') return { nodes: [] }
+        if (tool === 'act') return { ok: true }
+        if (tool === 'upload') return { ok: true }
+        return { ok: true }
+      },
+    }
+    const liveDriver = new BrowserDriver(mockClient)
+    const liveRes = await liveDriver.planPrefillWorkflow({
+      platform: 'bilibili',
+      targetUrl: 'https://member.bilibili.com/platform/upload/video/frame',
+      fields: { title: '测试视频' },
+      uploadFilePath: '/path/to/demo.mp4',
+    })
+    expect(liveRes.success).toBe(true)
+    expect(liveRes.draftUrl).toContain('bilibili')
+
+    // 3. Driver with failing BrowserOS client returns failure honestly
+    const failingClient = {
+      callTool: async (tool: string) => {
+        if (tool === 'navigate') throw new Error('网络超时无法连接目标后台')
+        return { ok: true }
+      },
+    }
+    const failingDriver = new BrowserDriver(failingClient)
+    const failingRes = await failingDriver.planPrefillWorkflow({
+      platform: 'bilibili',
+      targetUrl: 'https://member.bilibili.com/platform/upload/video/frame',
+      fields: { title: '测试视频' },
+    })
+    expect(failingRes.success).toBe(false)
+    expect(failingRes.message).toContain('网络超时')
   })
 
   it('plans multi-channel marketing calendar via ops_plan_calendar tool', async () => {
@@ -164,7 +201,7 @@ describe('Ops Manager (Stage 1 & 2)', () => {
 
   it('prefills platform draft boxes and returns review URLs via ops_push_drafts tool', async () => {
     const injoys = new InjoysClient()
-    const registry = new AdapterRegistry()
+    const registry = new AdapterRegistry(undefined, { allowDryRun: true })
     const tools = createOpsTools(injoys, registry)
     const pushTool = tools.find(t => t.name === 'ops_push_drafts')
     expect(pushTool).toBeDefined()
@@ -203,12 +240,34 @@ describe('Ops Manager (Stage 1 & 2)', () => {
     expect(result.summary).toContain('bilibili')
     expect(result.summary).toContain('douyin')
     expect(result.summary).toContain('直达草稿箱')
+
+    // Also assert that completely disconnected registry honestly returns failure
+    const disconnectedRegistry = new AdapterRegistry()
+    const disconnectedTools = createOpsTools(injoys, disconnectedRegistry)
+    const disconnectedPush = disconnectedTools.find(t => t.name === 'ops_push_drafts')
+    const disconnectedRes = await disconnectedPush!.execute(
+      {
+        platforms: ['wechat_mp'],
+        title: '离线测试',
+        contentOrDescription: '测试未连接驱动拒绝伪造成功',
+      },
+      execContext,
+    )
+    expect(disconnectedRes.successCount).toBe(0)
+    expect(disconnectedRes.summary).toContain('⚠️')
   })
 })
 
 describe('Ops Manager (Stage 3: Analytics, Feedback & Schedule)', () => {
   it('collects creator metrics across multiple platforms via MetricsCollector', async () => {
-    const collector = new MetricsCollector()
+    // Test unmeasured defaults without mock
+    const unmeasuredCollector = new MetricsCollector()
+    const unmeasured = await unmeasuredCollector.fetchPlatformMetrics(['wechat_mp', 'bilibili'])
+    expect(unmeasured[0]!.impressions).toBeNull()
+    expect(unmeasured[0]!.views).toBe(0)
+
+    // Test explicit mock data
+    const collector = new MetricsCollector({ mockOffline: true })
     const metrics = await collector.fetchPlatformMetrics(['wechat_mp', 'bilibili'], '7d')
 
     expect(metrics.length).toBe(2)
@@ -228,7 +287,7 @@ describe('Ops Manager (Stage 3: Analytics, Feedback & Schedule)', () => {
 
   it('calculates performance metrics and generates review via ReviewReporter', async () => {
     const injoys = new InjoysClient()
-    const collector = new MetricsCollector()
+    const collector = new MetricsCollector({ mockOffline: true })
     const reporter = new ReviewReporter(injoys)
 
     const metrics = await collector.fetchPlatformMetrics([
@@ -319,7 +378,8 @@ describe('Ops Manager (Stage 3: Analytics, Feedback & Schedule)', () => {
   it('executes Phase 3 tools ops_fetch_metrics and ops_generate_review', async () => {
     const injoys = new InjoysClient()
     const registry = new AdapterRegistry()
-    const tools = createOpsTools(injoys, registry)
+    const mockCollector = new MetricsCollector({ mockOffline: true })
+    const tools = createOpsTools(injoys, registry, undefined, undefined, mockCollector)
 
     const fetchMetricsTool = tools.find(t => t.name === 'ops_fetch_metrics')
     const generateReviewTool = tools.find(t => t.name === 'ops_generate_review')
@@ -558,7 +618,7 @@ describe('Ops Manager (Stage 4: Overseas Expansion & Multi-Language)', () => {
   })
 
   it('collects metrics and comments for overseas platforms', async () => {
-    const collector = new MetricsCollector()
+    const collector = new MetricsCollector({ mockOffline: true })
     const crawler = new CommentsCrawler()
 
     const metrics = await collector.fetchPlatformMetrics(['youtube', 'twitter_x', 'product_hunt', 'tiktok'], '7d')
@@ -638,12 +698,15 @@ describe('Ops Manager (Stage 4: Overseas Expansion & Multi-Language)', () => {
     it('handles Ops RPC requests through registerOpsRpc', async () => {
       const { ConfigStore } = await import('../src/config-store.js')
       const { registerOpsRpc, OPS_API_PATH, OPS_ENDPOINT } = await import('../src/ops-rpc.js')
+      const { DraftStore } = await import('../src/storage/draft-store.js')
       const store = new ConfigStore(undefined)
       const injoys = new InjoysClient()
       const adapters = new AdapterRegistry()
+      const draftStore = new DraftStore(undefined)
 
       let registeredHandler: ((req: Request) => Promise<Response>) | undefined
       const mockCtx: any = {
+        allowDryRun: true,
         connection: {
           fetch: {
             register(opts: any) {
@@ -655,7 +718,7 @@ describe('Ops Manager (Stage 4: Overseas Expansion & Multi-Language)', () => {
         },
       }
 
-      registerOpsRpc(mockCtx, store, injoys, adapters)
+      registerOpsRpc(mockCtx, store, injoys, adapters, draftStore)
       expect(registeredHandler).toBeDefined()
 
       // Test config.get
@@ -846,10 +909,33 @@ describe('Ops Manager (Stage 4: Overseas Expansion & Multi-Language)', () => {
       expect(dataPrefill.result.ok).toBe(true)
       expect(dataPrefill.result.value.success).toBe(true)
       expect(dataPrefill.result.value.message).toContain('草稿箱')
+
+      // Test workbench.generateArticleDraft (AI generation connected to DraftStore)
+      const reqGen = new Request('http://localhost/api/ops', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'client-request',
+          rpcId: 'req-9',
+          method: OPS_ENDPOINT,
+          payload: {
+            method: 'workbench.generateArticleDraft',
+            payload: { topic: '全插件式智能体架构实践' },
+          },
+        }),
+      })
+
+      const resGen = await registeredHandler!(reqGen)
+      const dataGen = (await resGen.json()) as any
+      expect(dataGen.result.ok).toBe(true)
+      expect(dataGen.result.value.draftSaved).toBe(true)
+      const generatedDraft = await draftStore.getDraft(dataGen.result.value.id)
+      expect(generatedDraft).toBeDefined()
+      expect(generatedDraft?.title).toContain('全插件式智能体架构实践')
     })
 
-    it('manages ContentDraft persistence lifecycle via DraftStore', async () => {
-      const { DraftStore } = await import('../src/storage/draft-store.js')
+    it('manages ContentDraft persistence lifecycle and concurrency conflicts via DraftStore', async () => {
+      const { DraftStore, DraftConcurrencyError } = await import('../src/storage/draft-store.js')
       const store = new DraftStore(undefined)
 
       const draft1 = await store.saveDraft({
@@ -878,6 +964,11 @@ describe('Ops Manager (Stage 4: Overseas Expansion & Multi-Language)', () => {
       expect(draft2.id).toBe(draft1.id)
       expect(draft2.version).toBe(2)
       expect(draft2.title).toBe('B站硬核视频（修改版）')
+
+      // Concurrency conflict: saving with expectedVersion 1 on a v2 draft MUST throw DraftConcurrencyError
+      await expect(
+        store.saveDraft({ ...draft2, title: '并发覆盖试图' }, { expectedVersion: 1 }),
+      ).rejects.toThrow(DraftConcurrencyError)
 
       // Get draft
       const fetched = await store.getDraft(draft1.id)
@@ -910,7 +1001,7 @@ describe('Ops Manager (Stage 4: Overseas Expansion & Multi-Language)', () => {
       expect(await store.getDraft(draft1.id)).toBeNull()
     })
 
-    it('validates SessionGuard four-state lifecycle', async () => {
+    it('validates SessionGuard four-state lifecycle including no_publish_permission and active tabs', async () => {
       const { SessionGuard } = await import('../src/browser/session-guard.js')
       const guard = new SessionGuard()
 
@@ -937,10 +1028,40 @@ describe('Ops Manager (Stage 4: Overseas Expansion & Multi-Language)', () => {
       expect(biliHome.loggedIn).toBe(true)
       expect(biliHome.state).toBe('authenticated')
 
-      // 5. Unknown URL -> unknown
+      // 5. No permission page -> no_publish_permission
+      const noPerm = guard.evaluateState('wechat_mp', 'https://mp.weixin.qq.com/cgi-bin/no_permission')
+      expect(noPerm.loggedIn).toBe(false)
+      expect(noPerm.state).toBe('no_publish_permission')
+      expect(noPerm.isReady).toBe(false)
+
+      // 6. Unknown URL -> unknown
       const unknown = guard.evaluateState('wechat_mp', 'https://example.com/other')
       expect(unknown.loggedIn).toBe(false)
       expect(unknown.state).toBe('unknown')
+
+      // 7. checkBrowserSessions with live active tabs
+      const browserSessions = guard.checkBrowserSessions(
+        [{ id: 'wechat_mp', name: '微信公众号', kind: 'article', draftEditorUrl: 'https://mp.weixin.qq.com' }],
+        [{ url: 'https://mp.weixin.qq.com/cgi-bin/home' }],
+      )
+      expect(browserSessions[0]!.state).toBe('authenticated')
+      expect(browserSessions[0]!.isReady).toBe(true)
+    })
+
+    it('propagates InjoysClient sync failures when remote MCP rejects operation', async () => {
+      const failingInjoys = new InjoysClient({ endpoint: 'http://127.0.0.1:99999/down' })
+      await expect(
+        failingInjoys.syncCalendarItem({
+          id: 'test_fail_item',
+          date: '2026-10-15',
+          platform: 'wechat_mp',
+          kind: 'article',
+          topic: '测试失败排期',
+          status: 'planned',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }),
+      ).rejects.toThrow('Injoys 表格写入失败')
     })
   })
 })

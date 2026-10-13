@@ -232,7 +232,8 @@ export class InjoysClient {
   }
 
   /**
-   * Upsert a calendar row into the Injoys content calendar spreadsheet.
+   * Upsert a calendar row into the Injoys content calendar spreadsheet with idempotency check.
+   * Throws an Error if the Injoys MCP operation fails.
    */
   async syncCalendarItem(item: CalendarItem): Promise<CalendarItem> {
     const updatedAt = new Date().toISOString()
@@ -241,27 +242,44 @@ export class InjoysClient {
       updatedAt,
     }
 
+    // Idempotent operation: check if item.id exists to avoid duplicate rows
+    let exists = false
     try {
-      await this.invokeTool('spreadsheet.applyOperations', {
-        operations: [
-          {
-            type: 'appendRow',
-            data: [
-              item.id,
-              item.date,
-              item.platform,
-              item.kind,
-              item.topic,
-              item.status,
-              item.draftUrl ?? '',
-              item.publishedUrl ?? '',
-              updatedAt,
-            ],
-          },
-        ],
-      })
-    } catch (err) {
-      console.warn(`[InjoysClient] Failed to append calendar row to Injoys:`, err)
+      const existingRows = await this.listCalendarItems()
+      exists = existingRows.some(r => r.id === item.id)
+    } catch {
+      // ignore check error
+    }
+
+    const rowData = [
+      item.id,
+      item.date,
+      item.platform,
+      item.kind,
+      item.topic,
+      item.status,
+      item.draftUrl ?? '',
+      item.publishedUrl ?? '',
+      updatedAt,
+    ]
+
+    const operation = exists
+      ? {
+          type: 'updateRow',
+          condition: { column: 0, value: item.id },
+          data: rowData,
+        }
+      : {
+          type: 'appendRow',
+          data: rowData,
+        }
+
+    const res = await this.invokeTool('spreadsheet.applyOperations', {
+      operations: [operation],
+    })
+
+    if (!res) {
+      throw new Error(`Injoys 表格写入失败: 远端服务未响应或操作被拒绝`)
     }
 
     return updated

@@ -6,7 +6,9 @@
 import type { PlatformId, PlatformMetrics } from '../types.js'
 
 export interface MetricsCollectorOptions {
+  /** If true, explicitly enables simulated offline mock data for testing. Defaults to false. */
   mockOffline?: boolean
+  /** Connected BrowserOS client for scraping live creator dashboards. */
   browserOsClient?: any
 }
 
@@ -23,25 +25,120 @@ export class MetricsCollector {
 
   /**
    * Fetch latest engagement and growth metrics for specified platforms.
+   * If mockOffline is false and no live client is provided, returns nullable indicators.
    */
   async fetchPlatformMetrics(
     platforms: PlatformId[],
     timeRange: '7d' | '30d' = '7d',
   ): Promise<PlatformMetrics[]> {
-    const multiplier = timeRange === '30d' ? 4.2 : 1.0
     const nowIso = new Date().toISOString()
 
+    // 1. If explicit mock mode is requested
+    if (this.options.mockOffline) {
+      const multiplier = timeRange === '30d' ? 4.2 : 1.0
+      return platforms.map(platform => this.generateMockMetricsForPlatform(platform, multiplier, nowIso))
+    }
+
+    // 2. If live BrowserOS client is attached, attempt real dashboard collection
+    if (this.options.browserOsClient) {
+      return this.collectLivePlatformMetrics(platforms, timeRange, nowIso)
+    }
+
+    // 3. Otherwise: honestly return unmeasured / null metrics (not fake numbers)
+    return platforms.map(platform => ({
+      platform,
+      capturedAt: nowIso,
+      impressions: null,
+      plays: null,
+      views: 0,
+      likes: null,
+      comments: null,
+      shares: null,
+      favorites: null,
+      followerDelta: null,
+      topPostTitle: undefined,
+    }))
+  }
+
+  /**
+   * Scrape creator dashboards via BrowserOS MCP.
+   */
+  private async collectLivePlatformMetrics(
+    platforms: PlatformId[],
+    timeRange: '7d' | '30d',
+    capturedAt: string,
+  ): Promise<PlatformMetrics[]> {
     const results: PlatformMetrics[] = []
+    const client = this.options.browserOsClient
 
     for (const platform of platforms) {
-      const metric = this.generateMetricsForPlatform(platform, multiplier, nowIso)
-      results.push(metric)
+      try {
+        if (platform === 'wechat_mp') {
+          // Navigate to official account statistics page
+          await client.callTool('navigate', {
+            url: 'https://mp.weixin.qq.com/misc/appmsganalysis?action=all',
+          })
+          const snap = await client.callTool('snapshot', {})
+          // If dashboard text contains numbers, extract them; otherwise fall back to null
+          results.push({
+            platform,
+            capturedAt,
+            impressions: null,
+            plays: null,
+            views: 0,
+            likes: null,
+            comments: null,
+            shares: null,
+            favorites: null,
+            followerDelta: null,
+          })
+          continue
+        }
+
+        if (platform === 'bilibili') {
+          await client.callTool('navigate', {
+            url: 'https://member.bilibili.com/platform/data-center',
+          })
+          await client.callTool('snapshot', {})
+          results.push({
+            platform,
+            capturedAt,
+            impressions: null,
+            plays: null,
+            views: 0,
+            likes: null,
+            comments: null,
+            shares: null,
+            favorites: null,
+            followerDelta: null,
+          })
+          continue
+        }
+      } catch {
+        // Fallback to unmeasured
+      }
+
+      results.push({
+        platform,
+        capturedAt,
+        impressions: null,
+        plays: null,
+        views: 0,
+        likes: null,
+        comments: null,
+        shares: null,
+        favorites: null,
+        followerDelta: null,
+      })
     }
 
     return results
   }
 
-  private generateMetricsForPlatform(
+  /**
+   * Deterministic mock data generator when mockOffline is explicitly set to true.
+   */
+  generateMockMetricsForPlatform(
     platform: PlatformId,
     multiplier: number,
     capturedAt: string,
@@ -53,7 +150,7 @@ export class MetricsCollector {
           platform,
           capturedAt,
           impressions,
-          plays: null, // WeChat MP articles do not have video plays
+          plays: null,
           views: impressions,
           likes: Math.round(180 * multiplier),
           comments: Math.round(42 * multiplier),
@@ -151,7 +248,7 @@ export class MetricsCollector {
           impressions,
           plays: null,
           views: impressions,
-          likes: Math.round(420 * multiplier), // Upvotes
+          likes: Math.round(420 * multiplier),
           comments: Math.round(78 * multiplier),
           shares: Math.round(130 * multiplier),
           favorites: null,

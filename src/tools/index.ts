@@ -15,6 +15,7 @@ import { IssueExtractor } from '../feedback/issue-extractor.js'
 import { TrendsDiscoverer } from '../feedback/trends-discoverer.js'
 import { ScheduleBridge } from '../schedule/schedule-bridge.js'
 import { OverseasStrategyManager } from '../international/overseas-strategy.js'
+import { DraftStore } from '../storage/draft-store.js'
 import type {
   CalendarItem,
   PlatformId,
@@ -26,8 +27,12 @@ export function createOpsTools(
   injoys: InjoysClient,
   adapters: AdapterRegistry,
   ctx?: Context,
+  draftStore?: DraftStore,
+  metricsCollector?: MetricsCollector,
 ): ToolDefinition[] {
-  const metricsCollector = new MetricsCollector()
+  const actualDraftStore = draftStore ?? new DraftStore(ctx)
+  const isMockMetrics = Boolean((ctx as any)?.mockOffline)
+  const actualMetricsCollector = metricsCollector ?? new MetricsCollector({ mockOffline: isMockMetrics })
   const reviewReporter = new ReviewReporter(injoys)
   const commentsCrawler = new CommentsCrawler()
   const issueExtractor = new IssueExtractor(injoys)
@@ -128,7 +133,11 @@ export function createOpsTools(
           updatedAt: new Date().toISOString(),
         }
 
-        await injoys.syncCalendarItem(item)
+        try {
+          await injoys.syncCalendarItem(item)
+        } catch {
+          // If Injoys table sync fails or is offline, calendar item is still retained in plan
+        }
         calendarItems.push(item)
       }
 
@@ -219,7 +228,25 @@ export function createOpsTools(
         suggestedTags: ['AI技术', '独立开发', '架构演进'],
       })
 
+      await actualDraftStore.saveDraft({
+        id: draftId,
+        title,
+        topic: args.topic,
+        injoysDocId,
+        channelVariants: [
+          {
+            platform: 'wechat_mp',
+            kind: 'article',
+            title,
+            body: contentMarkdown,
+            tags: ['AI技术', '独立开发', '架构演进'],
+          },
+        ],
+        status: 'ready_for_review',
+      })
+
       return {
+        draftId,
         docId: injoysDocId,
         title,
         digest,
@@ -284,8 +311,9 @@ export function createOpsTools(
       const tags = ['#AI智能体', '#独立开发', '#效率工具', '#DeepSeek', '#程序员摸鱼日常']
       const description = `本期视频详细演示了如何通过 ${kb.productName} 快速串联多平台运营全流程！\n\n📌 核心亮点：\n1. 零人工干预草稿箱填充\n2. Injoys 自动化知识库检索\n3. 多渠道账号 Cookie 安全复用\n\n💬 源码与体验地址见置顶评论与简介！欢迎三连支持～`
 
+      const draftId = `meta_video_${Date.now()}`
       const injoysDocId = await injoys.saveVideoDocument({
-        id: `meta_video_${Date.now()}`,
+        id: draftId,
         localVideoPath: args.videoPath,
         titleVariants,
         tags,
@@ -293,7 +321,26 @@ export function createOpsTools(
         partition: '科技/软件开发',
       })
 
+      await actualDraftStore.saveDraft({
+        id: draftId,
+        title: titleVariants[0],
+        topic: args.videoPath,
+        injoysDocId,
+        channelVariants: [
+          {
+            platform: 'bilibili',
+            kind: 'video',
+            title: titleVariants[0],
+            body: description,
+            tags,
+            mediaPaths: [args.videoPath],
+          },
+        ],
+        status: 'ready_for_review',
+      })
+
       return {
+        draftId,
         videoPath: args.videoPath,
         titleVariant1: titleVariants[0],
         titleVariant2: titleVariants[1],
@@ -452,7 +499,7 @@ export function createOpsTools(
       ]
       const timeRange = (args.timeRange as '7d' | '30d' | undefined) ?? '7d'
 
-      const metrics = await metricsCollector.fetchPlatformMetrics(targetPlatforms, timeRange)
+      const metrics = await actualMetricsCollector.fetchPlatformMetrics(targetPlatforms, timeRange)
       const sheetSynced = await injoys.recordMetricsToSheet(metrics)
 
       let totalViews = 0
@@ -528,7 +575,7 @@ export function createOpsTools(
       const timeRange = (args.timeRange as '7d' | '30d' | undefined) ?? '7d'
       const productName = args.productName ?? 'DeepSeek Harness'
 
-      const metrics = await metricsCollector.fetchPlatformMetrics(
+      const metrics = await actualMetricsCollector.fetchPlatformMetrics(
         ['wechat_mp', 'wechat_channels', 'bilibili', 'douyin'],
         timeRange,
       )
