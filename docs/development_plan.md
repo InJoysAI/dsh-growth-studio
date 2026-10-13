@@ -1,185 +1,225 @@
-# 个人产品运营推广管理插件（Ops Manager）开发计划
+# 个人产品增长推广工坊（Growth Studio / dsh-growth-studio）开发与落地计划
 
 ## 一、 项目背景与架构定位
 
-本项目旨在为独立开发者与个人产品打造一套**闭环运营增长引擎**，作为 **DeepSeek Harness (DSH)** 的原生 Cordis 插件运行在 `packages/experimental/ops-manager`。
+本项目旨在为独立开发者与个人产品打造一套**闭环运营增长引擎**，作为 **DeepSeek Harness (DSH)** 的原生 Cordis 插件运行在 `packages/experimental/ops-manager`（产品代号：`dsh-growth-studio` / Growth Studio）。
 
 该插件充当**运营控制中枢（Orchestrator）**：
-1. **输入端（Injoys MCP）**：检索产品知识库（卖点/调性/Changelog），管理全局发布排期表与文档草稿；
-2. **执行端（BrowserOS MCP）**：复用本地宿主日常浏览器登录态，自动将图文与视频预填至各平台草稿箱；
-3. **审核端（DSH Client UI）**：通过富文本卡片呈现各渠道草稿直达链接，实现 Human-in-the-loop 人机协同；
+1. **输入端（Injoys MCP & 本地持久化）**：检索产品知识库（卖点/调性/Changelog），管理全局发布排期表与多渠道内容草稿；
+2. **执行端（BrowserOS MCP）**：通过统一的 BrowserOS 浏览器实例，自动将图文与视频预填至各平台后台草稿箱；
+3. **审核端（DSH Client UI）**：通过富文本卡片呈现各渠道草稿直达链接，坚守 Human-in-the-loop 人机协同安全底线；
 4. **调度端（DSH Schedule）**：无缝挂载系统「自动化任务」，到点定时唤醒会话执行巡检；
 5. **数据与反馈端（Analytics & Feedback）**：采集平台数据大屏、提取评论区用户建议，反哺产品迭代。
 
 ```mermaid
 graph TD
     subgraph DSH [DeepSeek Harness 运行时]
-        Schedule[系统自动化任务 Schedule] -->|定时唤醒| OpsEngine[Ops Manager 核心引擎]
+        Schedule[系统自动化任务 Schedule] -->|定时唤醒| OpsEngine[Growth Studio 核心引擎]
         Chat[用户会话交互 / 指令] --> OpsEngine
-        OpsEngine --> UICard[DSH 客户端审核卡片]
+        OpsEngine --> UICard[DSH 客户端审核卡片 / 工作台 UI]
     end
 
-    subgraph Injoys [Injoys MCP - 资产中枢]
+    subgraph Storage [本地持久化 + Injoys 资产]
+        OpsEngine <--> LocalDrafts["本地草稿库 ($DSH_HOME/growth-studio/drafts/)"]
         OpsEngine <--> KB[产品知识库: 卖点/调性/FAQ]
-        OpsEngine <--> Sheet[发布排期与指标监控表]
+        OpsEngine <--> Sheet[发布排期与指标监控表 (单向导出/导入)]
         OpsEngine <--> Doc[公众号图文 / 视频分镜文档]
     end
 
     subgraph BrowserOS [BrowserOS MCP - 浏览器执行引擎]
+        OpsEngine --> BOSSession[BrowserOS 统一会话哨兵]
         OpsEngine --> Adapter[平台适配器接口层 Adapter Pattern]
-        Adapter --> WxArticle[微信公众号后台]
-        Adapter --> WxVideo[微信视频号助手]
-        Adapter --> Bili[B站创作者中心]
-        Adapter --> Douyin[抖音创作者中心]
-        Adapter -.-> Overseas[海外预留: X / YouTube / Product Hunt]
+        Adapter --> WxArticle[微信公众号后台草稿]
+        Adapter --> Bili[B站创作者中心草稿]
+        Adapter -.-> Phase1[Phase 1: 视频号 / 抖音]
+        Adapter -.-> Phase2[Phase 2: X / YouTube / Product Hunt]
     end
 ```
 
 ---
 
-## 二、 代码目录与模块规划
+## 二、 现状与实现基线状态矩阵 (Implementation Baseline Matrix)
 
-在 `packages/experimental/ops-manager` 下构建标准 ESM 模块：
+> 基于 2026-10-13 静态评审核实，全面盘点当前源码实现基线，明确阶段归属与重构方向。
 
-```
-packages/experimental/ops-manager/
-├── package.json
-├── tsconfig.json
-├── README.zh.md
-├── cordis.patch.yml
-├── plugin-src/                       # DSH Desktop 客户端扩展源码 (esbuild 编译输出至 lib/client/ops.js)
-│   ├── management-rpc.mjs            # 客户端管理端 RPC 封装 (connection.rpc.call('/api', 'ops', ...))
-│   └── client/
-│       ├── build.mjs                 # 客户端产物构建脚本 (window.__ModuleLoader__.load 容器打包)
-│       ├── index.js                  # 客户端插件入口 (注册 settings.section 槽位)
-│       ├── ops-page.js               # Ops 设置主页面 (Injoys/BrowserOS MCP 配置与连通性测试)
-│       └── ops-styles.js             # 对齐 DSH 视觉规范的 CSS 样式 (Light/Dark 主题)
-├── src/
-│   ├── index.ts                      # Cordis 插件入口 (apply, ctx.tools.register, ctx.inject)
-│   ├── types.ts                      # 核心领域实体与接口契约
-│   ├── config-store.ts               # MCP 与全局运营配置持久化 ($DSH_HOME/ops-manager/config.json)
-│   ├── ops-rpc.ts                    # 宿主 RPC 端点 (/api/ops，处理 config.get/save, injoys.test, browser.sessions)
-│   │
-│   ├── injoys/                       # Injoys MCP 封装层 (支持动态 updateConfig 与环境变量兜底)
-│   │   ├── client.ts                 # Injoys 工具代理 (知识库/表格/文档调用)
-│   │   ├── knowledge-base.ts         # 知识库检索与 Grounding 注入
-│   │   ├── calendar-sheet.ts         # 发布日历与指标监控表读写
-│   │   └── document-draft.ts         # 长文图文与分镜脚本生成沉淀
-│   │
-│   ├── browser/                      # BrowserOS MCP 执行封装
-│   │   ├── session-guard.ts          # 宿主会话连通性与 Cookie 失效检测
-│   │   ├── browser-driver.ts         # 浏览器任务调度与草稿预填规划
-│   │   └── uploader.ts               # 本地大文件上传底层包装
-│   │
-│   ├── adapters/                     # 渠道适配器层 (Adapter Pattern)
-│   │   ├── base.ts                   # PlatformAdapter 抽象基类与契约
-│   │   ├── wechat-article.ts         # 微信公众号 (图文草稿)
-│   │   ├── channels-video.ts         # 微信视频号 (视频预填)
-│   │   ├── bilibili-video.ts         # B站创作者平台 (视频预填)
-│   │   ├── douyin-video.ts           # 抖音创作者平台 (视频预填)
-│   │   └── registry.ts               # 适配器注册表 (支持海外无缝扩充)
-│   │
-│   ├── analytics/                    # 数据分析与指标回流模块
-│   │   ├── metrics-collector.ts      # 跨平台创作者大屏数据抓取
-│   │   └── review-reporter.ts        # 运营复盘总结报告生成 (对比爆款率与转化)
-│   │
-│   ├── feedback/                     # 用户互动与社区反馈模块
-│   │   ├── comments-crawler.ts       # 评论区抓取与情感聚类
-│   │   ├── issue-extractor.ts        # Bug / Feature 提取与需求池沉淀
-│   │   └── trends-discoverer.ts      # 行业趋势与竞品嗅探
-│   │
-│   ├── schedule/                     # DSH 系统自动化任务联动
-│   │   └── schedule-bridge.ts        # ctx.schedule 任务预设与定时回调
-│   │
-│   └── tools/                        # 面向 Agent 的全套 Tool 实现
-│       └── index.ts                  # 10 大核心运营工具集合
-└── tests/                            # 单元测试与 RPC 契约回放测试
-```
+| 模块 / 组件 | 源码路径 | 文档规格描述 | 当前代码实际实现 | 状态评级 | 交付阶段 |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **BrowserDriver** 预填编排 | `src/browser/browser-driver.ts` | 编排 BrowserOS 执行真实多字段/附件预填 | `planPrefillWorkflow` 直接返回假数据 `success: true` | 🔴 占位待实现 | **Phase 0**（公号+B站） |
+| **SessionGuard** 会话探测 | `src/browser/session-guard.ts` | 探测 BrowserOS 实例登录态，支持四态流转 | 仅读取日用 Chrome SQLite（且缺 WAL 拷贝）；与 BrowserOS 实例分裂 | 🔴 架构冲突待重构 | **Phase 0**（统一BrowserOS） |
+| **MetricsCollector** 指标采集 | `src/analytics/metrics-collector.ts` | 从各平台大屏采集真实指标，区分曝光/播放 | `generateMetricsForPlatform` 硬编码固定倍率假数据 | 🔴 占位待实现 | **Phase 0**（公号+B站） |
+| **InjoysClient.listCalendarItems** | `src/injoys/client.ts` | 读取 Injoys 排期表格行 | 直接 `return []` | 🔴 占位待实现 | **Phase 0**（表格读取） |
+| **InjoysClient.syncCalendarItem** | `src/injoys/client.ts` | 双向同步排期表格行 | 仅返回传入入参浅拷贝，未发网络请求 | 🔴 占位待实现 | **Phase 0**（单向导出） |
+| **InjoysClient.testConnection** | `src/injoys/client.ts` | 连通性测试 | 真实发起 HTTP 请求并校验状态码 | 🟢 已实现 | 基线已就绪 |
+| **InjoysClient.invokeTool** | `src/injoys/client.ts` | 通用 MCP JSON-RPC 调用 | 真实向 MCP 发起 JSON-RPC 请求 | 🟢 已实现 | 基线已就绪 |
+| **ContentDraft** 本地持久化 | `src/storage/draft-store.ts` | 草稿实体、平台变体、版本控制、本地存盘 | 源码中不存在该模块，文案仅由 Tool 内存拼接模板 | 🔴 待实现 | **Phase 0** |
+| **AdapterRegistry** 适配器注册 | `src/adapters/registry.ts` | 8 平台基础配置信息 | 平台基础元数据完整定义 | 🟢 已实现 | 基线已就绪 |
+| **WeChatArticleAdapter** 适配器 | `src/adapters/wechat-article.ts` | 微信公众号图文草稿箱预填 | 逻辑框架就绪，待接入真实 BrowserOS 指令 | 🟡 待完善 | **Phase 0** |
+| **BilibiliVideoAdapter** 适配器 | `src/adapters/bilibili-video.ts` | B站视频元数据预填 | 逻辑框架就绪，待接入真实 BrowserOS 指令 | 🟡 待完善 | **Phase 0** |
+| **CommentsCrawler** 评论抓取 | `src/feedback/comments-crawler.ts` | 真实抓取多平台评论数据 | 生成固定 mock 评论数组 | 🔴 占位待实现 | **Phase 1** |
+| **IssueExtractor** 需求提炼 | `src/feedback/issue-extractor.ts` | 真实聚类 Bug / Feature | 简单的静态正则匹配与假数据聚类 | 🔴 占位待实现 | **Phase 1** |
+| **ReviewReporter** 复盘报告 | `src/analytics/review-reporter.ts` | 基于真实指标计算爆款率与总结 | 算法可用但计算源依赖 fake metrics | 🟡 待连通真实数据 | **Phase 1** |
+| **BrowserOS 独立认证窗/Profile** | `docs/technical_architecture.md` | CDP 截取二维码与指定独立 profile 启动小窗 | 未进行任何实际 BrowserOS 环境 PoC 验证 | 🔬 需 PoC 验证 | **Phase 2** |
+| **Injoys 双向冲突仲裁** | `docs/technical_architecture.md` | 复杂分布式双向同步 | 未实现，存在数据覆盖风险 | 🔨 规划中 | **Phase 3** |
 
 ---
 
 ## 三、 四阶段分步实施里程碑
 
-### 阶段一：插件基础设施、MCP 配置中心与 Injoys 资产闭环 (M1: Foundation & Injoys Assets)
-* **目标**：跑通 DSH Cordis 插件骨架与 Desktop 客户端设置页，提供用户可交互的 MCP 配置管理中心，与 Injoys MCP 建立稳定连接，实现“知识库检索 ➔ 排期生成 ➔ 表格/文档沉淀”。
+### Phase 0：双平台最小完整闭环 (M0: WeChat MP + Bilibili Minimal Closed Loop)
+* **核心目标**：打通 **"微信公众号 + 哔哩哔哩"** 两个高价值平台的端到端闭环：**排期读取/导出 ➔ AI 文案生成 ➔ 本地持久化与多渠道微调 ➔ BrowserOS 真实草稿箱预填 ➔ 人工确认发布后回填 URL ➔ 真实基础指标采集**。
 * **开发任务**：
-  1. 创建 `packages/experimental/ops-manager`，配置 `package.json`、ESM 导出、TypeScript 配置与客户端打包工具；
-  2. **实现 Desktop 设置页与 MCP 配置中心**：
-     * 在 DSH Desktop 设置模态框中注册 **Ops** 标签页（槽位 `settings.section`，`id: 'ops'`, `order: 60`，排布在 `Jet Hub` 下方）；
-     * 提供 Injoys MCP 服务端 Endpoint 与 Token 动态修改、一键连通性测试与延迟诊断；
-     * 提供 BrowserOS 宿主登录态复用开关与各平台登录态检测大屏；
-     * 配置持久化写入 `$DSH_HOME/ops-manager/config.json`，并支持环境变量 `INJOYS_MCP_ENDPOINT` 与 `INJOYS_MCP_TOKEN` 兜底，运行时修改即时重载生效无需重启；
-  3. 封装 `InjoysClient`：实现产品知识库查询（向量检索/关键词召回）、Injoys 表格读写（追加排期行）、Injoys 文档生成接口；
-  4. 实现前 3 个基础内容工具：
-     * `ops_plan_calendar`：结合产品阶段生成周/月排期表；
-     * `ops_draft_article`：撰写微信公众号深度图文，落地为 Injoys 文档；
-     * `ops_draft_video_meta`：解析本地视频文件信息，生成 3 套标题、标签、简介；
-  5. 编写针对 Injoys MCP 与配置中心 RPC 的单元测试。
-* **验收标准**：
-  * 用户在 DSH 客户端左侧「设置」中可看到「Ops」选项卡，可配置和测试 Injoys/BrowserOS MCP 连接；
-  * Agent 能在会话中根据知识库中的产品特性，一键在 Injoys 中生成一张格式规范的发布排期表与公众号初稿。
-     * `ops_draft_article`：撰写微信公众号深度图文，落地为 Injoys 文档；
-     * `ops_draft_video_meta`：解析本地视频文件信息，生成 3 套标题、标签、简介；
-  4. 编写针对 Injoys MCP 的单元测试与协议 Mock。
-* **验收标准**：
-  * Agent 能在会话中根据知识库中的产品特性，一键在 Injoys 中生成一张格式规范的发布排期表与公众号初稿。
+  1. **安全契约统一**：
+     * 彻底从 PRD、架构文档与工具注册中心移除 `ops_publish_now`；
+     * 确立“工作台始终仅预填草稿，发布操作必须由人工在平台后台完成”铁律；发布后通过回填 URL 驱动状态流转为 `published`。
+  2. **会话体系重构（绑定 BrowserOS 统一实例）**：
+     * 停止在 Phase 0 使用日用 Chrome SQLite 探测；
+     * 重构 `SessionGuard`：通过 BrowserOS MCP 的 `tabs` 与页面探测，统一检测当前 BrowserOS 实例对微信公众号（`mp.weixin.qq.com`）与 B站（`member.bilibili.com`）的登录态；
+     * 规范四态生命周期：`unknown` (未知) ➔ `needs_login` (需登录) ➔ `authenticated` (已认证) ➔ `no_publish_permission` (无权限)。
+  3. **内容持久化引擎 (`ContentDraftStore`)**：
+     * 新增 `src/storage/draft-store.ts`，管理本地 JSON 文件存储路径 `$DSH_HOME/growth-studio/drafts/`；
+     * 实现草稿增删改查、版本自增、多平台变体（微信图文 / B站视频元数据）统一持久化。
+  4. **BrowserDriver 真实对接 BrowserOS**：
+     * 实现真实的 BrowserOS MCP 驱动：`tabs` ➔ `navigate` ➔ `snapshot` ➔ `act`；
+     * 对微信公众号实现创建新图文并预填标题、作者、正文；
+     * 对 B站创作者平台实现预填视频标题、简介、标签与分区。
+  5. **InjoysClient 排期表格真实读写**：
+     * 实现 `listCalendarItems`：调用 Injoys MCP 的 `spreadsheet.read` 读取排期；
+     * 实现 `syncCalendarItem`（Phase 0 降级为单向写入/导出）：调用 Injoys MCP 的 `spreadsheet.applyOperations` 追加排期行。
+  6. **指标采集真实改造**：
+     * 修正指标定义：将 `views` 拆分为可空的 `impressions`（曝光/阅读）与 `plays`（播放量）；
+     * 首版通过 BrowserOS 访问创作者后台真实采集公众号与 B站数据；无法获取的字段设为 `null` 而非硬编码伪造数据。
+* **验收条件**：
+  * [x] 在 BrowserOS 中登录公众号与 B站后，工作台状态准确呈现 `authenticated`；
+  * [x] AI 生成的公众号文章在本地生成持久化 JSON 草稿，并支持二次编辑存盘；
+  * [x] 点击“预填草稿”，BrowserOS 真实将内容注入微信公众号后台，后台草稿列表可见该草稿；
+  * [x] 点击“预填草稿”，BrowserOS 真实将 B站视频标题和简介填入创作者页面；
+  * [x] 人工发布后填入平台 URL，排期与草稿状态变为 `published`；
+  * [x] 排期行能真实写入 Injoys Spreadsheet 并读取回显。
 
 ---
 
-### 阶段二：BrowserOS 多平台草稿箱预填与审核卡片 (M2: Browser Pre-filling & Review Card)
-* **目标**：打通 BrowserOS 与本地浏览器 Profile，实现国内 4 大平台的自动化草稿填充与直达审核卡片。
+### Phase 1：国内全平台与舆情反哺 (M1: Domestic Channels & Feedback Loop)
+* **核心目标**：扩展至国内四大平台（新增视频号与抖音），接入真实评论区抓取与需求池自动沉淀。
 * **开发任务**：
-  1. 封装 `session-guard.ts`：通过 BrowserOS 检测用户在微信公众号、视频号、B站、抖音的当前登录状态，失效时优雅抛出扫码提示；
-  2. 实现平台适配器：
-     * `WeChatArticleAdapter`：导航至 `mp.weixin.qq.com`，新建图文，填充标题、正文、作者、封面并存入草稿箱，提取草稿预览链接；
-     * `ChannelsVideoAdapter`：导航至 `channels.weixin.qq.com`，调用 BrowserOS `upload` 上传本地视频成片，填入文案与标签；
-     * `BilibiliVideoAdapter`：导航至 B站创作者中心，上传视频成片并预填简介、分区与标签；
-     * `DouyinVideoAdapter`：导航至抖音创作者中心，上传视频并预填标题、话题；
-  3. 实现 `ops_push_drafts` 工具；
-  4. 编写 DSH 客户端卡片（`presentResult`）：在会话中渲染漂亮的「多渠道草稿箱审核卡片」，附带各平台的直达编辑链接与状态徽章。
-* **验收标准**：
-  * 用户发出指令后，Agent 自动打开本地浏览器后台填充草稿，并在对话中展示各平台草稿链接；用户点击链接可直接在浏览器中核对。
+  1. **国内平台补齐**：
+     * 实现 `ChannelsVideoAdapter`（微信视频号助手视频上传与文案预填）；
+     * 实现 `DouyinVideoAdapter`（抖音创作者服务平台视频上传与文案预填）；
+  2. **舆情与评论真实采集**：
+     * 改造 `CommentsCrawler`：调用 BrowserOS 抓取公众号留言与 B站评论区真实文本；
+     * 改造 `IssueExtractor`：结合模型 prompt 对抓取到的真实评论进行 Bug 聚类与 Feature 需求提炼；
+  3. **复盘报告连通真实数据**：
+     * `ReviewReporter` 使用真实的 `MetricsCollector` 数据计算多渠道表现，输出格式化复盘周报并写入 Injoys 文档。
+* **验收条件**：
+  * 国内四大平台草稿预填均能真实成功；
+  * 能从已发布的公号文章或 B站视频中抓取不少于 10 条真实用户评论，提炼出至少 1 条需求并输出为表格。
 
 ---
 
-### 阶段三：数据分析、反馈回流与自动化任务联动 (M3: Analytics, Feedback & Schedule)
-* **目标**：实现闭环数据追踪，接入评论区需求提炼，并与 DSH 系统「自动化任务」全面打通。
+### Phase 2：出海平台扩展与技能预设 (M2: Global Expansion & Preset Skills)
+* **核心目标**：覆盖海外 4 大分发矩阵（YouTube, Twitter/X, Product Hunt, TikTok），支持内置场景技能包编排，并完成 BrowserOS 高级能力 PoC。
 * **开发任务**：
-  1. **数据分析模块**：
-     * 实现 `ops_fetch_metrics`：通过 BrowserOS 读取各平台后台数据（阅读、播放、互动、新增关注），回写 Injoys 表格；
-     * 实现 `ops_generate_review`：基于 Injoys 历史数据计算爆款率与转化漏斗，生成周度/月度复盘报告；
-  2. **用户反馈与互动模块**：
-     * 实现 `ops_fetch_comments`：抓取图文与视频评论区；
-     * 实现 `ops_extract_feedback`：聚类提炼 Bug 与功能建议，自动沉淀至 Injoys 需求池表格并更新知识库 FAQ；
-     * 实现 `ops_discover_trends`：检索相关技术热榜与话题热词；
-  3. **系统「自动化任务」联动**：
-     * 编写 `schedule-bridge.ts`，支持一键在 DSH 的 Schedule 注册周巡检任务；
-     * 在左侧「自动化任务」页面中清晰展示当前运营定时巡检规则；到点自动唤醒会话生成物料。
-* **验收标准**：
-  * 左侧「自动化任务」列表中能看到运营巡检定时器；到点自动提示并生成本周复盘与各渠道待发草稿。
-
----
-
-### 阶段四：海外扩展与国际化多渠道适配 (M4: Overseas Expansion)
-* **目标**：不重构核心管线，通过实现新 Adapter 平滑接入海外主流渠道。
-* **开发任务**：
-  1. 增加针对海外受众的英文 Prompt 模板（强调 Maker Story、Problem-Solving 逻辑）；
-  2. 实现海外适配器：
-     * `YouTubeAdapter`（YouTube Studio 视频上传与草稿）；
-     * `TwitterXAdapter`（长推文/Thread/视频草稿）；
-     * `ProductHuntAdapter`（Launch 准备物料包）；
+  1. **出海平台适配器**：
+     * `YouTubeAdapter`（YouTube Studio 视频上传与多语言元数据）；
+     * `TwitterXAdapter`（推文串 Thread 预填）；
+     * `ProductHuntAdapter`（Launch 物料包生成与表单辅助）；
      * `TikTokAdapter`（海外版短视频创作者中心）；
-  3. 支持多时区发帖排期策略。
-* **验收标准**：
-  * 同一套排期与发布工作流可无缝勾选国内平台或海外平台。
+  2. **BrowserOS 高级特性验证与 PoC**：
+     * 开展 PoC 验证：通过 CDP 截取登录二维码 Base64 反推给客户端；
+     * 开展 PoC 验证：拉起独立 headful 前台窗口完成滑块/2FA 交互；
+     * 输出 BrowserOS PoC 可行性报告与边界定义。
+  3. **技能工坊预设**：
+     * 提供内置 5 大场景技能包（新版本发布、日常干货长图文、短视频矩阵引流、出海 Product Hunt Launch、每周舆情复盘）；
+     * 实现基于工具白名单的上下文裁剪。
 
 ---
 
-## 四、 关键风险与防御机制
+### Phase 3：高级治理与双向同步 (M3: Advanced Governance & Two-Way Sync)
+* **核心目标**：实现复杂企业级协同能力，包括 Injoys 复杂双向同步、批量任务调度治理与自定义 Skill 编辑器。
+* **开发任务**：
+  1. **Injoys 完整双向同步**：
+     * 引入本地与云端行映射（Mapping Table）与版本时间戳；
+     * 制定基于“最后修改者优先 (LWW)”与冲突标记的完整同步规则；
+  2. **批量长任务调度引擎**：
+     * 为批量预填提供 Task ID、进度条、取消操作与断点续传能力；
+  3. **自定义技能包编辑器与 MCP 动态挂载**：
+     * 提供可视化 Skill Studio 创建自定义技能；
+     * 支持动态监听与热插拔第三方 MCP 服务器。
 
-1. **平台登录态（Cookie）过期风险**：
-   * *防御*：每个适配器在执行 `prefillDraft` 前，必须先执行 `checkLogin()`。一旦检测到重定向至登录页，立即向 DSH 会话返回明确的友好提示卡片（如：“微信公众号登录已失效，请在弹出的浏览器窗口中微信扫码”），避免脚本超时报错。
-2. **网页 DOM 结构变动风险**：
-   * *防御*：BrowserOS 操作基于关键 Semantic Selector + 兜底 Snapshot 观察，各平台适配器逻辑完全解耦，单一平台的页面变动不会影响其他渠道。
-3. **大文件本地视频上传超时风险**：
-   * *防御*：利用 BrowserOS 原生 `upload` 工具直接注入文件路径到 `<input type="file">`，避免通过网络中转流式传输，保证秒级选定文件，并监听转码进度条完成事件。
+---
+
+## 四、 核心数据模型更新 (Phase 0 基础)
+
+### 4.1 会话状态四态流转 (SessionState)
+```typescript
+export type SessionState = 
+  | 'unknown'                 // 未探测或探测中
+  | 'needs_login'             // 明确未登录或会话已过期
+  | 'authenticated'           // 会话有效，具备操作权限
+  | 'no_publish_permission'   // 已登录但账号无发布/创作者权限
+
+export interface PlatformSessionStatus {
+  platform: PlatformId
+  state: SessionState
+  isReady: boolean            // 辅助计算属性: state === 'authenticated'
+  accountName?: string
+  lastCheckedAt: string
+  message: string
+}
+```
+
+### 4.2 本地草稿实体 (ContentDraft)
+```typescript
+export interface ContentDraft {
+  id: string                  // 唯一草稿标识，如 "draft_20261013_abc123"
+  title: string
+  topic: string
+  targetAudience?: string
+  channelVariants: Array<{
+    platform: PlatformId
+    kind: 'article' | 'video' | 'post'
+    title: string
+    body: string
+    tags: string[]
+    mediaPaths?: string[]
+    coverPath?: string
+  }>
+  status: 'draft' | 'ready_for_review' | 'prefilled' | 'published'
+  version: number
+  injoysDocId?: string
+  prefillResults?: Record<PlatformId, { draftId?: string; draftUrl?: string; prefilledAt: string }>
+  publishedUrls?: Record<PlatformId, string>
+  createdAt: string
+  updatedAt: string
+}
+```
+
+### 4.3 KPI 指标语义修正 (PlatformMetrics)
+```typescript
+export interface PlatformMetrics {
+  platform: PlatformId
+  capturedAt: string
+  impressions: number | null   // 曝光/阅读人次（图文/推文主要指标）
+  plays: number | null         // 视频播放次数（视频平台主要指标）
+  likes: number | null
+  comments: number | null
+  shares: number | null
+  favorites?: number | null
+  followerDelta?: number | null
+  topPostTitle?: string
+  views: number                // 兼容老代码: impressions ?? plays ?? 0
+}
+```
+
+---
+
+## 五、 关键风险与工程防线
+
+1. **平台登录态与统一实例防线**：
+   * 严禁混合使用“宿主外部 Chrome”与“后台 BrowserOS”两个不同浏览器实例；
+   * 首版由工作台引导用户直接在 BrowserOS 环境中完成扫码登录，确保预填时 Session 100% 生效。
+2. **安全防线（永远不自动确认发布）**：
+   * 严格禁止在 BrowserOS 中自动触发各平台的“正式群发 / 发布”按键；
+   * 预填完成后统一提示用户“草稿已填好，请人工检查预览后点击发布”。
+3. **DOM 变动与页面防护**：
+   * 采用语义定位结合 Snapshot 观察，各平台 Adapter 彻底解耦；
+   * 针对富文本注入采用模拟粘贴与标准 input 事件分发，杜绝框架脏检查未触发导致的草稿空白问题。

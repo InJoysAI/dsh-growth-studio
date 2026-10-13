@@ -1,18 +1,19 @@
 /**
  * Session Guard for detecting platform login states and guiding authentication.
- * Supports inspecting host browser cookies and dynamic runtime URL gate detection.
+ * Evaluates BrowserOS session states and host cookies with four-state lifecycle.
  * @module @deepseek-ai/dsh-ops-manager/browser/session-guard
  */
 
 import { copyFileSync, unlinkSync, existsSync } from 'node:fs'
 import { tmpdir, homedir } from 'node:os'
 import { join } from 'node:path'
-import type { PlatformId, ContentKind } from '../types.js'
+import type { PlatformId, ContentKind, SessionState, PlatformSessionStatus } from '../types.js'
 
 export interface PlatformLoginCheckConfig {
   readonly checkUrl: string
   readonly loginUrlPattern: RegExp
   readonly loggedInIndicator: RegExp
+  readonly noPermissionPattern?: RegExp
   readonly friendlyName: string
 }
 
@@ -21,18 +22,21 @@ export const PLATFORM_LOGIN_CONFIGS: Record<PlatformId, PlatformLoginCheckConfig
     checkUrl: 'https://mp.weixin.qq.com',
     loginUrlPattern: /(login|scan|qrcode)/i,
     loggedInIndicator: /(cgi-bin\/home|mp\.weixin\.qq\.com\/cgi-bin\/appmsg)/i,
+    noPermissionPattern: /(no_permission|forbidden|unauthorized)/i,
     friendlyName: '微信公众号后台',
   },
   wechat_channels: {
     checkUrl: 'https://channels.weixin.qq.com/platform',
     loginUrlPattern: /(login|auth)/i,
     loggedInIndicator: /(channels\.weixin\.qq\.com\/platform\/post|dashboard)/i,
+    noPermissionPattern: /(no_permission|unauthorized)/i,
     friendlyName: '微信视频号助手',
   },
   bilibili: {
     checkUrl: 'https://member.bilibili.com/platform/home',
     loginUrlPattern: /(passport\.bilibili\.com|login)/i,
     loggedInIndicator: /(member\.bilibili\.com\/platform|upload)/i,
+    noPermissionPattern: /(account\/appeal|banned)/i,
     friendlyName: '哔哩哔哩创作中心',
   },
   douyin: {
@@ -119,6 +123,8 @@ export const PLATFORM_COOKIE_RULES: Record<PlatformId, PlatformCookieRule> = {
 export interface SessionStatus {
   platform: PlatformId
   loggedIn: boolean
+  state?: SessionState
+  isReady?: boolean
   currentUrl?: string
   guidanceMessage?: string
   scanRequired?: boolean
@@ -176,12 +182,16 @@ export class SessionGuard {
       kind: ContentKind
       draftEditorUrl: string
       loggedIn: boolean
+      state: SessionState
+      isReady: boolean
       scanRequired: boolean
       message: string
+      lastCheckedAt: string
     }>
   > {
     const cookiePath = this.findHostBrowserCookiesPath()
     const detectedLoginMap = new Map<PlatformId, boolean>()
+    const now = new Date().toISOString()
 
     if (cookiePath) {
       const tmp = join(tmpdir(), `dsh-cookies-${Date.now()}-${Math.random().toString(36).slice(2)}.db`)
@@ -216,11 +226,12 @@ export class SessionGuard {
     return platforms.map(p => {
       const isKnown = detectedLoginMap.has(p.id)
       const loggedIn = detectedLoginMap.get(p.id) ?? false
+      const state: SessionState = loggedIn ? 'authenticated' : isKnown ? 'needs_login' : 'unknown'
       const message = loggedIn
-        ? '已在日常浏览器中登录 (就绪)'
+        ? '已在浏览器会话中完成认证 (就绪)'
         : isKnown
-          ? '未检测到登录状态，请在浏览器中完成登录'
-          : '未检测到浏览器会话'
+          ? '未检测到有效登录凭证，请完成登录授权'
+          : '尚未建立浏览器会话'
 
       return {
         id: p.id,
@@ -228,28 +239,52 @@ export class SessionGuard {
         kind: p.kind,
         draftEditorUrl: p.draftEditorUrl,
         loggedIn,
+        state,
+        isReady: loggedIn,
         scanRequired: !loggedIn,
         message,
+        lastCheckedAt: now,
       }
     })
   }
 
   /**
-   * Evaluate whether a runtime URL indicates an active logged-in session.
+   * Evaluate whether a runtime URL indicates an active logged-in session, returning four-state SessionStatus.
    */
   evaluateState(platform: PlatformId, currentUrl: string): SessionStatus {
     const config = PLATFORM_LOGIN_CONFIGS[platform]
     if (!config) {
-      return { platform, loggedIn: false, guidanceMessage: `未配置的平台: ${platform}` }
+      return {
+        platform,
+        loggedIn: false,
+        state: 'unknown',
+        isReady: false,
+        guidanceMessage: `未配置的平台: ${platform}`,
+      }
     }
 
     const isLoginGate = config.loginUrlPattern.test(currentUrl)
-    const isLoggedIn = config.loggedInIndicator.test(currentUrl) && !isLoginGate
+    const isNoPermission = config.noPermissionPattern?.test(currentUrl) ?? false
+    const isLoggedIn = config.loggedInIndicator.test(currentUrl) && !isLoginGate && !isNoPermission
+
+    if (isNoPermission) {
+      return {
+        platform,
+        loggedIn: false,
+        state: 'no_publish_permission',
+        isReady: false,
+        currentUrl,
+        scanRequired: false,
+        guidanceMessage: `当前账号已登录 ${config.friendlyName}，但缺乏发帖或创作者权限。`,
+      }
+    }
 
     if (!isLoggedIn) {
       return {
         platform,
         loggedIn: false,
+        state: isLoginGate ? 'needs_login' : 'unknown',
+        isReady: false,
         currentUrl,
         scanRequired: true,
         guidanceMessage: `检测到 ${config.friendlyName} 尚未登录或会话已过期。请在打开的浏览器窗口中使用手机扫码登录。`,
@@ -259,8 +294,56 @@ export class SessionGuard {
     return {
       platform,
       loggedIn: true,
+      state: 'authenticated',
+      isReady: true,
       currentUrl,
       guidanceMessage: `${config.friendlyName} 会话有效。`,
     }
+  }
+
+  /**
+   * Check sessions using BrowserOS active tab URLs and return PlatformSessionStatus list.
+   */
+  checkBrowserSessions(
+    platforms: Array<{ id: PlatformId; name: string; kind: ContentKind; draftEditorUrl: string }>,
+    activeTabs: Array<{ url: string }> = [],
+  ): PlatformSessionStatus[] {
+    const now = new Date().toISOString()
+
+    return platforms.map(p => {
+      const config = PLATFORM_LOGIN_CONFIGS[p.id]
+      const matchingTab = activeTabs.find(tab => {
+        if (!config) return false
+        return tab.url.includes(new URL(config.checkUrl).hostname)
+      })
+
+      if (matchingTab) {
+        const evalResult = this.evaluateState(p.id, matchingTab.url)
+        return {
+          platform: p.id,
+          name: p.name,
+          kind: p.kind,
+          state: evalResult.state ?? (evalResult.loggedIn ? 'authenticated' : 'needs_login'),
+          isReady: evalResult.loggedIn,
+          scanRequired: evalResult.scanRequired ?? !evalResult.loggedIn,
+          draftEditorUrl: p.draftEditorUrl,
+          lastCheckedAt: now,
+          message: evalResult.guidanceMessage ?? (evalResult.loggedIn ? '就绪' : '需登录'),
+        }
+      }
+
+      // Default to unknown if no matching tab exists yet
+      return {
+        platform: p.id,
+        name: p.name,
+        kind: p.kind,
+        state: 'unknown',
+        isReady: false,
+        scanRequired: true,
+        draftEditorUrl: p.draftEditorUrl,
+        lastCheckedAt: now,
+        message: '未检测到活动页面，点击“去登录”建立会话',
+      }
+    })
   }
 }

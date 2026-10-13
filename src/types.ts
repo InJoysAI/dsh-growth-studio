@@ -1,5 +1,5 @@
 /**
- * Core type definitions for the Ops Manager plugin.
+ * Core type definitions for the Growth Studio (Ops Manager) plugin.
  * @module @deepseek-ai/dsh-ops-manager/types
  */
 
@@ -24,6 +24,54 @@ export type ItemStatus =
   | 'published'
   | 'archived'
 
+/** Four-state session lifecycle. */
+export type SessionState =
+  | 'unknown'
+  | 'needs_login'
+  | 'authenticated'
+  | 'no_publish_permission'
+
+/** Platform session status for workbench display. */
+export interface PlatformSessionStatus {
+  platform: PlatformId
+  name?: string | undefined
+  kind?: ContentKind | undefined
+  state: SessionState
+  isReady: boolean
+  accountName?: string | undefined
+  scanRequired?: boolean | undefined
+  draftEditorUrl?: string | undefined
+  lastCheckedAt: string
+  message: string
+}
+
+/** Channel-specific variant within a ContentDraft. */
+export interface ChannelVariant {
+  platform: PlatformId
+  kind: ContentKind
+  title: string
+  body: string
+  tags: string[]
+  mediaPaths?: string[] | undefined
+  coverPath?: string | undefined
+}
+
+/** Persistent ContentDraft model stored in $DSH_HOME/growth-studio/drafts/. */
+export interface ContentDraft {
+  id: string
+  title: string
+  topic: string
+  targetAudience?: string | undefined
+  channelVariants: ChannelVariant[]
+  status: 'draft' | 'ready_for_review' | 'prefilled' | 'published'
+  version: number
+  injoysDocId?: string | undefined
+  prefillResults?: Partial<Record<PlatformId, { draftId?: string; draftUrl?: string; prefilledAt: string }>> | undefined
+  publishedUrls?: Partial<Record<PlatformId, string>> | undefined
+  createdAt: string
+  updatedAt: string
+}
+
 /** Single entry in the Injoys content calendar spreadsheet. */
 export interface CalendarItem {
   id: string
@@ -31,12 +79,12 @@ export interface CalendarItem {
   platform: PlatformId
   kind: ContentKind
   topic: string
-  targetAudience?: string
+  targetAudience?: string | undefined
   status: ItemStatus
-  documentId?: string // Associated Injoys document ID
-  mediaPath?: string // Local video / image absolute path
-  draftUrl?: string // Direct URL to platform draft editor
-  publishedUrl?: string
+  documentId?: string | undefined // Associated Injoys document ID
+  mediaPath?: string | undefined // Local video / image absolute path
+  draftUrl?: string | undefined // Direct URL to platform draft editor
+  publishedUrl?: string | undefined
   createdAt: string
   updatedAt: string
 }
@@ -48,8 +96,8 @@ export interface ProductKnowledgeContext {
   coreFeatures: string[]
   targetPersona: string[]
   brandTone: string
-  recentChangelog?: string[]
-  faqEntries?: Array<{ question: string; answer: string }>
+  recentChangelog?: string[] | undefined
+  faqEntries?: Array<{ question: string; answer: string }> | undefined
 }
 
 /** Rich article draft produced for WeChat Official Account. */
@@ -58,9 +106,9 @@ export interface ArticleDraft {
   title: string
   digest: string
   contentMarkdown: string
-  coverPrompt?: string
+  coverPrompt?: string | undefined
   suggestedTags: string[]
-  injoysDocId?: string
+  injoysDocId?: string | undefined
 }
 
 /** Video draft metadata produced for Channels / Bilibili / Douyin. */
@@ -70,32 +118,34 @@ export interface VideoMetadataDraft {
   titleVariants: [string, string, string] // 3 targeted title options
   tags: string[]
   description: string
-  timestampChapters?: Array<{ timestamp: string; label: string }>
-  coverSuggestions?: string[]
-  partition?: string // Category e.g. 科技/知识/日常
+  timestampChapters?: Array<{ timestamp: string; label: string }> | undefined
+  coverSuggestions?: string[] | undefined
+  partition?: string | undefined // Category e.g. 科技/知识/日常
 }
 
 /** Platform adapter result when pre-filling drafts via BrowserOS. */
 export interface DraftPrefillResult {
   platform: PlatformId
   success: boolean
-  draftId?: string
-  draftUrl?: string
-  message?: string
-  requiresUserAction?: boolean
+  draftId?: string | undefined
+  draftUrl?: string | undefined
+  message?: string | undefined
+  requiresUserAction?: boolean | undefined
 }
 
 /** Platform performance metrics collected by BrowserOS. */
 export interface PlatformMetrics {
   platform: PlatformId
   capturedAt: string
-  views: number
-  likes: number
-  comments: number
-  shares: number
-  favorites?: number
-  followerDelta?: number
-  topPostTitle?: string
+  impressions: number | null
+  plays: number | null
+  views: number // For backward compatibility: impressions ?? plays ?? 0
+  likes: number | null
+  comments: number | null
+  shares: number | null
+  favorites?: number | null | undefined
+  followerDelta?: number | null | undefined
+  topPostTitle?: string | undefined
 }
 
 /** Feedback item extracted from audience comments. */
@@ -106,7 +156,7 @@ export interface UserFeedbackItem {
   rawComment: string
   summary: string
   priority: 'low' | 'medium' | 'high'
-  addressedInVersion?: string
+  addressedInVersion?: string | undefined
 }
 
 /** Operational weekly/monthly review report. */

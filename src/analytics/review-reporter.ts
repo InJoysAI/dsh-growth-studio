@@ -37,7 +37,7 @@ export class ReviewReporter {
 
     for (const m of metrics) {
       totalViews += m.views
-      const engagements = m.likes + m.comments + m.shares + (m.favorites ?? 0)
+      const engagements = (m.likes ?? 0) + (m.comments ?? 0) + (m.shares ?? 0) + (m.favorites ?? 0)
       totalEngagements += engagements
       platformBreakdown[m.platform] = m
 

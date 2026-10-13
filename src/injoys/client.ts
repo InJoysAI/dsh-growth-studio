@@ -5,6 +5,7 @@
 
 import type {
   CalendarItem,
+  PlatformId,
   ProductKnowledgeContext,
   ArticleDraft,
   VideoMetadataDraft,
@@ -205,6 +206,28 @@ export class InjoysClient {
    * Read existing calendar entries from Injoys Spreadsheet.
    */
   async listCalendarItems(): Promise<CalendarItem[]> {
+    try {
+      const res = (await this.invokeTool('spreadsheet.read', {})) as {
+        rows?: Array<Array<string>>
+      } | null
+
+      if (res?.rows && Array.isArray(res.rows) && res.rows.length > 0) {
+        return res.rows.map((row, idx) => ({
+          id: row[0] || `cal_${idx}_${Date.now()}`,
+          date: row[1] || new Date().toISOString().slice(0, 10),
+          platform: (row[2] as PlatformId) || 'wechat_mp',
+          kind: (row[3] as any) || 'article',
+          topic: row[4] || '未命名排期项',
+          status: (row[5] as any) || 'planned',
+          draftUrl: row[6] || undefined,
+          publishedUrl: row[7] || undefined,
+          createdAt: row[8] || new Date().toISOString(),
+          updatedAt: row[8] || new Date().toISOString(),
+        }))
+      }
+    } catch {
+      // Fallback to empty array if Injoys spreadsheet not reachable
+    }
     return []
   }
 
@@ -212,10 +235,35 @@ export class InjoysClient {
    * Upsert a calendar row into the Injoys content calendar spreadsheet.
    */
   async syncCalendarItem(item: CalendarItem): Promise<CalendarItem> {
+    const updatedAt = new Date().toISOString()
     const updated: CalendarItem = {
       ...item,
-      updatedAt: new Date().toISOString(),
+      updatedAt,
     }
+
+    try {
+      await this.invokeTool('spreadsheet.applyOperations', {
+        operations: [
+          {
+            type: 'appendRow',
+            data: [
+              item.id,
+              item.date,
+              item.platform,
+              item.kind,
+              item.topic,
+              item.status,
+              item.draftUrl ?? '',
+              item.publishedUrl ?? '',
+              updatedAt,
+            ],
+          },
+        ],
+      })
+    } catch (err) {
+      console.warn(`[InjoysClient] Failed to append calendar row to Injoys:`, err)
+    }
+
     return updated
   }
 

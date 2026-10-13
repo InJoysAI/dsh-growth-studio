@@ -460,9 +460,12 @@ export function createOpsTools(
 
       const tableRows = metrics.map((m) => {
         totalViews += m.views
-        const eng = m.likes + m.comments + m.shares + (m.favorites ?? 0)
+        const eng = (m.likes ?? 0) + (m.comments ?? 0) + (m.shares ?? 0) + (m.favorites ?? 0)
         totalEngagements += eng
-        return `| **${m.platform}** | ${m.views.toLocaleString()} | ${m.likes.toLocaleString()} | ${m.comments.toLocaleString()} | ${m.shares.toLocaleString()} | +${m.followerDelta ?? 0} |`
+        const likesStr = m.likes !== null ? m.likes.toLocaleString() : '-'
+        const commentsStr = m.comments !== null ? m.comments.toLocaleString() : '-'
+        const sharesStr = m.shares !== null ? m.shares.toLocaleString() : '-'
+        return `| **${m.platform}** | ${m.views.toLocaleString()} | ${likesStr} | ${commentsStr} | ${sharesStr} | +${m.followerDelta ?? 0} |`
       })
 
       const tableMarkdown = [

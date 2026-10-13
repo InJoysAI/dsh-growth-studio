@@ -7,10 +7,12 @@ import type { PlatformId, PlatformMetrics } from '../types.js'
 
 export interface MetricsCollectorOptions {
   mockOffline?: boolean
+  browserOsClient?: any
 }
 
 /**
- * Collects metrics from creator dashboards across WeChat MP, Channels, Bilibili, Douyin.
+ * Collects metrics from creator dashboards across WeChat MP, Bilibili, etc.
+ * Supports distinguishing between text impressions and video plays with nullable semantics.
  */
 export class MetricsCollector {
   readonly options: MetricsCollectorOptions
@@ -45,11 +47,14 @@ export class MetricsCollector {
     capturedAt: string,
   ): PlatformMetrics {
     switch (platform) {
-      case 'wechat_mp':
+      case 'wechat_mp': {
+        const impressions = Math.round(3500 * multiplier)
         return {
           platform,
           capturedAt,
-          views: Math.round(3500 * multiplier),
+          impressions,
+          plays: null, // WeChat MP articles do not have video plays
+          views: impressions,
           likes: Math.round(180 * multiplier),
           comments: Math.round(42 * multiplier),
           shares: Math.round(165 * multiplier),
@@ -57,23 +62,15 @@ export class MetricsCollector {
           followerDelta: Math.round(85 * multiplier),
           topPostTitle: '深度拆解：为什么全插件式智能体正在颠覆传统工作流？',
         }
-      case 'wechat_channels':
+      }
+      case 'bilibili': {
+        const plays = Math.round(12500 * multiplier)
         return {
           platform,
           capturedAt,
-          views: Math.round(8200 * multiplier),
-          likes: Math.round(410 * multiplier),
-          comments: Math.round(88 * multiplier),
-          shares: Math.round(320 * multiplier),
-          favorites: Math.round(290 * multiplier),
-          followerDelta: Math.round(140 * multiplier),
-          topPostTitle: '3分钟带你上手本地 AI 自动化运营智能体！',
-        }
-      case 'bilibili':
-        return {
-          platform,
-          capturedAt,
-          views: Math.round(12500 * multiplier),
+          impressions: null,
+          plays,
+          views: plays,
           likes: Math.round(980 * multiplier),
           comments: Math.round(156 * multiplier),
           shares: Math.round(450 * multiplier),
@@ -81,11 +78,31 @@ export class MetricsCollector {
           followerDelta: Math.round(260 * multiplier),
           topPostTitle: '【开源硬核】告别手动发稿！用 DSH 搭建个人产品全自动运营管线',
         }
-      case 'douyin':
+      }
+      case 'wechat_channels': {
+        const plays = Math.round(8200 * multiplier)
         return {
           platform,
           capturedAt,
-          views: Math.round(21000 * multiplier),
+          impressions: null,
+          plays,
+          views: plays,
+          likes: Math.round(410 * multiplier),
+          comments: Math.round(88 * multiplier),
+          shares: Math.round(320 * multiplier),
+          favorites: Math.round(290 * multiplier),
+          followerDelta: Math.round(140 * multiplier),
+          topPostTitle: '3分钟带你上手本地 AI 自动化运营智能体！',
+        }
+      }
+      case 'douyin': {
+        const plays = Math.round(21000 * multiplier)
+        return {
+          platform,
+          capturedAt,
+          impressions: null,
+          plays,
+          views: plays,
           likes: Math.round(1350 * multiplier),
           comments: Math.round(210 * multiplier),
           shares: Math.round(520 * multiplier),
@@ -93,23 +110,31 @@ export class MetricsCollector {
           followerDelta: Math.round(380 * multiplier),
           topPostTitle: '程序员偷懒神器：用 AI 自己给自己做推广，太香了！',
         }
-      case 'youtube':
+      }
+      case 'youtube': {
+        const plays = Math.round(9600 * multiplier)
         return {
           platform,
           capturedAt,
-          views: Math.round(9600 * multiplier),
-          likes: Math.round(640 * multiplier),
-          comments: Math.round(92 * multiplier),
+          impressions: null,
+          plays,
+          views: plays,
+          likes: Math.round(720 * multiplier),
+          comments: Math.round(94 * multiplier),
           shares: Math.round(210 * multiplier),
           favorites: Math.round(380 * multiplier),
           followerDelta: Math.round(180 * multiplier),
           topPostTitle: 'How I Built an Autonomous AI Marketing Agent with DeepSeek Harness',
         }
-      case 'twitter_x':
+      }
+      case 'twitter_x': {
+        const impressions = Math.round(28000 * multiplier)
         return {
           platform,
           capturedAt,
-          views: Math.round(28000 * multiplier),
+          impressions,
+          plays: null,
+          views: impressions,
           likes: Math.round(890 * multiplier),
           comments: Math.round(145 * multiplier),
           shares: Math.round(310 * multiplier),
@@ -117,22 +142,31 @@ export class MetricsCollector {
           followerDelta: Math.round(240 * multiplier),
           topPostTitle: 'I spent months building an open-source agent pipeline to automate distribution...',
         }
-      case 'product_hunt':
+      }
+      case 'product_hunt': {
+        const impressions = Math.round(4800 * multiplier)
         return {
           platform,
           capturedAt,
-          views: Math.round(4800 * multiplier),
+          impressions,
+          plays: null,
+          views: impressions,
           likes: Math.round(420 * multiplier), // Upvotes
           comments: Math.round(78 * multiplier),
           shares: Math.round(130 * multiplier),
+          favorites: null,
           followerDelta: Math.round(95 * multiplier),
           topPostTitle: 'DeepSeek Harness — Plugin-native AI agent harness for indie makers',
         }
-      case 'tiktok':
+      }
+      case 'tiktok': {
+        const plays = Math.round(34000 * multiplier)
         return {
           platform,
           capturedAt,
-          views: Math.round(34000 * multiplier),
+          impressions: null,
+          plays,
+          views: plays,
           likes: Math.round(2800 * multiplier),
           comments: Math.round(320 * multiplier),
           shares: Math.round(860 * multiplier),
@@ -140,15 +174,19 @@ export class MetricsCollector {
           followerDelta: Math.round(520 * multiplier),
           topPostTitle: 'POV: you let an AI agent handle your indie product marketing for a week',
         }
+      }
       default:
         return {
           platform,
           capturedAt,
-          views: Math.round(1000 * multiplier),
-          likes: Math.round(50 * multiplier),
-          comments: Math.round(10 * multiplier),
-          shares: Math.round(20 * multiplier),
-          followerDelta: Math.round(25 * multiplier),
+          impressions: null,
+          plays: null,
+          views: 0,
+          likes: null,
+          comments: null,
+          shares: null,
+          favorites: null,
+          followerDelta: null,
         }
     }
   }

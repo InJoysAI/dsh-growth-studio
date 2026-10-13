@@ -718,6 +718,229 @@ describe('Ops Manager (Stage 4: Overseas Expansion & Multi-Language)', () => {
       expect(dataSessions.type).toBe('server-response')
       expect(dataSessions.result.ok).toBe(true)
       expect(dataSessions.result.value.statuses.length).toBeGreaterThanOrEqual(4)
+
+      // Test drafts.save & drafts.list
+      const reqDraftSave = new Request('http://localhost/api/ops', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'client-request',
+          rpcId: 'req-4',
+          method: OPS_ENDPOINT,
+          payload: {
+            method: 'drafts.save',
+            payload: {
+              title: '深度拆解 AI Agent 工作流',
+              topic: 'Agentic Workflow',
+              channelVariants: [
+                {
+                  platform: 'wechat_mp',
+                  kind: 'article',
+                  title: '深度拆解：为什么全插件式智能体正在颠覆传统工作流？',
+                  body: '本文深入解析 Cordis 微内核架构...',
+                  tags: ['AI', 'Agent', '架构'],
+                },
+                {
+                  platform: 'bilibili',
+                  kind: 'video',
+                  title: '【硬核】手把手带你写一个全插件式智能体！',
+                  body: 'B站视频简介与时间轴章节...',
+                  tags: ['开源', '独立开发'],
+                },
+              ],
+            },
+          },
+        }),
+      })
+
+      const resDraftSave = await registeredHandler!(reqDraftSave)
+      const dataDraftSave = (await resDraftSave.json()) as any
+      expect(dataDraftSave.result.ok).toBe(true)
+      const savedDraftId = dataDraftSave.result.value.draft.id
+      expect(savedDraftId).toBeDefined()
+      expect(dataDraftSave.result.value.draft.version).toBe(1)
+
+      // Test drafts.list
+      const reqDraftList = new Request('http://localhost/api/ops', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'client-request',
+          rpcId: 'req-5',
+          method: OPS_ENDPOINT,
+          payload: { method: 'drafts.list', payload: {} },
+        }),
+      })
+
+      const resDraftList = await registeredHandler!(reqDraftList)
+      const dataDraftList = (await resDraftList.json()) as any
+      expect(dataDraftList.result.ok).toBe(true)
+      expect(dataDraftList.result.value.drafts.length).toBeGreaterThanOrEqual(1)
+
+      // Test drafts.updatePublishUrl
+      const reqPublishUrl = new Request('http://localhost/api/ops', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'client-request',
+          rpcId: 'req-6',
+          method: OPS_ENDPOINT,
+          payload: {
+            method: 'drafts.updatePublishUrl',
+            payload: {
+              draftId: savedDraftId,
+              platform: 'wechat_mp',
+              publishedUrl: 'https://mp.weixin.qq.com/s/sample_article_published',
+            },
+          },
+        }),
+      })
+
+      const resPublishUrl = await registeredHandler!(reqPublishUrl)
+      const dataPublishUrl = (await resPublishUrl.json()) as any
+      expect(dataPublishUrl.result.ok).toBe(true)
+      expect(dataPublishUrl.result.value.draft.status).toBe('published')
+      expect(dataPublishUrl.result.value.draft.publishedUrls.wechat_mp).toBe(
+        'https://mp.weixin.qq.com/s/sample_article_published',
+      )
+
+      // Test workbench.overview
+      const reqOverview = new Request('http://localhost/api/ops', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'client-request',
+          rpcId: 'req-7',
+          method: OPS_ENDPOINT,
+          payload: { method: 'workbench.overview', payload: {} },
+        }),
+      })
+
+      const resOverview = await registeredHandler!(reqOverview)
+      const dataOverview = (await resOverview.json()) as any
+      expect(dataOverview.result.ok).toBe(true)
+      expect(dataOverview.result.value.overviewMetrics).toBeDefined()
+      expect(dataOverview.result.value.overviewMetrics.metricsAnnotation).toContain('非去重')
+      expect(dataOverview.result.value.statuses.length).toBeGreaterThanOrEqual(2)
+
+      // Test workbench.prefillDraft
+      const reqPrefill = new Request('http://localhost/api/ops', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'client-request',
+          rpcId: 'req-8',
+          method: OPS_ENDPOINT,
+          payload: {
+            method: 'workbench.prefillDraft',
+            payload: {
+              draftId: savedDraftId,
+              platform: 'wechat_mp',
+            },
+          },
+        }),
+      })
+
+      const resPrefill = await registeredHandler!(reqPrefill)
+      const dataPrefill = (await resPrefill.json()) as any
+      expect(dataPrefill.result.ok).toBe(true)
+      expect(dataPrefill.result.value.success).toBe(true)
+      expect(dataPrefill.result.value.message).toContain('草稿箱')
+    })
+
+    it('manages ContentDraft persistence lifecycle via DraftStore', async () => {
+      const { DraftStore } = await import('../src/storage/draft-store.js')
+      const store = new DraftStore(undefined)
+
+      const draft1 = await store.saveDraft({
+        title: 'B站硬核视频',
+        topic: 'AI Agent',
+        channelVariants: [
+          {
+            platform: 'bilibili',
+            kind: 'video',
+            title: '手把手带你写 AI Agent',
+            body: '视频介绍与章节分镜...',
+            tags: ['AI', '开源'],
+          },
+        ],
+      })
+
+      expect(draft1.id).toBeDefined()
+      expect(draft1.version).toBe(1)
+      expect(draft1.status).toBe('draft')
+
+      // Update draft -> version bumps to 2
+      const draft2 = await store.saveDraft({
+        ...draft1,
+        title: 'B站硬核视频（修改版）',
+      })
+      expect(draft2.id).toBe(draft1.id)
+      expect(draft2.version).toBe(2)
+      expect(draft2.title).toBe('B站硬核视频（修改版）')
+
+      // Get draft
+      const fetched = await store.getDraft(draft1.id)
+      expect(fetched?.title).toBe('B站硬核视频（修改版）')
+
+      // Update prefill result
+      const prefilled = await store.updatePrefillResult(draft1.id, 'bilibili', {
+        draftId: 'bili_draft_123',
+        draftUrl: 'https://member.bilibili.com/platform/upload',
+      })
+      expect(prefilled?.status).toBe('prefilled')
+      expect(prefilled?.prefillResults?.bilibili?.draftId).toBe('bili_draft_123')
+
+      // Mark published
+      const published = await store.markPublished(
+        draft1.id,
+        'bilibili',
+        'https://www.bilibili.com/video/BV1234567890',
+      )
+      expect(published?.status).toBe('published')
+      expect(published?.publishedUrls?.bilibili).toBe('https://www.bilibili.com/video/BV1234567890')
+
+      // List drafts
+      const allDrafts = await store.listDrafts()
+      expect(allDrafts.some(d => d.id === draft1.id)).toBe(true)
+
+      // Delete draft
+      const deleted = await store.deleteDraft(draft1.id)
+      expect(deleted).toBe(true)
+      expect(await store.getDraft(draft1.id)).toBeNull()
+    })
+
+    it('validates SessionGuard four-state lifecycle', async () => {
+      const { SessionGuard } = await import('../src/browser/session-guard.js')
+      const guard = new SessionGuard()
+
+      // 1. WeChat MP login scan gate -> needs_login
+      const mpLogin = guard.evaluateState('wechat_mp', 'https://mp.weixin.qq.com/cgi-bin/scanlogin?action=scan')
+      expect(mpLogin.loggedIn).toBe(false)
+      expect(mpLogin.state).toBe('needs_login')
+      expect(mpLogin.isReady).toBe(false)
+      expect(mpLogin.scanRequired).toBe(true)
+
+      // 2. WeChat MP logged in home -> authenticated
+      const mpHome = guard.evaluateState('wechat_mp', 'https://mp.weixin.qq.com/cgi-bin/home?t=home/index')
+      expect(mpHome.loggedIn).toBe(true)
+      expect(mpHome.state).toBe('authenticated')
+      expect(mpHome.isReady).toBe(true)
+
+      // 3. Bilibili passport login gate -> needs_login
+      const biliLogin = guard.evaluateState('bilibili', 'https://passport.bilibili.com/login')
+      expect(biliLogin.loggedIn).toBe(false)
+      expect(biliLogin.state).toBe('needs_login')
+
+      // 4. Bilibili creator home -> authenticated
+      const biliHome = guard.evaluateState('bilibili', 'https://member.bilibili.com/platform/home')
+      expect(biliHome.loggedIn).toBe(true)
+      expect(biliHome.state).toBe('authenticated')
+
+      // 5. Unknown URL -> unknown
+      const unknown = guard.evaluateState('wechat_mp', 'https://example.com/other')
+      expect(unknown.loggedIn).toBe(false)
+      expect(unknown.state).toBe('unknown')
     })
   })
 })

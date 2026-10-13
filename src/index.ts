@@ -8,6 +8,7 @@ import z from '@deepseek-ai/schemastery'
 import { InjoysClient } from './injoys/client.js'
 import { AdapterRegistry } from './adapters/registry.js'
 import { ConfigStore } from './config-store.js'
+import { DraftStore } from './storage/draft-store.js'
 import { registerOpsRpc } from './ops-rpc.js'
 import { createOpsTools } from './tools/index.js'
 
@@ -49,9 +50,10 @@ export function apply(ctx: Context, config: Config): void {
   const defaultProduct = currentConfig.defaultProduct ?? 'DeepSeek Harness'
   const injoys = new InjoysClient(currentConfig.injoys)
   const adapters = new AdapterRegistry()
+  const draftStore = new DraftStore(ctx)
 
   ctx.inject(['connection'], (connectionCtx) => {
-    registerOpsRpc(connectionCtx, configStore, injoys, adapters)
+    registerOpsRpc(connectionCtx, configStore, injoys, adapters, draftStore)
   })
 
   ctx.systemPrompt.section({
@@ -95,4 +97,5 @@ export * from './feedback/comments-crawler.js'
 export * from './feedback/issue-extractor.js'
 export * from './feedback/trends-discoverer.js'
 export * from './schedule/schedule-bridge.js'
+export * from './storage/draft-store.js'
 export * from './tools/index.js'
