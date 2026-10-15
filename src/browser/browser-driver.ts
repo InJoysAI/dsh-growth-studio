@@ -6,6 +6,8 @@
 
 import type { PlatformId, DraftPrefillResult } from '../types.js'
 import { SessionGuard } from './session-guard.js'
+import { parseTabs } from './browseros-ops.js'
+import { extractToolText } from './browseros-bridge.js'
 
 export interface BrowserTaskExecution {
   platform: PlatformId
@@ -17,7 +19,26 @@ export interface BrowserTaskExecution {
 }
 
 export interface BrowserOsMcpClient {
-  callTool: (toolName: string, args: Record<string, unknown>) => Promise<any>
+  callTool: (toolName: string, args?: Record<string, unknown>) => Promise<any>
+  /** Raw MCP tool names this client can reach, when the source can report them. */
+  availableTools?: readonly string[]
+}
+
+/** BrowserOS tab as returned by `tabs action=list`. */
+export interface BrowserOsTab {
+  /** Page id used by every other BrowserOS tool call. */
+  page: number
+  url?: string
+  title?: string
+}
+
+/** Result of listing BrowserOS tabs. */
+export interface BrowserOsTabListResult {
+  tabs: BrowserOsTab[]
+  /** Session handle to pass back so the same browser session is reused. */
+  session?: string
+  /** Set when the listing failed; callers must not treat it as "no tabs". */
+  error?: string
 }
 
 /**
@@ -58,10 +79,15 @@ export class BrowserDriver {
    */
   async planPrefillWorkflow(task: BrowserTaskExecution): Promise<DraftPrefillResult> {
     // If a live client is available, check live tab state rather than static URL
+    let openTabs: Array<{ page: number; url?: string }> | undefined
     if (this.browserOsClient) {
       try {
         const tabsRes = await this.browserOsClient.callTool('tabs', { action: 'list' }).catch(() => null)
-        const tabs = Array.isArray(tabsRes?.tabs) ? tabsRes.tabs : []
+        // BrowserOS may answer with a JSON array or a `[n] <url>` text listing.
+        openTabs = parseTabs(extractToolText(tabsRes))
+        const tabs = openTabs
+          .filter((tab): tab is { page: number; url: string } => typeof tab.url === 'string')
+          .map(tab => ({ url: tab.url }))
         const statuses = this.sessionGuard.checkBrowserSessions(
           [{ id: task.platform, name: task.platform, kind: 'article', draftEditorUrl: task.targetUrl }],
           tabs,
@@ -84,7 +110,7 @@ export class BrowserDriver {
     // Execute via live BrowserOS MCP if connected
     if (this.browserOsClient) {
       try {
-        return await this.executeBrowserOsWorkflow(task)
+        return await this.executeBrowserOsWorkflow(task, openTabs)
       } catch (err: any) {
         return {
           platform: task.platform,
@@ -120,12 +146,41 @@ export class BrowserDriver {
 
   /**
    * Orchestrate BrowserOS MCP tool actions: navigate, snapshot, and act.
+   *
+   * BrowserOS requires a `page` id on every navigation, so the tab that already
+   * holds the platform session is reused instead of opening a new one (a fresh
+   * tab starts unauthenticated on most creator backends). `openTabs` carries the
+   * listing the caller already fetched, so tabs are queried only once.
    */
-  private async executeBrowserOsWorkflow(task: BrowserTaskExecution): Promise<DraftPrefillResult> {
+  private async executeBrowserOsWorkflow(
+    task: BrowserTaskExecution,
+    openTabs?: Array<{ page: number; url?: string }>,
+  ): Promise<DraftPrefillResult> {
     const client = this.browserOsClient!
 
-    // 1. Navigate to target URL
-    const navRes = await client.callTool('navigate', { url: task.targetUrl })
+    // 1. Reuse an existing tab for the target host when one is open.
+    let page: number | undefined
+    let targetUrl = task.targetUrl
+    try {
+      const host = new URL(task.targetUrl).hostname
+      const tabs = openTabs ?? parseTabs(extractToolText(await client.callTool('tabs', { action: 'list' })))
+      const existing = tabs.find(tab => {
+        if (!tab.url) return false
+        try {
+          return new URL(tab.url).hostname === host
+        } catch {
+          return false
+        }
+      })
+      if (typeof existing?.page === 'number') page = existing.page
+      if (existing?.url) targetUrl = existing.url
+    } catch {
+      // Tab discovery is best-effort; navigation below still works.
+    }
+
+    // 2. Navigate the resolved tab (or ask BrowserOS for a fresh one).
+    const navArgs: Record<string, unknown> = page !== undefined ? { page } : { url: targetUrl }
+    const navRes = await client.callTool('navigate', navArgs)
     if (isMcpToolError(navRes)) {
       const errDetail =
         navRes?.error?.message ??
@@ -133,9 +188,10 @@ export class BrowserDriver {
         navRes?.message ??
         navRes?.result?.error ??
         '导航执行失败或被拒绝'
-      throw new Error(`导航至 ${task.targetUrl} 失败: ${errDetail}`)
+      throw new Error(`导航至 ${targetUrl} 失败: ${errDetail}`)
     }
 
+    const liveUrl = typeof navRes?.url === 'string' && navRes.url ? navRes.url : targetUrl
     if (typeof navRes?.url === 'string') {
       const liveCheck = this.sessionGuard.evaluateState(task.platform, navRes.url)
       if (liveCheck.state === 'needs_login' || liveCheck.state === 'no_publish_permission') {
@@ -149,13 +205,14 @@ export class BrowserDriver {
       }
     }
 
-    // 2. Snapshot the page to observe interactive elements
-    const snapRes = await client.callTool('snapshot', {})
+    // 3. Snapshot the page to observe interactive elements
+    const snapshotArgs: Record<string, unknown> = page !== undefined ? { page } : {}
+    const snapRes = await client.callTool('snapshot', snapshotArgs)
     if (isMcpToolError(snapRes)) {
       throw new Error(`页面结构提取失败 (snapshot): ${snapRes?.error ?? snapRes?.message ?? '工具执行错误'}`)
     }
 
-    // 3. Fill text fields (title, body, tags, description)
+    // 4. Fill text fields (title, body, tags, description)
     // Determine required fields: explicitly specified or default essential fields (title, content, body, description)
     const requiredFieldKeys = new Set(
       task.requiredFields ?? [
@@ -173,6 +230,7 @@ export class BrowserDriver {
       if (!val) continue
       try {
         const actRes = await client.callTool('act', {
+          ...(page !== undefined ? { page } : {}),
           kind: 'fill',
           selector: `[name="${fieldName}"], [placeholder*="${fieldName}"], #${fieldName}`,
           value: val,
@@ -206,9 +264,10 @@ export class BrowserDriver {
       throw new Error(`所有物料字段填入均失败 (${errList || '未能匹配任何输入框'})`)
     }
 
-    // 4. If uploadFilePath is specified, trigger upload
+    // 5. If uploadFilePath is specified, trigger upload
     if (task.uploadFilePath) {
       const uploadRes = await client.callTool('upload', {
+        ...(page !== undefined ? { page } : {}),
         path: task.uploadFilePath,
       })
       if (isMcpToolError(uploadRes)) {
@@ -216,11 +275,12 @@ export class BrowserDriver {
       }
     }
 
-    // 5. Click "Save Draft" button (NEVER click Publish!)
+    // 6. Click "Save Draft" button (NEVER click Publish!)
     const draftButtonSelector =
       task.submitButtonSelector ??
       'button:has-text("保存为草稿"), button:has-text("保存草稿"), .save-draft-btn'
     const clickRes = await client.callTool('act', {
+      ...(page !== undefined ? { page } : {}),
       kind: 'click',
       selector: draftButtonSelector,
     })
@@ -236,7 +296,7 @@ export class BrowserDriver {
       platform: task.platform,
       success: true,
       draftId: remoteDraftId,
-      draftUrl: task.targetUrl,
+      draftUrl: liveUrl,
       message: '物料已成功填入平台草稿箱，请在创作者中心人工核对',
     }
   }

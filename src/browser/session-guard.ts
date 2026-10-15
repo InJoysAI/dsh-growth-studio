@@ -45,6 +45,12 @@ export const PLATFORM_LOGIN_CONFIGS: Record<PlatformId, PlatformLoginCheckConfig
     loggedInIndicator: /(creator\.douyin\.com\/creator-micro|upload)/i,
     friendlyName: '抖音创作者服务平台',
   },
+  xiaohongshu: {
+    checkUrl: 'https://creator.xiaohongshu.com/new/note-manager',
+    loginUrlPattern: /(login|passport|signin)/i,
+    loggedInIndicator: /(creator\.xiaohongshu\.com)/i,
+    friendlyName: '小红书创作服务平台',
+  },
   youtube: {
     checkUrl: 'https://studio.youtube.com',
     loginUrlPattern: /(accounts\.google\.com)/i,
@@ -97,6 +103,11 @@ export const PLATFORM_COOKIE_RULES: Record<PlatformId, PlatformCookieRule> = {
     domain: 'douyin.com',
     cookieNames: ['sessionid', 'sessionid_ss', 'passport_assist_user'],
     friendlyName: '抖音创作者服务平台',
+  },
+  xiaohongshu: {
+    domain: 'xiaohongshu.com',
+    cookieNames: ['web_session', 'a1', 'webId'],
+    friendlyName: '小红书创作服务平台',
   },
   youtube: {
     domain: 'youtube.com',

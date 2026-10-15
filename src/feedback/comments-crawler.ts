@@ -84,6 +84,18 @@ export class CommentsCrawler {
           likes: 56,
         },
       ],
+      xiaohongshu: [
+        {
+          author: '效率控小鹿',
+          content: '表格能直接对接 DeepSeek 吗？想让它帮我自动汇总周报数据。',
+          likes: 31,
+        },
+        {
+          author: '运营喵',
+          content: '求个详细教程！本地资料库检索旧报价这个功能太实用了。',
+          likes: 22,
+        },
+      ],
       youtube: [
         {
           author: 'AlexDeveloper',

@@ -8,13 +8,14 @@ import { defineTool } from '@deepseek-ai/dsh-tools'
 import type { ToolDefinition } from '@deepseek-ai/dsh-tools'
 import { InjoysClient } from '../injoys/client.js'
 import { AdapterRegistry } from '../adapters/registry.js'
-import { MetricsCollector } from '../analytics/metrics-collector.js'
+import { MetricsCollector, type PlatformMetricsOutcome } from '../analytics/metrics-collector.js'
 import { ReviewReporter } from '../analytics/review-reporter.js'
 import { CommentsCrawler } from '../feedback/comments-crawler.js'
 import { IssueExtractor } from '../feedback/issue-extractor.js'
 import { TrendsDiscoverer } from '../feedback/trends-discoverer.js'
 import { ScheduleBridge } from '../schedule/schedule-bridge.js'
 import { OverseasStrategyManager } from '../international/overseas-strategy.js'
+import type { BrowserOsMcpClient } from '../browser/browser-driver.js'
 import { DraftStore } from '../storage/draft-store.js'
 import type {
   CalendarItem,
@@ -29,10 +30,14 @@ export function createOpsTools(
   ctx?: Context,
   draftStore?: DraftStore,
   metricsCollector?: MetricsCollector,
+  browserOsClient?: BrowserOsMcpClient,
 ): ToolDefinition[] {
   const actualDraftStore = draftStore ?? new DraftStore(ctx)
   const isMockMetrics = Boolean(ctx?.get ? ctx.get("mockOffline", false) : (ctx as any)?.mockOffline)
-  const actualMetricsCollector = metricsCollector ?? new MetricsCollector({ mockOffline: isMockMetrics })
+  // A caller-supplied collector wins; otherwise build one from the live client so
+  // metrics are measured rather than defaulted to zero.
+  const actualMetricsCollector =
+    metricsCollector ?? new MetricsCollector({ browserOsClient, mockOffline: isMockMetrics })
   const reviewReporter = new ReviewReporter(injoys)
   const commentsCrawler = new CommentsCrawler()
   const issueExtractor = new IssueExtractor(injoys)
@@ -480,13 +485,14 @@ export function createOpsTools(
           totalViews: { type: 'number', required: true },
           totalEngagements: { type: 'number', required: true },
           sheetSynced: { type: 'boolean', required: true },
+          liveCount: { type: 'number', required: true },
           tableMarkdown: { type: 'string', required: true },
         },
       },
       render: (_args, value) => [
         {
           type: 'text',
-          text: `### 📊 运营数据采集与指标监控看板\n- **累计总曝光/播放**: ${value.totalViews.toLocaleString()}\n- **累计总互动量**: ${value.totalEngagements.toLocaleString()}\n- **Injoys 表格同步**: ${value.sheetSynced ? '✅ 已更新' : '⚠️ 本地保存'}\n\n${value.tableMarkdown}`,
+          text: `### 📊 运营数据采集与指标监控看板\n- **累计总曝光/播放**: ${value.totalViews.toLocaleString()}\n- **累计总互动量**: ${value.totalEngagements.toLocaleString()}\n- **真实采集平台数**: ${value.liveCount}\n- **Injoys 表格同步**: ${value.sheetSynced ? '✅ 已更新' : '⚠️ 本地保存'}\n\n${value.tableMarkdown}`,
         },
       ],
     },
@@ -499,32 +505,52 @@ export function createOpsTools(
       ]
       const timeRange = (args.timeRange as '7d' | '30d' | undefined) ?? '7d'
 
-      const metrics = await actualMetricsCollector.fetchPlatformMetrics(targetPlatforms, timeRange)
+      const metrics: PlatformMetricsOutcome[] = await actualMetricsCollector.fetchPlatformMetrics(
+        targetPlatforms,
+        timeRange,
+      )
       const sheetSynced = await injoys.recordMetricsToSheet(metrics)
 
       let totalViews = 0
       let totalEngagements = 0
+      let liveCount = 0
 
       const tableRows = metrics.map((m) => {
-        totalViews += m.views
-        const eng = (m.likes ?? 0) + (m.comments ?? 0) + (m.shares ?? 0) + (m.favorites ?? 0)
-        totalEngagements += eng
+        // Only rows that carry real numbers contribute to the totals; a value
+        // that was never measured is never counted as zero.
+        const measured = m.source !== 'unmeasured'
+        if (measured) {
+          if (m.source === 'live') liveCount += 1
+          totalViews += m.views
+          totalEngagements += (m.likes ?? 0) + (m.comments ?? 0) + (m.shares ?? 0) + (m.favorites ?? 0)
+        }
         const likesStr = m.likes !== null ? m.likes.toLocaleString() : '-'
         const commentsStr = m.comments !== null ? m.comments.toLocaleString() : '-'
         const sharesStr = m.shares !== null ? m.shares.toLocaleString() : '-'
-        return `| **${m.platform}** | ${m.views.toLocaleString()} | ${likesStr} | ${commentsStr} | ${sharesStr} | +${m.followerDelta ?? 0} |`
+        const followerStr = m.followerDelta !== null && m.followerDelta !== undefined
+          ? `+${m.followerDelta.toLocaleString()}`
+          : '-'
+        const viewsStr = measured ? m.views.toLocaleString() : '-'
+        const sourceTag = m.source === 'live' ? '实时' : m.source === 'mock' ? '模拟' : '未采集'
+        return `| **${m.platform}** | ${viewsStr} | ${likesStr} | ${commentsStr} | ${sharesStr} | ${followerStr} | ${sourceTag} |`
       })
 
+      const notes = metrics
+        .filter(m => m.source !== 'live' && m.note)
+        .map(m => `- \`${m.platform}\`：${m.note}`)
+
       const tableMarkdown = [
-        '| 平台渠道 | 阅读/播放量 | 点赞 | 评论 | 转发/分享 | 粉丝增长 |',
-        '|---|---|---|---|---|---|',
+        '| 平台渠道 | 阅读/播放量 | 点赞 | 评论 | 转发/分享 | 粉丝增长 | 数据来源 |',
+        '|---|---|---|---|---|---|---|',
         ...tableRows,
+        ...(notes.length > 0 ? ['', '**未采集原因**', ...notes] : []),
       ].join('\n')
 
       return {
         totalViews,
         totalEngagements,
         sheetSynced,
+        liveCount,
         tableMarkdown,
       }
     },

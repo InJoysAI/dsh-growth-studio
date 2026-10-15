@@ -9,6 +9,8 @@ import { InjoysClient } from './injoys/client.js'
 import type { AdapterRegistry } from './adapters/registry.js'
 import { SessionGuard } from './browser/session-guard.js'
 import { BrowserDriver, type BrowserOsMcpClient } from './browser/browser-driver.js'
+import { parseTabs } from './browser/browseros-ops.js'
+import { extractToolText } from './browser/browseros-bridge.js'
 import { DraftStore, DraftConcurrencyError } from './storage/draft-store.js'
 import { MetricsCollector } from './analytics/metrics-collector.js'
 import type { PlatformId, PlatformSessionStatus } from './types.js'
@@ -156,7 +158,10 @@ export function registerOpsRpc(
             if (browserOsClient) {
               try {
                 const tabsRes = await browserOsClient.callTool('tabs', { action: 'list' })
-                activeTabs = Array.isArray(tabsRes?.tabs) ? tabsRes.tabs : []
+                // BrowserOS may answer with a JSON array or a `[n] <url>` text listing.
+                activeTabs = parseTabs(extractToolText(tabsRes))
+                  .filter(tab => typeof tab.url === 'string')
+                  .map(tab => ({ url: tab.url as string }))
               } catch {
                 // Ignore error if listing tabs fails
               }
@@ -364,7 +369,9 @@ export function registerOpsRpc(
             if (browserOsClient) {
               try {
                 const tabsRes = await browserOsClient.callTool('tabs', { action: 'list' })
-                activeTabs = Array.isArray(tabsRes?.tabs) ? tabsRes.tabs : []
+                activeTabs = parseTabs(extractToolText(tabsRes))
+                  .filter(tab => typeof tab.url === 'string')
+                  .map(tab => ({ url: tab.url as string }))
               } catch {
                 // Ignore tab query failure
               }

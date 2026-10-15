@@ -11,6 +11,8 @@ import { ConfigStore } from './config-store.js'
 import { DraftStore } from './storage/draft-store.js'
 import { registerOpsRpc } from './ops-rpc.js'
 import { createOpsTools } from './tools/index.js'
+import { MetricsCollector } from './analytics/metrics-collector.js'
+import { resolveBrowserOsClient, BROWSEROS_SERVER_NAME } from './browser/browseros-bridge.js'
 import type { BrowserOsMcpClient } from './browser/browser-driver.js'
 
 export const name = 'growth-studio'
@@ -51,24 +53,24 @@ export function apply(ctx: Context, config: Config): void {
   const defaultProduct = currentConfig.defaultProduct ?? 'DeepSeek Harness'
   const injoys = new InjoysClient(currentConfig.injoys)
 
-  // Resolve or bridge BrowserOS client from Cordis context if available
-  // Use ctx.get() to safely inspect optional services without triggering Cordis "without inject" errors
-  const rawBrowserOs = ctx.get
-    ? (ctx.get("browserOsClient", false) ?? ctx.get("browseros", false))
-    : undefined
-  const rawMcp = ctx.get
-    ? (ctx.get("mcp", false) ?? ctx.get("mcpHub", false) ?? ctx.get("mcpClient", false))
-    : undefined
+  // Resolve BrowserOS through the tools `dsh-mcp-client` registers. That plugin
+  // publishes every external MCP tool as `mcp__<serverName>__<tool>` on
+  // `ctx.tools` and exposes no Cordis service, so a service lookup can never
+  // find it. Resolving here (rather than guessing service keys) keeps the
+  // bridge honest: when the server is not registered we get `undefined` and the
+  // collectors report "unmeasured" instead of fabricating numbers.
+  const bridge = resolveBrowserOsClient(ctx)
+  const browserOsClient: BrowserOsMcpClient | undefined = bridge.client
 
-  const browserOsClient: BrowserOsMcpClient | undefined =
-    rawBrowserOs ??
-    (rawMcp && typeof rawMcp.callTool === "function"
-      ? {
-          callTool: async (tool: string, args: Record<string, unknown> = {}) => {
-            return rawMcp.callTool("browseros", tool, args)
-          },
-        }
-      : undefined)
+  if (browserOsClient) {
+    console.info(
+      `[growth-studio] BrowserOS MCP 已接入，可用工具: ${bridge.availableTools.join(', ')}`,
+    )
+  } else {
+    console.warn(
+      `[growth-studio] ${bridge.reason ?? 'BrowserOS MCP 未接入'}（serverName: ${BROWSEROS_SERVER_NAME}）`,
+    )
+  }
 
   const adapters = new AdapterRegistry(browserOsClient)
   const draftStore = new DraftStore(ctx)
@@ -96,7 +98,12 @@ export function apply(ctx: Context, config: Config): void {
     ].join(' '),
   })
 
-  const tools = createOpsTools(injoys, adapters, ctx, draftStore)
+  // Pass one collector that already holds the live BrowserOS client. Without
+  // this the tool builds its own client-less collector and every metric reads as
+  // unmeasured even though BrowserOS is reachable.
+  const metricsCollector = new MetricsCollector({ browserOsClient })
+
+  const tools = createOpsTools(injoys, adapters, ctx, draftStore, metricsCollector)
   for (const tool of tools) {
     ctx.tools.register(tool)
   }
@@ -109,6 +116,8 @@ export * from './types.js'
 export * from './injoys/client.js'
 export * from './browser/session-guard.js'
 export * from './browser/browser-driver.js'
+export * from './browser/browseros-bridge.js'
+export * from './browser/browseros-ops.js'
 export * from './adapters/base.js'
 export * from './adapters/registry.js'
 export * from './international/overseas-strategy.js'

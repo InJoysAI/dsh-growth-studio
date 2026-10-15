@@ -1,5 +1,20 @@
 # dsh-growth-studio 配置包补丁：在空配置根上追加插件行。
 # 后续配置补丁可通过 id 引用此行。
 - insert:
+    # BrowserOS 浏览器执行引擎。`dsh-mcp-client` 把外部 MCP server 的工具
+    # 以 `mcp__<serverName>__<tool>` 注册到 ctx.tools，本插件再从中反查并转发，
+    # 所以这一行是 `ops_fetch_metrics` / `ops_push_drafts` 能拿到真实数据的前提。
+    # BrowserOS 启动后监听 http://127.0.0.1:9002/mcp（见 ~/.browseros/server.json）。
+    - id: mcp-browseros
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        serverName: browseros
+        transport: streamable-http
+        url: http://127.0.0.1:9002/mcp
+        # 连接失败时不阻断 DSH 启动：插件会退化为"未采集"而不是伪造数据。
+        failOnStartupError: false
+        reconnect:
+          enabled: true
+
     - id: growth-studio
       name: 'dsh-growth-studio'

@@ -8,6 +8,7 @@ export type PlatformId =
   | 'wechat_channels'
   | 'bilibili'
   | 'douyin'
+  | 'xiaohongshu'
   | 'youtube'
   | 'twitter_x'
   | 'product_hunt'
