@@ -13,10 +13,12 @@ export function OpsPage({ close, rpcCall }) {
   const [showToken, setShowToken] = React.useState(false)
 
   // Form State
+  // ⛔ 客户端不得内置任何令牌（criterion §3.1 / §4）：初始 token 一律留空，
+  // 真实值仅在加载时经 config.get 从宿主侧读回。
   const [form, setForm] = React.useState({
     defaultProduct: 'DeepSeek Harness',
     endpoint: 'http://127.0.0.1:17688/mcp',
-    token: 'SP4YowBGMpPJKiW1bUu2gfprMjL_BjqsX18JvV_9v9Y',
+    token: '',
     reuseHostBrowserProfile: true,
     autoSyncToInjoys: true,
   })

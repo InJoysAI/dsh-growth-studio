@@ -32,12 +32,21 @@ export interface OpsManagerConfigInput {
   autoSyncToInjoys?: boolean
 }
 
+/**
+ * Default Injoys MCP endpoint.
+ *
+ * ⛔ No token default: a shared/global token must never be shipped in source
+ * (criterion §4 密钥管理). The token is resolved only from the user's own
+ * configuration (config UI / `$DSH_HOME/ops-manager/config.json`) or the
+ * `INJOYS_MCP_TOKEN` environment variable; otherwise it stays empty and the
+ * caller must surface an "unconfigured" state instead of pretending to be ready.
+ */
 export const DEFAULT_OPS_CONFIG: OpsManagerConfig = {
   defaultProduct: 'DeepSeek Harness',
   reuseHostBrowserProfile: true,
   injoys: {
     endpoint: 'http://127.0.0.1:17688/mcp',
-    token: 'SP4YowBGMpPJKiW1bUu2gfprMjL_BjqsX18JvV_9v9Y',
+    token: '',
   },
   autoSyncToInjoys: true,
 }

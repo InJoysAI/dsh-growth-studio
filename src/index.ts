@@ -37,7 +37,8 @@ export const Config: z<Config> = z.object({
   reuseHostBrowserProfile: z.boolean().default(true),
   injoys: z.object({
     endpoint: z.string().default('http://127.0.0.1:17688/mcp'),
-    token: z.string().default('SP4YowBGMpPJKiW1bUu2gfprMjL_BjqsX18JvV_9v9Y'),
+    // ⛔ 禁止内置默认令牌（criterion §4）；仅允许用户配置或 INJOYS_MCP_TOKEN 环境变量
+    token: z.string().default(''),
   }).default({}),
   autoSyncToInjoys: z.boolean().default(true),
 })

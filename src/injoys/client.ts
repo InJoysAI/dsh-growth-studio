@@ -65,10 +65,9 @@ export class InjoysClient {
   constructor(config: InjoysClientConfig = {}) {
     this.endpoint =
       config.endpoint ?? process.env.INJOYS_MCP_ENDPOINT ?? 'http://127.0.0.1:17688/mcp'
-    this.token =
-      config.token ??
-      process.env.INJOYS_MCP_TOKEN ??
-      'SP4YowBGMpPJKiW1bUu2gfprMjL_BjqsX18JvV_9v9Y'
+    // ⛔ 禁止硬编码令牌（criterion §4）：仅接受显式配置或 INJOYS_MCP_TOKEN 环境变量。
+    // 二者皆无时保持空串，由调用方判定「未配置」，不得回退到任何内置默认令牌。
+    this.token = config.token ?? process.env.INJOYS_MCP_TOKEN ?? ''
   }
 
   /**
@@ -102,6 +101,14 @@ export class InjoysClient {
    */
   async testConnection(): Promise<{ ok: boolean; latencyMs: number; message: string }> {
     const startTime = Date.now()
+    // 未配置令牌时不得发出请求并谎报「认证失败」：区分「未配置」与「令牌无效」。
+    if (this.token.trim().length === 0) {
+      return {
+        ok: false,
+        latencyMs: 0,
+        message: '尚未配置 Injoys 访问令牌，请在「引擎策略配置」中填写，或设置 INJOYS_MCP_TOKEN 环境变量。',
+      }
+    }
     try {
       const res = await fetch(this.endpoint, {
         method: 'POST',
