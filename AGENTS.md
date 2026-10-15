@@ -15,15 +15,16 @@
 
 ### 关键禁止项（摘自 `.context/criterion.md`，仅为提醒，**以 criterion.md 为准**）
 
-1. 严禁任何自动点击最终确认发布的行为，`ops_publish_now` 已彻底移除。（criterion §4）
+1. 严禁任何自动点击最终确认发布的行为，`ops_publish_now` 已彻底移除，不得以任何形式重新引入。（criterion §4）
 2. 预填止步于平台原生「保存为草稿」，不得触发或越过正式发布步骤。（criterion §4）
-3. 采集失败或平台不支持的指标必须为 `null`，不得按 0 或估算值伪造填充。（criterion §4）
-4. 禁止硬编码密钥 / 令牌 / 敏感配置，日志必须脱敏。（criterion §4）
-5. 禁止将会话数据（Cookie）向任何第三方服务上报，会话在本地沙箱运行。（criterion §4）
-6. 客户端禁止绕过 `callOpsRpc` 直连 Injoys、BrowserOS 或任何外部服务。（criterion §3.1）
-7. 客户端禁止硬编码色值，必须使用 DSH 设计令牌 `var(--dsw-alias-*)`。（criterion §3.1）
-8. 宿主侧禁止内置全局通用 Master Key。（criterion §3.2）
-9. 禁止绕过 `config-store` / `draft-store` 模块直接操作配置文件或草稿文件。（criterion §3.5）
+3. 禁止将会话数据（Cookie）向任何第三方服务上报，会话在本地沙箱运行。（criterion §4）
+4. 采集失败或平台不支持的指标必须为 `null`，不得按 0 或估算值伪造填充。（criterion §4）
+5. 禁止硬编码密钥 / 令牌 / 敏感配置，令牌仅允许来自用户配置或环境变量回退，日志必须脱敏。（criterion §4）
+6. 宿主侧禁止内置全局通用 Master Key 或任何形式的通用凭据。（criterion §3.2）
+7. 禁止虚报成功（无客户端或执行失败时严禁返回成功）。（criterion §3.2）
+8. 客户端禁止绕过 `callOpsRpc` 直连 Injoys、BrowserOS 或任何外部服务。（criterion §3.1）
+9. 客户端禁止硬编码色值，必须使用 DSH 设计令牌 `var(--dsw-alias-*)`。（criterion §3.1）
+10. 禁止绕过 `config-store` / `draft-store` 模块直接操作配置文件或草稿文件。（criterion §3.5）
 
 > 本节由工具根据 `criterion.md` 自动生成/刷新，不要手工修改；完整约束见 `.context/criterion.md`。
 
