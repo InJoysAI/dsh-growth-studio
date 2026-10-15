@@ -26,8 +26,9 @@
 9. 客户端禁止绕过 `callOpsRpc` 直连 Injoys、BrowserOS 或任何外部服务。（criterion §3.1）
 10. 客户端禁止硬编码色值，必须使用 DSH 设计令牌 `var(--dsw-alias-*)`。（criterion §3.1）
 11. 禁止绕过 `config-store` / `draft-store` 模块直接操作配置文件或草稿文件。（criterion §3.5）
-12. 草稿目录须在单次操作内固定（不得中途重新解析），写入前须准备并校验目录，失败如实抛错；`config.save` 改目录须先校验，不得先报成功后由 `drafts.save` 报 ENOENT。（criterion §3.2/§3.5）
-13. Phase 0 禁止引入 WebSocket / SSE 持久连接或后台定时轮询；刷新由用户手动触发、局部替换并做并发去重。（criterion §3.4）
+12. 草稿目录须在单次操作内固定（含跨 `await` 的复合 RPC，不得中途重新解析）；写入前须准备**并验证可写**；存储失败统一返回 `drafts/storage-unavailable`；`config.save` 改目录须先校验，不得先报成功后由 `drafts.save` 报 ENOENT。（criterion §3.2/§3.5）
+13. 禁止让测试写入开发者真实 `$DSH_HOME`（`ConfigStore` 会回退到真实主目录）：隔离须在测试文件**被导入/收集前**生效（模块作用域赋值，不得放 `beforeAll`——否则 describe 捕获的未隔离值会被 `afterEach` 恢复）。每个写配置的用例使用独立 `DSH_HOME` 或显式 `profileContext.home`。（criterion §3.5）
+14. Phase 0 禁止引入 WebSocket / SSE 持久连接或后台定时轮询；刷新由用户手动触发、局部替换并做并发去重。（criterion §3.4）
 
 > 本节由工具根据 `criterion.md` 自动生成/刷新，不要手工修改；完整约束见 `.context/criterion.md`。
 

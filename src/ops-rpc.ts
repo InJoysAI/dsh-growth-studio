@@ -18,7 +18,7 @@ import {
   DraftUnknownChannelError,
   DraftInvalidPublishUrlError,
   DraftStorageError,
-  ensureDirectory,
+  verifyDirectoryWritable,
   getPublishProgress,
   isValidPublishUrl,
 } from './storage/draft-store.js'
@@ -122,13 +122,14 @@ export function registerOpsRpc(
           case 'config.save': {
             const toSave = payload as any
 
-            // S1: a new draftsDir must be prepared/validated BEFORE it is persisted.
-            // Otherwise config.save reports success while every later draft write fails
-            // with ENOENT — the user only discovers it on their next save.
+            // S1/T1: a new draftsDir must be prepared AND verified writable BEFORE it is
+            // persisted. Existence alone is not enough — an existing read-only directory
+            // passes mkdir but fails the first real write, so config.save would report
+            // success while every later draft write fails.
             if (typeof toSave?.draftsDir === 'string' && toSave.draftsDir.trim().length > 0) {
               const targetDir = toSave.draftsDir.trim()
               try {
-                ensureDirectory(targetDir)
+                verifyDirectoryWritable(targetDir)
               } catch (err) {
                 result = {
                   ok: false,
@@ -371,6 +372,9 @@ export function registerOpsRpc(
           case 'workbench.generateArticleDraft': {
             const topic = String(payload.topic ?? '新特性发布')
             const targetPlatform = (payload.targetPlatform as PlatformId) || 'wechat_mp'
+            // 同样固定目录：本路径落盘草稿后 await Injoys，再回写 injoysDocId。
+            // 若在 await 之后重新解析目录，会把 docId 写进另一个库的同 ID 草稿。
+            const articleStorageDir = actualDraftStore.getDirectory()
             const cfg = configStore.load()
             const kb = await injoys.getKnowledgeContext(cfg.defaultProduct)
 
@@ -378,20 +382,25 @@ export function registerOpsRpc(
             const digest = `基于 ${kb.productName} 核心理念，全面解析 ${topic} 在实际生产中的应用。`
             const contentMarkdown = `# ${title}\n\n> **导语**：${digest}\n\n## 一、 背景与痛点\n围绕 ${topic}，探讨开发者的核心痛点与解决思路。\n\n## 二、 架构实践\n深入 ${kb.productName} 模块化设计。\n`
 
-            const draft = await actualDraftStore.saveDraft({
-              title,
-              topic,
-              channelVariants: [
-                {
-                  platform: targetPlatform,
-                  kind: 'article',
-                  title,
-                  body: contentMarkdown,
-                  tags: ['技术分享', 'AI'],
-                },
-              ],
-              status: 'ready_for_review',
-            })
+            // 首次落盘也必须绑定同一个目录：本请求在 await 知识库之后才写草稿，
+            // 若此处用实时目录，等待期间切换会产生「A 库读、B 库写」的双库副本（架构 §3.10.4）。
+            const draft = await actualDraftStore.saveDraft(
+              {
+                title,
+                topic,
+                channelVariants: [
+                  {
+                    platform: targetPlatform,
+                    kind: 'article',
+                    title,
+                    body: contentMarkdown,
+                    tags: ['技术分享', 'AI'],
+                  },
+                ],
+                status: 'ready_for_review',
+              },
+              { dir: articleStorageDir },
+            )
 
             const docId = await injoys.saveArticleDocument({
               id: draft.id,
@@ -402,10 +411,13 @@ export function registerOpsRpc(
             })
 
             if (docId) {
-              await actualDraftStore.saveDraft({
-                ...draft,
-                injoysDocId: docId,
-              })
+              await actualDraftStore.saveDraft(
+                {
+                  ...draft,
+                  injoysDocId: docId,
+                },
+                { dir: articleStorageDir },
+              )
             }
 
             result = {
@@ -550,7 +562,13 @@ export function registerOpsRpc(
           case 'workbench.prefillDraft': {
             const draftId = String(payload.draftId ?? '')
             const platform = payload.platform as PlatformId
-            const draft = await actualDraftStore.getDraft(draftId)
+            // T2: pin the storage directory for the WHOLE request. This handler reads the
+            // draft, awaits the platform adapter, then writes the prefill result back; if
+            // the directory were re-resolved after the await, a `draftsDir` change in
+            // between would make the write land in a different library and pollute an
+            // unrelated same-ID draft (architecture §3.10.4).
+            const storageDir = actualDraftStore.getDirectory()
+            const draft = await actualDraftStore.getDraft(draftId, storageDir)
 
             if (!draft) {
               result = {
@@ -627,10 +645,15 @@ export function registerOpsRpc(
 
             // Only persist prefill results when prefill succeeded
             if (prefillRes.success) {
-              await actualDraftStore.updatePrefillResult(draftId, platform, {
-                draftId: prefillRes.draftId,
-                draftUrl: prefillRes.draftUrl,
-              })
+              await actualDraftStore.updatePrefillResult(
+                draftId,
+                platform,
+                {
+                  draftId: prefillRes.draftId,
+                  draftUrl: prefillRes.draftUrl,
+                },
+                storageDir,
+              )
             }
 
             result = {
@@ -653,6 +676,21 @@ export function registerOpsRpc(
 
         return reply(rpcId, result)
       } catch (error: any) {
+        // T3: unify storage-error mapping at the single RPC boundary so every write entry
+        // point (drafts.save, drafts.updatePublishUrl, prefill write-back, …) reports the
+        // same `drafts/storage-unavailable` code instead of leaking `ops/internal-error`.
+        // Configuration pre-check failures keep their own `config/invalid-drafts-dir`
+        // code, which is mapped where the path is validated.
+        if (error instanceof DraftStorageError) {
+          return reply(rpcId, {
+            ok: false,
+            error: {
+              code: 'drafts/storage-unavailable',
+              message: error.message,
+              details: { dir: error.dir },
+            },
+          })
+        }
         return reply(rpcId, {
           ok: false,
           error: {

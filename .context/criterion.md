@@ -163,9 +163,12 @@ MUST:
   - 系统文件权限仅限当前操作系统用户
   - 文件路径统一经 `resolveDshHome` 解析（`profileContext.home` → `DSH_HOME` → `~/.dsh` 回退）
   - **目录在单次操作内固定**：一次草稿操作（加锁 → 读取 → 版本校验 → 写临时文件 → rename）必须始终针对同一目录；配置热切换只对**新发起**的操作生效，在途操作继续使用原目录
+  - **跨 `await` 的复合 RPC 同样须固定目录**：如 `workbench.prefillDraft`（读草稿 → 调 Adapter → 回写）必须在请求开始时捕获目录并贯穿，禁止在 await 之后重新解析；客户端不得指定任意路径
+  - **贯穿范围含请求内每一次落盘**：如 `workbench.generateArticleDraft` 的「首次写草稿」与「回写 `injoysDocId`」两次写入都必须绑定同一已捕获目录，否则一次请求会在两个库各留一份同 ID 副本
   - **该语义为确定行为，不得当作异常**：不引入 `dirChangedDuringSave` 之类的告警标记
   - **配置页切换提示文案**（实现时照此展示）：新目录对后续操作生效；正在进行的保存仍写入原目录。旧草稿不会自动迁移
-  - **写入前准备并校验目录**：目标目录不存在则创建；不可用（如父路径为文件）必须如实抛错（`DraftStorageError`），不得吞掉异常后谎报成功
+  - **写入前准备并校验目录**：目标目录不存在则创建，且必须**验证确实可写**（创建并删除唯一命名的探测文件）；仅检查存在性不足——已存在但只读的目录会让 `mkdir` 成功却在首次写入失败。不可用须如实抛错（`DraftStorageError`）
+  - **存储错误码统一**：写盘失败一律返回 `drafts/storage-unavailable`，须在**统一 RPC 错误边界**映射，覆盖 `drafts.save` / `drafts.updatePublishUrl` / 预填回写等**所有**写入口，不得漏出 `ops/internal-error`
   - **写锁按绝对文件路径归属**，使不同库中的同 ID 草稿互不阻塞、互不覆盖
 
 MUST NOT:
@@ -173,6 +176,7 @@ MUST NOT:
   - 在无锁情况下并发回写同一草稿文件
   - 在单次操作中途重新解析 `draftsDir`（会导致「从 A 库读取、写入 B 库」并覆盖 B 库同 ID 草稿）
   - 先让 `config.save` 报告成功、再由后续 `drafts.save` 以 `ENOENT` 失败
+  - **让测试写入开发者真实的 `$DSH_HOME`**：`ConfigStore` 经 `resolveDshHome` 回退到真实主目录，测试直接 `new ConfigStore(undefined, …)` 并调用 `save()` 会改写用户真实配置。隔离必须在**测试文件被导入/收集之前**生效（`tests/setup-isolation.ts` 在模块作用域赋值，**不得**放在 `beforeAll`——钩子在收集之后才运行，用例在 describe 作用域捕获的仍是未隔离值，`afterEach` 恢复它会把真实目录带回来）；每个会写配置的用例应使用独立 `DSH_HOME` 或显式 `profileContext.home`
 
 ---
 

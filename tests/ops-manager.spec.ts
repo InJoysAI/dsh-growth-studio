@@ -668,16 +668,22 @@ describe('Ops Manager (Stage 4: Overseas Expansion & Multi-Language)', () => {
   })
 
   describe('Ops Settings & RPC Management', () => {
-    const originalDshHome = process.env.DSH_HOME
+    // NOTE: never capture the entry DSH_HOME at describe scope. `tests/setup-isolation.ts`
+    // has already redirected it, but capturing here and restoring it in afterEach is how a
+    // previous revision accidentally reintroduced the real home for later suites. Restore
+    // to the isolated base lazily instead, so ordering can never resurrect the real one.
+    let isolatedBaseHome: string | undefined
+
     beforeEach(async () => {
       const { tmpdir } = await import('node:os')
       const { join } = await import('node:path')
+      isolatedBaseHome = process.env.DSH_HOME
       process.env.DSH_HOME = join(tmpdir(), `dsh-ops-test-${Date.now()}-${Math.random().toString(36).slice(2)}`)
     })
 
     afterEach(() => {
-      if (originalDshHome !== undefined) {
-        process.env.DSH_HOME = originalDshHome
+      if (isolatedBaseHome !== undefined) {
+        process.env.DSH_HOME = isolatedBaseHome
       } else {
         delete process.env.DSH_HOME
       }
@@ -1791,6 +1797,72 @@ describe('Ops Manager (Stage 4: Overseas Expansion & Multi-Language)', () => {
   })
 
   describe('DraftStore 存储不变量 (S1–S3)', () => {
+    /**
+     * Build a fully isolated RPC stack for one test.
+     *
+     * `ConfigStore` resolves `$DSH_HOME/ops-manager/config.json` via `resolveDshHome(ctx)`,
+     * which also honours `ctx.profileContext.home`. Pinning that here means these tests
+     * neither read nor write any other test's config, so they no longer depend on run
+     * order or on leftover config from an earlier suite (the cause of a previous
+     * order-dependent T3 failure).
+     */
+    const buildIsolatedRpcStack = async (home: string, draftsDir: string) => {
+      const mod = await import('../src/ops-rpc.js')
+      const conn = await import('../src/config-store.js')
+      const { InjoysClient } = await import('../src/injoys/client.js')
+      const { AdapterRegistry } = await import('../src/adapters/registry.js')
+      const { DraftStore } = await import('../src/storage/draft-store.js')
+
+      let handler: ((req: Request) => Promise<Response>) | undefined
+      const ctx: any = {
+        connection: { fetch: { register: (o: any) => { handler = o.fetch } } },
+        get: (name: string) => (name === 'profileContext' ? { home } : undefined),
+      }
+      const configStore = new conn.ConfigStore(ctx, { draftsDir })
+      const draftStore = new DraftStore(ctx, () => configStore.load().draftsDir)
+      mod.registerOpsRpc(
+        ctx,
+        configStore,
+        new InjoysClient({ endpoint: 'http://127.0.0.1:1/mcp', token: 't' }),
+        new AdapterRegistry(),
+        draftStore as any,
+      )
+
+      const call = async (method: string, payload: any) => {
+        const res = await handler!(new Request('http://localhost/api/ops', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'client-request', rpcId: 'x', method: 'ops', payload: { method, payload } }),
+        }))
+        return (await res.json()) as any
+      }
+      return { call, configStore, draftStore }
+    }
+
+    /**
+     * Permission-bit based cases (chmod 0500) are meaningless for root, which bypasses
+     * DAC checks — a root-run CI would silently pass without exercising the guard.
+     * Probe the real behaviour once and skip explicitly instead of pretending to cover it.
+     */
+    const permissionBitsEnforced = (() => {
+      const os = require('node:os') as typeof import('node:os')
+      const fs = require('node:fs') as typeof import('node:fs')
+      const path = require('node:path') as typeof import('node:path')
+      const probe = fs.mkdtempSync(path.join(os.tmpdir(), 'gs-perm-probe-'))
+      const ro = path.join(probe, 'ro')
+      fs.mkdirSync(ro)
+      fs.chmodSync(ro, 0o500)
+      let enforced = false
+      try {
+        fs.writeFileSync(path.join(ro, 'x'), '')
+      } catch {
+        enforced = true
+      }
+      fs.chmodSync(ro, 0o700)
+      fs.rmSync(probe, { recursive: true, force: true })
+      return enforced
+    })()
+
     it('S1: 构造后切换到尚不存在的新目录仍能写入；不可用目录如实抛错', async () => {
       const { DraftStore, DraftStorageError } = await import('../src/storage/draft-store.js')
       const os = await import('node:os')
@@ -1914,30 +1986,7 @@ describe('Ops Manager (Stage 4: Overseas Expansion & Multi-Language)', () => {
       const fs = await import('node:fs')
       const path = await import('node:path')
       const base = fs.mkdtempSync(path.join(os.tmpdir(), 'gs-s1rpc-'))
-      const mod = await import('../src/ops-rpc.js')
-      const conn = await import('../src/config-store.js')
-      const { InjoysClient } = await import('../src/injoys/client.js')
-      const { AdapterRegistry } = await import('../src/adapters/registry.js')
-      const { DraftStore } = await import('../src/storage/draft-store.js')
-
-      let handler: ((req: Request) => Promise<Response>) | undefined
-      const ctx: any = {
-        connection: { fetch: { register: (opts: any) => { handler = opts.fetch } } },
-      }
-      const configStore = new conn.ConfigStore(undefined, { draftsDir: base })
-      const injoys = new InjoysClient({ endpoint: 'http://127.0.0.1:1/mcp', token: 't' })
-      // 目录由 configStore 动态提供，复刻 src/index.ts 的真实装配
-      const draftStore = new DraftStore(undefined, () => configStore.load().draftsDir)
-      mod.registerOpsRpc(ctx, configStore, injoys, new AdapterRegistry(), draftStore as any)
-
-      const call = async (method: string, payload: any) => {
-        const res = await handler!(new Request('http://localhost/api/ops', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ type: 'client-request', rpcId: 'x', method: 'ops', payload: { method, payload } }),
-        }))
-        return (await res.json()) as any
-      }
+      const { call } = await buildIsolatedRpcStack(base, path.join(base, 'drafts'))
 
       // 切到尚不存在的深层新目录 -> 应立即创建并成功，随后保存草稿不得 ENOENT
       const newDir = path.join(base, 'fresh', 'deep')
@@ -1956,6 +2005,171 @@ describe('Ops Manager (Stage 4: Overseas Expansion & Multi-Language)', () => {
       expect(badCfg.result.error.code).toBe('config/invalid-drafts-dir')
 
       fs.rmSync(base, { recursive: true, force: true })
+    })
+
+    it.skipIf(!permissionBitsEnforced)('T1: 只读目录必须被 config.save 拒绝（存在 ≠ 可写）', async () => {
+      const os = await import('node:os')
+      const fs = await import('node:fs')
+      const path = await import('node:path')
+      const { ensureDirectory, verifyDirectoryWritable, DraftStorageError } =
+        await import('../src/storage/draft-store.js')
+
+      const base = fs.mkdtempSync(path.join(os.tmpdir(), 'gs-t1-'))
+      const readOnly = path.join(base, 'readonly')
+      fs.mkdirSync(readOnly, { recursive: true })
+      fs.chmodSync(readOnly, 0o500)
+
+      // ensureDirectory 只创建，故对已存在的只读目录不报错——这正是旧缺陷
+      expect(() => ensureDirectory(readOnly)).not.toThrow()
+      // verifyDirectoryWritable 必须凭探测文件识别出不可写
+      let probeErr: any = null
+      try { verifyDirectoryWritable(readOnly) } catch (e) { probeErr = e }
+      expect(probeErr).toBeInstanceOf(DraftStorageError)
+
+      // RPC 层：config.save 到只读目录必须被拒绝
+      const { call } = await buildIsolatedRpcStack(base, path.join(base, 'ok'))
+      const data = await call('config.save', { draftsDir: readOnly })
+
+      fs.chmodSync(readOnly, 0o700)
+      fs.rmSync(base, { recursive: true, force: true })
+
+      expect(data.result.ok).toBe(false)
+      expect(data.result.error.code).toBe('config/invalid-drafts-dir')
+    })
+
+    it('T2: 预填回写固定在发起时的草稿库，不污染同 ID 的其他库', async () => {
+      const os = await import('node:os')
+      const fs = await import('node:fs')
+      const path = await import('node:path')
+      const { DraftStore } = await import('../src/storage/draft-store.js')
+
+      const base = fs.mkdtempSync(path.join(os.tmpdir(), 'gs-t2-'))
+      const dirA = path.join(base, 'A')
+      const dirB = path.join(base, 'B')
+      fs.mkdirSync(dirA, { recursive: true })
+      fs.mkdirSync(dirB, { recursive: true })
+
+      let dir = dirA
+      const store = new DraftStore(undefined, () => dir)
+      await store.saveDraft({
+        id: 'same', title: 'A draft',
+        channelVariants: [{ platform: 'bilibili', kind: 'video', title: 'a', body: 'a', tags: [] }],
+      })
+      dir = dirB
+      await store.saveDraft({
+        id: 'same', title: 'B independent',
+        channelVariants: [{ platform: 'youtube', kind: 'video', title: 'b', body: 'b', tags: [] }],
+      })
+
+      // 模拟预填 RPC：在 A 上读取并固定目录，await 期间配置切到 B，再回写
+      dir = dirA
+      const pinned = store.getDirectory()
+      expect((await store.getDraft('same', pinned))!.title).toBe('A draft')
+      dir = dirB
+      await store.updatePrefillResult('same', 'bilibili', { draftUrl: 'https://bili/x' }, pinned)
+
+      const a = JSON.parse(fs.readFileSync(path.join(dirA, 'same.json'), 'utf-8'))
+      const b = JSON.parse(fs.readFileSync(path.join(dirB, 'same.json'), 'utf-8'))
+      fs.rmSync(base, { recursive: true, force: true })
+
+      expect(a.prefillResults?.bilibili?.draftUrl).toBe('https://bili/x')
+      expect(b.prefillResults?.bilibili).toBeUndefined()
+      expect(b.title).toBe('B independent')
+    })
+
+    it('U2: 图文生成在知识库等待期间切换目录，不得产生双库副本', async () => {
+      const os = await import('node:os')
+      const fs = await import('node:fs')
+      const path = await import('node:path')
+      const mod = await import('../src/ops-rpc.js')
+      const conn = await import('../src/config-store.js')
+      const { InjoysClient } = await import('../src/injoys/client.js')
+      const { AdapterRegistry } = await import('../src/adapters/registry.js')
+      const { DraftStore } = await import('../src/storage/draft-store.js')
+
+      const base = fs.mkdtempSync(path.join(os.tmpdir(), 'gs-u2-'))
+      const dirA = path.join(base, 'A')
+      const dirB = path.join(base, 'B')
+      fs.mkdirSync(dirA, { recursive: true })
+      fs.mkdirSync(dirB, { recursive: true })
+
+      // 闸门：让 getKnowledgeContext 卡住，期间切换目录
+      let releaseGate: () => void = () => {}
+      const gate = new Promise<void>(resolve => { releaseGate = resolve })
+      let gateReached: () => void = () => {}
+      const reached = new Promise<void>(resolve => { gateReached = resolve })
+
+      const dirProvider = { current: dirA }
+      let handler: ((req: Request) => Promise<Response>) | undefined
+      const ctx: any = {
+        connection: { fetch: { register: (o: any) => { handler = o.fetch } } },
+        get: (name: string) => (name === 'profileContext' ? { home: base } : undefined),
+      }
+      const configStore = new conn.ConfigStore(ctx, { draftsDir: dirA })
+      const drafts = new DraftStore(ctx, () => dirProvider.current)
+      const injoys = new InjoysClient({ endpoint: 'http://127.0.0.1:1/mcp', token: 't' })
+      // 用闸门替换知识库调用（不触网）
+      ;(injoys as any).getKnowledgeContext = async () => {
+        gateReached()
+        await gate
+        return { productName: 'P', coreFeatures: [], targetPersona: [], brandTone: '' }
+      }
+      ;(injoys as any).saveArticleDocument = async () => undefined
+
+      mod.registerOpsRpc(ctx, configStore, injoys, new AdapterRegistry(), drafts as any)
+
+      const call = async (method: string, payload: any) => {
+        const res = await handler!(new Request('http://localhost/api/ops', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'client-request', rpcId: 'x', method: 'ops', payload: { method, payload } }),
+        }))
+        return (await res.json()) as any
+      }
+
+      const pending = call('workbench.generateArticleDraft', { topic: 'U2' })
+      await reached            // 请求已进入知识库等待
+      dirProvider.current = dirB   // 期间切换目录
+      releaseGate()
+      const res = await pending
+
+      const inA = fs.readdirSync(dirA).filter(f => f.endsWith('.json'))
+      const inB = fs.readdirSync(dirB).filter(f => f.endsWith('.json'))
+      fs.rmSync(base, { recursive: true, force: true })
+
+      expect(res.result.ok).toBe(true)
+      // 整个请求必须留在发起时的 A 库，B 库不得出现任何副本
+      expect(inA.length).toBe(1)
+      expect(inB.length).toBe(0)
+    })
+
+    it.skipIf(!permissionBitsEnforced)('T3: 写盘失败在所有写入口统一返回 drafts/storage-unavailable', async () => {
+      const os = await import('node:os')
+      const fs = await import('node:fs')
+      const path = await import('node:path')
+
+      const base = fs.mkdtempSync(path.join(os.tmpdir(), 'gs-t3-'))
+      const dir = path.join(base, 'drafts')
+      fs.mkdirSync(dir, { recursive: true })
+
+      const { call } = await buildIsolatedRpcStack(base, dir)
+
+      const saved = await call('drafts.save', {
+        title: 't',
+        channelVariants: [{ platform: 'wechat_mp', kind: 'article', title: 'a', body: 'a', tags: [] }],
+      })
+      const id = saved.result.value.draft.id
+
+      fs.chmodSync(dir, 0o500)
+      const res = await call('drafts.updatePublishUrl', {
+        draftId: id, platform: 'wechat_mp', publishedUrl: 'https://ok.example/x',
+      })
+      fs.chmodSync(dir, 0o700)
+      fs.rmSync(base, { recursive: true, force: true })
+
+      expect(res.result.ok).toBe(false)
+      // 统一错误码，而不是 ops/internal-error
+      expect(res.result.error.code).toBe('drafts/storage-unavailable')
     })
   })
 

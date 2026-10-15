@@ -61,6 +61,16 @@ export class DraftInvalidPublishUrlError extends Error {
 export interface SaveDraftOptions {
   /** If specified, verifies that the existing draft matches this version before updating. */
   expectedVersion?: number
+  /**
+   * Pin the storage directory for this operation.
+   *
+   * Callers that span an `await` before writing (e.g. a prefill RPC that reads a draft,
+   * calls a platform adapter, then writes the result back) MUST capture the directory
+   * once at the start and pass it here. Otherwise a `draftsDir` change during the await
+   * makes the read and the write target different libraries, and the write can land in
+   * an unrelated same-ID draft (architecture §3.10.4).
+   */
+  dir?: string
 }
 
 /**
@@ -101,11 +111,12 @@ export function getPublishProgress(draft: Pick<ContentDraft, 'channelVariants' |
 }
 
 /**
- * Ensure a draft directory exists, surfacing failures.
+ * Ensure a draft directory **exists**, surfacing failures.
  *
  * `recursive: true` also covers a directory that disappears between config save and the
- * next write. Errors are thrown rather than swallowed: claiming a directory is usable
- * when it is not is exactly how a "successful" config save turns into an ENOENT later.
+ * next write. This does NOT verify writability: an existing but read-only directory makes
+ * `mkdirSync` succeed. Use {@link verifyDirectoryWritable} when the caller must know the
+ * directory is actually usable *before* committing to it.
  */
 export function ensureDirectory(dir: string): void {
   try {
@@ -116,6 +127,38 @@ export function ensureDirectory(dir: string): void {
       dir,
       { cause: err },
     )
+  }
+}
+
+/**
+ * Verify the directory exists **and is writable**, by creating and removing a
+ * uniquely-named probe file.
+ *
+ * Existence alone is not usable: a read-only directory (e.g. mode 0500) passes
+ * `mkdirSync` yet fails on the first real write, which is exactly how a "successful"
+ * `config.save` turns into a later failure. Probing is the only portable check —
+ * `fs.access(W_OK)` is unreliable under root/ACLs and does not prove a create works.
+ *
+ * A probe failure leaves no residue (the temp name is removed on both paths).
+ * Note the permission may still change afterwards, so write-time errors are kept.
+ */
+export function verifyDirectoryWritable(dir: string): void {
+  ensureDirectory(dir)
+  const probePath = join(dir, `.draftstore-probe-${randomBytes(6).toString('hex')}`)
+  try {
+    writeFileSync(probePath, '', 'utf-8')
+  } catch (err) {
+    throw new DraftStorageError(
+      `草稿目录不可写（${dir}）：${(err as Error)?.message ?? '未知错误'}`,
+      dir,
+      { cause: err },
+    )
+  } finally {
+    try {
+      if (existsSync(probePath)) unlinkSync(probePath)
+    } catch {
+      // Best-effort cleanup; a leftover empty probe must not fail the operation.
+    }
   }
 }
 
@@ -235,8 +278,9 @@ export class DraftStore {
     }
 
     const id = input.id ?? `draft_${Date.now()}_${randomBytes(4).toString('hex')}`
-    // Fix the target directory for this whole operation (see dirProvider docs).
-    const dir = this.getDirectory()
+    // Fix the target directory for this whole operation: an explicit pin wins, otherwise
+    // resolve once here (never again mid-operation).
+    const dir = options?.dir ?? this.getDirectory()
     const filePath = this.filePathIn(dir, id)
 
     return this.withFileLock(filePath, async () => {
@@ -376,17 +420,21 @@ export class DraftStore {
 
   /**
    * Record prefill result for a platform atomically without overwriting concurrent edits.
+   *
+   * `dir` pins the storage directory: a prefill RPC spans an `await` on the platform
+   * adapter, so the caller must pass the directory it read from (see SaveDraftOptions.dir).
    */
   async updatePrefillResult(
     draftId: string,
     platform: PlatformId,
     result: { draftId?: string; draftUrl?: string },
+    dir?: string,
   ): Promise<ContentDraft | null> {
-    const dir = this.getDirectory()
-    const filePath = this.filePathIn(dir, draftId)
+    const targetDir = dir ?? this.getDirectory()
+    const filePath = this.filePathIn(targetDir, draftId)
 
     return this.withFileLock(filePath, async () => {
-      const freshDraft = await this.getDraft(draftId, dir)
+      const freshDraft = await this.getDraft(draftId, targetDir)
       if (!freshDraft) return null
 
       const prefillResults = { ...(freshDraft.prefillResults ?? {}) }
@@ -411,7 +459,7 @@ export class DraftStore {
         updatedAt: new Date().toISOString(),
       }
 
-      this.writeDraftFile(filePath, dir, updatedDraft)
+      this.writeDraftFile(filePath, targetDir, updatedDraft)
 
       return updatedDraft
     })
@@ -429,6 +477,7 @@ export class DraftStore {
     draftId: string,
     platform: PlatformId,
     publishedUrl: string,
+    dir?: string,
   ): Promise<ContentDraft | null> {
     // Validate the URL before taking the lock: an invalid link must never count as
     // release evidence, and must not write or bump the version (architecture §3.2.5).
@@ -436,11 +485,11 @@ export class DraftStore {
       throw new DraftInvalidPublishUrlError('回填的发布链接必须是合法的 http(s) URL。')
     }
 
-    const dir = this.getDirectory()
-    const filePath = this.filePathIn(dir, draftId)
+    const targetDir = dir ?? this.getDirectory()
+    const filePath = this.filePathIn(targetDir, draftId)
 
     return this.withFileLock(filePath, async () => {
-      const freshDraft = await this.getDraft(draftId, dir)
+      const freshDraft = await this.getDraft(draftId, targetDir)
       if (!freshDraft) return null
 
       // Membership is checked against the freshly-read draft inside the same write
@@ -465,7 +514,7 @@ export class DraftStore {
         updatedAt: new Date().toISOString(),
       }
 
-      this.writeDraftFile(filePath, dir, updatedDraft)
+      this.writeDraftFile(filePath, targetDir, updatedDraft)
 
       return updatedDraft
     })
