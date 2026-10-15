@@ -317,13 +317,14 @@ export function createOpsTools(
       const description = `本期视频详细演示了如何通过 ${kb.productName} 快速串联多平台运营全流程！\n\n📌 核心亮点：\n1. 零人工干预草稿箱填充\n2. Injoys 自动化知识库检索\n3. 多渠道账号 Cookie 安全复用\n\n💬 源码与体验地址见置顶评论与简介！欢迎三连支持～`
 
       const draftId = `meta_video_${Date.now()}`
+      const partition = '科技/软件开发'
       const injoysDocId = await injoys.saveVideoDocument({
         id: draftId,
         localVideoPath: args.videoPath,
         titleVariants,
         tags,
         description,
-        partition: '科技/软件开发',
+        partition,
       })
 
       await actualDraftStore.saveDraft({
@@ -339,6 +340,8 @@ export function createOpsTools(
             body: description,
             tags,
             mediaPaths: [args.videoPath],
+            // 分区必须随变体持久化，否则预填时无法映射到平台分区控件（架构 §3.5）
+            partition,
           },
         ],
         status: 'ready_for_review',

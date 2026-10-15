@@ -16,14 +16,22 @@ export type PlatformId =
 
 export type ContentKind = 'article' | 'video' | 'post'
 
+/**
+ * CalendarItem lifecycle status.
+ *
+ * Aligned 1:1 with PRD §5.3.1's five status pills (裁决 2026-10-15): the earlier
+ * `approved` / `archived` states were removed — PRD never defined an extra review
+ * gate or an archival concept, both lacked trigger conditions, and neither was ever
+ * assigned by the implementation. The original intents are now covered without a
+ * dedicated state: "人工核验" is an action enforced by the publish-URL guard, and
+ * "归档留存" is out of Phase 0 scope.
+ */
 export type ItemStatus =
   | 'planned'
   | 'drafting'
   | 'draft_ready'
   | 'prefilled'
-  | 'approved'
   | 'published'
-  | 'archived'
 
 /** Four-state session lifecycle. */
 export type SessionState =
@@ -57,6 +65,8 @@ export interface ChannelVariant {
   tags: string[]
   mediaPaths?: string[] | undefined
   coverPath?: string | undefined
+  /** Platform category/section (e.g. Bilibili 科技/数码); undefined when unsupported. */
+  partition?: string | undefined
 }
 
 /** Persistent ContentDraft model stored in $DSH_HOME/growth-studio/drafts/. */
@@ -75,7 +85,7 @@ export interface ContentDraft {
   updatedAt: string
 }
 
-/** Single entry in the Injoys content calendar spreadsheet. */
+/** Single entry in the content calendar (local master data, architecture §4.1). */
 export interface CalendarItem {
   id: string
   date: string // YYYY-MM-DD
@@ -84,10 +94,17 @@ export interface CalendarItem {
   topic: string
   targetAudience?: string | undefined
   status: ItemStatus
-  documentId?: string | undefined // Associated Injoys document ID
+  /**
+   * Associated `ContentDraft.id` (architecture §4.3). Empty until the user starts
+   * drafting. NOTE: this is NOT the Injoys document id — that lives on
+   * `ContentDraft.injoysDocId`.
+   */
+  documentId?: string | undefined
   mediaPath?: string | undefined // Local video / image absolute path
   draftUrl?: string | undefined // Direct URL to platform draft editor
   publishedUrl?: string | undefined
+  /** Source row id from an imported Injoys sheet row; used for idempotent re-import (§3.3.4). */
+  externalRowId?: string | undefined
   createdAt: string
   updatedAt: string
 }

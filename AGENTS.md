@@ -17,15 +17,17 @@
 
 1. 严禁任何自动点击最终确认发布的行为，`ops_publish_now` 已彻底移除，不得以任何形式重新引入。（criterion §4）
 2. 预填止步于平台原生「保存为草稿」，不得触发或越过正式发布步骤。（criterion §4）
-3. 禁止将会话数据（Cookie）向任何第三方服务上报，会话在本地沙箱运行。（criterion §4）
-4. 采集失败或平台不支持的指标必须为 `null`，不得按 0 或估算值伪造填充。（criterion §4）
-5. 禁止硬编码密钥 / 令牌 / 敏感配置，令牌仅允许来自用户配置或环境变量回退，日志必须脱敏。（criterion §4）
-6. 宿主侧禁止内置全局通用 Master Key 或任何形式的通用凭据。（criterion §3.2）
-7. 禁止虚报成功（无客户端或执行失败时严禁返回成功）。（criterion §3.2）
-8. 客户端禁止绕过 `callOpsRpc` 直连 Injoys、BrowserOS 或任何外部服务。（criterion §3.1）
-9. 客户端禁止硬编码色值，必须使用 DSH 设计令牌 `var(--dsw-alias-*)`。（criterion §3.1）
-10. 禁止绕过 `config-store` / `draft-store` 模块直接操作配置文件或草稿文件。（criterion §3.5）
-11. Phase 0 禁止引入 WebSocket / SSE 持久连接或后台定时轮询。（criterion §3.4）
+3. `published` 只能经 `drafts.updatePublishUrl` 回填合法 http(s) URL（须用 URL 解析器校验）后写入；`drafts.save` 必须拒绝 `published` 且忽略传入的 `publishedUrls`；多渠道草稿仅在全部渠道回填有效 URL 后才整体 `published`，渠道集合变化须重算状态；回填渠道必须属于该草稿。（criterion §4）
+4. 禁止将会话数据（Cookie）向任何第三方服务上报，会话在本地沙箱运行。（criterion §4）
+5. 采集失败或平台不支持的指标必须为 `null`，不得按 0 或估算值伪造填充；应采平台未全部成功时汇总值为 `null`，真实零值 `0` 与缺失严格区分。（criterion §4）
+6. 禁止硬编码密钥 / 令牌 / 敏感配置，令牌仅允许来自用户配置或环境变量回退，日志必须脱敏。（criterion §4）
+7. 宿主侧禁止内置全局通用 Master Key 或任何形式的通用凭据。（criterion §3.2）
+8. 禁止虚报成功（无客户端或执行失败时严禁返回成功）。（criterion §3.2）
+9. 客户端禁止绕过 `callOpsRpc` 直连 Injoys、BrowserOS 或任何外部服务。（criterion §3.1）
+10. 客户端禁止硬编码色值，必须使用 DSH 设计令牌 `var(--dsw-alias-*)`。（criterion §3.1）
+11. 禁止绕过 `config-store` / `draft-store` 模块直接操作配置文件或草稿文件。（criterion §3.5）
+12. 草稿目录须在单次操作内固定（不得中途重新解析），写入前须准备并校验目录，失败如实抛错；`config.save` 改目录须先校验，不得先报成功后由 `drafts.save` 报 ENOENT。（criterion §3.2/§3.5）
+13. Phase 0 禁止引入 WebSocket / SSE 持久连接或后台定时轮询；刷新由用户手动触发、局部替换并做并发去重。（criterion §3.4）
 
 > 本节由工具根据 `criterion.md` 自动生成/刷新，不要手工修改；完整约束见 `.context/criterion.md`。
 

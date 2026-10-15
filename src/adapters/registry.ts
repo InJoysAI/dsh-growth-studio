@@ -57,15 +57,19 @@ export abstract class BaseVideoAdapter implements PlatformAdapter {
 
   async prefillDraft(_ctx: AdapterContext, payload: ArticlePayload | VideoPayload): Promise<DraftPrefillResult> {
     const video = payload as VideoPayload
+    const fields: Record<string, string> = {
+      title: video.title,
+      description: video.description,
+      tags: video.tags.join(','),
+    }
+    // 分区随变体一路传递到平台分区控件；平台无该字段时跳过而非报错（架构 §3.5）
+    if (video.partition) fields.partition = video.partition
+
     return this.driver.planPrefillWorkflow({
       platform: this.id,
       targetUrl: this.draftEditorUrl,
       uploadFilePath: video.localVideoPath,
-      fields: {
-        title: video.title,
-        description: video.description,
-        tags: video.tags.join(','),
-      },
+      fields,
       requiredFields: ['title', 'description'],
     })
   }

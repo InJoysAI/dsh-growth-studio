@@ -11,9 +11,19 @@ import { SessionGuard } from './browser/session-guard.js'
 import { BrowserDriver, type BrowserOsMcpClient } from './browser/browser-driver.js'
 import { parseTabs } from './browser/browseros-ops.js'
 import { extractToolText } from './browser/browseros-bridge.js'
-import { DraftStore, DraftConcurrencyError } from './storage/draft-store.js'
+import {
+  DraftStore,
+  DraftConcurrencyError,
+  DraftPublishGuardError,
+  DraftUnknownChannelError,
+  DraftInvalidPublishUrlError,
+  DraftStorageError,
+  ensureDirectory,
+  getPublishProgress,
+  isValidPublishUrl,
+} from './storage/draft-store.js'
 import { MetricsCollector } from './analytics/metrics-collector.js'
-import type { PlatformId, PlatformSessionStatus } from './types.js'
+import type { ContentDraft, PlatformId, PlatformSessionStatus } from './types.js'
 import type { AdapterContext, ArticlePayload, VideoPayload } from './adapters/base.js'
 
 export const OPS_ENDPOINT = 'ops'
@@ -111,6 +121,29 @@ export function registerOpsRpc(
 
           case 'config.save': {
             const toSave = payload as any
+
+            // S1: a new draftsDir must be prepared/validated BEFORE it is persisted.
+            // Otherwise config.save reports success while every later draft write fails
+            // with ENOENT — the user only discovers it on their next save.
+            if (typeof toSave?.draftsDir === 'string' && toSave.draftsDir.trim().length > 0) {
+              const targetDir = toSave.draftsDir.trim()
+              try {
+                ensureDirectory(targetDir)
+              } catch (err) {
+                result = {
+                  ok: false,
+                  error: {
+                    code: 'config/invalid-drafts-dir',
+                    message:
+                      err instanceof DraftStorageError
+                        ? err.message
+                        : `草稿目录不可用：${targetDir}`,
+                  },
+                }
+                break
+              }
+            }
+
             await configStore.save(toSave)
             if (toSave.injoys) {
               injoys.updateConfig({
@@ -240,6 +273,25 @@ export function registerOpsRpc(
                     details: { currentVersion: err.currentVersion, expectedVersion: err.expectedVersion },
                   },
                 }
+              } else if (err instanceof DraftPublishGuardError) {
+                // published 只能经 drafts.updatePublishUrl 推进（架构 §3.2.3 / §5.2）
+                result = {
+                  ok: false,
+                  error: {
+                    code: 'drafts/published-requires-url',
+                    message: err.message,
+                  },
+                }
+              } else if (err instanceof DraftStorageError) {
+                // 目录不可用必须如实暴露，不得吞没后谎报保存成功
+                result = {
+                  ok: false,
+                  error: {
+                    code: 'drafts/storage-unavailable',
+                    message: err.message,
+                    details: { dir: err.dir },
+                  },
+                }
               } else {
                 throw err
               }
@@ -261,10 +313,57 @@ export function registerOpsRpc(
             const draftId = String(payload.draftId ?? '')
             const platform = payload.platform as PlatformId
             const publishedUrl = String(payload.publishedUrl ?? '')
-            const draft = await actualDraftStore.markPublished(draftId, platform, publishedUrl)
+
+            // URL 守卫（架构 §3.2.5）：published 的唯一可信证据是合法真实链接。
+            // 使用 URL 解析器而非宽松正则，避免 `https://%` 这类结构非法值被当作有效凭据。
+            if (!isValidPublishUrl(publishedUrl)) {
+              result = {
+                ok: false,
+                error: {
+                  code: 'drafts/invalid-published-url',
+                  message: '回填的发布链接必须是合法的 http(s) URL。',
+                },
+              }
+              break
+            }
+
+            let draft: ContentDraft | null = null
+            try {
+              draft = await actualDraftStore.markPublished(draftId, platform, publishedUrl)
+            } catch (err) {
+              if (err instanceof DraftUnknownChannelError) {
+                result = {
+                  ok: false,
+                  error: { code: 'drafts/unknown-channel', message: err.message },
+                }
+                break
+              }
+              if (err instanceof DraftInvalidPublishUrlError) {
+                result = {
+                  ok: false,
+                  error: { code: 'drafts/invalid-published-url', message: err.message },
+                }
+                break
+              }
+              throw err
+            }
+
+            if (!draft) {
+              result = { ok: true, value: { draft: null } }
+              break
+            }
+
+            // 渠道进度：整体 published 仅在全部渠道回填有效 URL 后成立（架构 §3.2.5）
+            const progress = getPublishProgress(draft)
+
             result = {
               ok: true,
-              value: { draft },
+              value: {
+                draft,
+                publishedChannels: progress.publishedChannels,
+                totalChannels: progress.totalChannels,
+                allPublished: progress.allPublished,
+              },
             }
             break
           }
@@ -327,6 +426,12 @@ export function registerOpsRpc(
           case 'workbench.generateVideoMeta': {
             const topic = String(payload.topic ?? '硬核实战')
             const platform = (payload.platform as PlatformId) || 'bilibili'
+            const mediaPath = typeof payload.mediaPath === 'string' ? payload.mediaPath : undefined
+            // 分区仅 B站 有效；未显式传入时留空，由调用方/预填阶段决定（架构 §3.5）
+            const partition =
+              platform === 'bilibili' && typeof payload.partition === 'string' && payload.partition.length > 0
+                ? payload.partition
+                : undefined
             const titleCandidates = [
               { title: `【硬核】手把手带你玩转 ${topic}`, angle: '硬核实战型', estimatedCtr: '高点击率' },
               { title: `告别重复造轮子：${topic} 实操全记录`, angle: '痛点揭秘型', estimatedCtr: '高转化率' },
@@ -345,6 +450,8 @@ export function registerOpsRpc(
                   title: titleCandidates[0].title,
                   body: description,
                   tags,
+                  mediaPaths: mediaPath ? [mediaPath] : undefined,
+                  partition,
                 },
               ],
               status: 'ready_for_review',
@@ -354,9 +461,12 @@ export function registerOpsRpc(
               ok: true,
               value: {
                 id: draft.id,
+                // 与图文生成对齐：显式声明是否已落盘，避免客户端误判（架构 §3.5）
+                draftSaved: true,
                 titleCandidates,
                 description,
                 tags,
+                partition,
                 coverPromptSuggestion: `极简科技感封面，中心突出关键词 "${topic}"`,
               },
             }
@@ -500,6 +610,8 @@ export function registerOpsRpc(
                 tags: variant.tags ?? [],
                 localVideoPath: variant.mediaPaths?.[0] ?? '',
                 coverPath: variant.coverPath,
+                // 分区必须一路带到 Adapter，否则平台分区控件拿不到值（架构 §3.5）
+                partition: variant.partition,
               }
             } else {
               prefillPayload = {

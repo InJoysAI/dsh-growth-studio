@@ -895,10 +895,212 @@ describe('Ops Manager (Stage 4: Overseas Expansion & Multi-Language)', () => {
       const resPublishUrl = await registeredHandler!(reqPublishUrl)
       const dataPublishUrl = (await resPublishUrl.json()) as any
       expect(dataPublishUrl.result.ok).toBe(true)
-      expect(dataPublishUrl.result.value.draft.status).toBe('published')
+      // 该草稿含 2 个渠道（wechat_mp + bilibili），此处只回填 1 个：
+      // 按架构 §3.2.5，整体状态保持 prefilled，渠道进度由 publishedUrls 体现。
+      expect(dataPublishUrl.result.value.draft.status).toBe('prefilled')
+      expect(dataPublishUrl.result.value.publishedChannels).toBe(1)
+      expect(dataPublishUrl.result.value.totalChannels).toBe(2)
+      expect(dataPublishUrl.result.value.allPublished).toBe(false)
       expect(dataPublishUrl.result.value.draft.publishedUrls.wechat_mp).toBe(
         'https://mp.weixin.qq.com/s/sample_article_published',
       )
+
+      // 回填第二个渠道后，整体状态才推进为 published
+      const reqPublishUrl2 = new Request('http://localhost/api/ops', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'client-request',
+          rpcId: 'req-6b',
+          method: OPS_ENDPOINT,
+          payload: {
+            method: 'drafts.updatePublishUrl',
+            payload: {
+              draftId: savedDraftId,
+              platform: 'bilibili',
+              publishedUrl: 'https://www.bilibili.com/video/BV1sample',
+            },
+          },
+        }),
+      })
+      const resPublishUrl2 = await registeredHandler!(reqPublishUrl2)
+      const dataPublishUrl2 = (await resPublishUrl2.json()) as any
+      expect(dataPublishUrl2.result.ok).toBe(true)
+      expect(dataPublishUrl2.result.value.draft.status).toBe('published')
+      expect(dataPublishUrl2.result.value.publishedChannels).toBe(2)
+      expect(dataPublishUrl2.result.value.allPublished).toBe(true)
+
+      // 非法 URL 必须被拒绝，不得推进状态
+      const reqBadUrl = new Request('http://localhost/api/ops', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'client-request',
+          rpcId: 'req-6c',
+          method: OPS_ENDPOINT,
+          payload: {
+            method: 'drafts.updatePublishUrl',
+            payload: { draftId: savedDraftId, platform: 'wechat_mp', publishedUrl: 'not-a-url' },
+          },
+        }),
+      })
+      const resBadUrl = await registeredHandler!(reqBadUrl)
+      const dataBadUrl = (await resBadUrl.json()) as any
+      expect(dataBadUrl.result.ok).toBe(false)
+      expect(dataBadUrl.result.error.code).toBe('drafts/invalid-published-url')
+
+      // drafts.save 不得直接写入 published（发布闭环守卫）
+      const reqSavePublished = new Request('http://localhost/api/ops', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'client-request',
+          rpcId: 'req-6d',
+          method: OPS_ENDPOINT,
+          payload: {
+            method: 'drafts.save',
+            payload: { id: savedDraftId, title: '试图绕过发布闭环', status: 'published' },
+          },
+        }),
+      })
+      const resSavePublished = await registeredHandler!(reqSavePublished)
+      const dataSavePublished = (await resSavePublished.json()) as any
+      expect(dataSavePublished.result.ok).toBe(false)
+      expect(dataSavePublished.result.error.code).toBe('drafts/published-requires-url')
+
+      // R1-a：注入 publishedUrls 伪造发布凭据（空串）必须被忽略并重算状态
+      const reqInjectUrls = new Request('http://localhost/api/ops', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'client-request',
+          rpcId: 'req-6e',
+          method: OPS_ENDPOINT,
+          payload: {
+            method: 'drafts.save',
+            payload: {
+              id: savedDraftId,
+              title: '注入伪造发布凭据',
+              publishedUrls: { wechat_mp: '', bilibili: 'https://evil.example/forged' },
+            },
+          },
+        }),
+      })
+      const resInjectUrls = await registeredHandler!(reqInjectUrls)
+      const dataInjectUrls = (await resInjectUrls.json()) as any
+      expect(dataInjectUrls.result.ok).toBe(true)
+      // 已发布的两条真实 URL 必须保留，注入值不得生效
+      expect(dataInjectUrls.result.value.draft.publishedUrls).toEqual({
+        wechat_mp: 'https://mp.weixin.qq.com/s/sample_article_published',
+        bilibili: 'https://www.bilibili.com/video/BV1sample',
+      })
+      expect(dataInjectUrls.result.value.draft.status).toBe('published')
+
+      // R1-b：已发布草稿新增未回填渠道后，整体状态必须回退为 prefilled。
+      // 使用独立草稿，避免污染后续用例依赖的 savedDraftId 渠道集合。
+      const isolatedDraft = await draftStore.saveDraft({
+        id: 'draft-r1b-isolated',
+        title: 'R1-b 独立草稿',
+        channelVariants: [
+          { platform: 'wechat_mp', kind: 'article', title: 'a', body: 'a', tags: [] },
+          { platform: 'bilibili', kind: 'video', title: 'b', body: 'b', tags: [] },
+        ],
+      })
+      await draftStore.markPublished(
+        isolatedDraft.id,
+        'wechat_mp',
+        'https://mp.weixin.qq.com/s/r1b',
+      )
+      const fullyPublished = await draftStore.markPublished(
+        isolatedDraft.id,
+        'bilibili',
+        'https://www.bilibili.com/video/BV1r1b',
+      )
+      expect(fullyPublished?.status).toBe('published')
+
+      const reqAddChannel = new Request('http://localhost/api/ops', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'client-request',
+          rpcId: 'req-6f',
+          method: OPS_ENDPOINT,
+          payload: {
+            method: 'drafts.save',
+            payload: {
+              id: 'draft-r1b-isolated',
+              title: '新增未回填渠道',
+              channelVariants: [
+                { platform: 'wechat_mp', kind: 'article', title: 'a', body: 'a', tags: [] },
+                { platform: 'bilibili', kind: 'video', title: 'b', body: 'b', tags: [] },
+                { platform: 'youtube', kind: 'video', title: 'c', body: 'c', tags: [] },
+              ],
+            },
+          },
+        }),
+      })
+      const resAddChannel = await registeredHandler!(reqAddChannel)
+      const dataAddChannel = (await resAddChannel.json()) as any
+      expect(dataAddChannel.result.ok).toBe(true)
+      expect(dataAddChannel.result.value.draft.status).toBe('prefilled')
+      // youtube 无回填记录，不得凭空出现键
+      expect(dataAddChannel.result.value.draft.publishedUrls.youtube).toBeUndefined()
+
+      // R2：前缀合法但结构非法的 URL（https://%）必须被拒绝
+      const reqStructuralBadUrl = new Request('http://localhost/api/ops', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'client-request',
+          rpcId: 'req-6g',
+          method: OPS_ENDPOINT,
+          payload: {
+            method: 'drafts.updatePublishUrl',
+            payload: { draftId: 'draft-r1b-isolated', platform: 'youtube', publishedUrl: 'https://%' },
+          },
+        }),
+      })
+      const resStructuralBadUrl = await registeredHandler!(reqStructuralBadUrl)
+      const dataStructuralBadUrl = (await resStructuralBadUrl.json()) as any
+      expect(dataStructuralBadUrl.result.ok).toBe(false)
+      expect(dataStructuralBadUrl.result.error.code).toBe('drafts/invalid-published-url')
+
+      // R3：未知渠道必须返回 drafts/unknown-channel，且不写入发布记录
+      const reqUnknownChannel = new Request('http://localhost/api/ops', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'client-request',
+          rpcId: 'req-6h',
+          method: OPS_ENDPOINT,
+          payload: {
+            method: 'drafts.updatePublishUrl',
+            payload: {
+              draftId: savedDraftId,
+              platform: 'not_a_channel',
+              publishedUrl: 'https://example.com/ok',
+            },
+          },
+        }),
+      })
+      const resUnknownChannel = await registeredHandler!(reqUnknownChannel)
+      const dataUnknownChannel = (await resUnknownChannel.json()) as any
+      expect(dataUnknownChannel.result.ok).toBe(false)
+      expect(dataUnknownChannel.result.error.code).toBe('drafts/unknown-channel')
+
+      const reqAfterUnknown = new Request('http://localhost/api/ops', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'client-request',
+          rpcId: 'req-6i',
+          method: OPS_ENDPOINT,
+          payload: { method: 'drafts.get', payload: { id: savedDraftId } },
+        }),
+      })
+      const resAfterUnknown = await registeredHandler!(reqAfterUnknown)
+      const dataAfterUnknown = (await resAfterUnknown.json()) as any
+      expect(dataAfterUnknown.result.value.draft.publishedUrls.not_a_channel).toBeUndefined()
 
       // Test workbench.overview
       const reqOverview = new Request('http://localhost/api/ops', {
@@ -1585,6 +1787,175 @@ describe('Ops Manager (Stage 4: Overseas Expansion & Multi-Language)', () => {
       } finally {
         globalThis.fetch = originalFetch
       }
+    })
+  })
+
+  describe('DraftStore 存储不变量 (S1–S3)', () => {
+    it('S1: 构造后切换到尚不存在的新目录仍能写入；不可用目录如实抛错', async () => {
+      const { DraftStore, DraftStorageError } = await import('../src/storage/draft-store.js')
+      const os = await import('node:os')
+      const fs = await import('node:fs')
+      const path = await import('node:path')
+      const base = fs.mkdtempSync(path.join(os.tmpdir(), 'gs-s1-'))
+      const dirA = path.join(base, 'A')
+      fs.mkdirSync(dirA, { recursive: true })
+
+      // 关键：先构造（此时只有 A 存在），再切到一个尚不存在的深层目录
+      let dir = dirA
+      const store = new DraftStore(undefined, () => dir)
+      const newDir = path.join(base, 'brand-new', 'nested')
+      expect(fs.existsSync(newDir)).toBe(false)
+      dir = newDir
+
+      // 真实场景：config.save 切到新目录后立即保存草稿，必须成功而非 ENOENT
+      const saved = await store.saveDraft({
+        id: 's1',
+        title: 't',
+        channelVariants: [{ platform: 'bilibili', kind: 'video', title: 'b', body: 'b', tags: [] }],
+      })
+      expect(saved.id).toBe('s1')
+      expect(fs.existsSync(path.join(newDir, 's1.json'))).toBe(true)
+      expect(await store.getDraft('s1')).not.toBeNull()
+
+      // 目录不可用（父路径是普通文件）：必须抛 DraftStorageError，不得静默失败
+      const fileAsParent = path.join(base, 'blocker')
+      fs.writeFileSync(fileAsParent, 'x')
+      dir = path.join(fileAsParent, 'sub')
+      await expect(
+        store.saveDraft({
+          id: 's1b',
+          title: 't',
+          channelVariants: [{ platform: 'bilibili', kind: 'video', title: 'b', body: 'b', tags: [] }],
+        }),
+      ).rejects.toThrow(DraftStorageError)
+
+      fs.rmSync(base, { recursive: true, force: true })
+    })
+
+    it('S2: 在途保存固定目录，中途切换配置不跨库覆盖', async () => {
+      const { DraftStore } = await import('../src/storage/draft-store.js')
+      const os = await import('node:os')
+      const fs = await import('node:fs')
+      const path = await import('node:path')
+      const base = fs.mkdtempSync(path.join(os.tmpdir(), 'gs-s2-'))
+      const dirA = path.join(base, 'A')
+      const dirB = path.join(base, 'B')
+      fs.mkdirSync(dirA, { recursive: true })
+      fs.mkdirSync(dirB, { recursive: true })
+
+      // A 与 B 中放入同 ID 但内容不同的独立草稿
+      const variants = (platform: string) => [
+        { platform, kind: 'video' as const, title: platform, body: platform, tags: [] },
+      ]
+      fs.writeFileSync(
+        path.join(dirA, 'same.json'),
+        JSON.stringify({ id: 'same', title: 'A original', topic: 't', channelVariants: variants('bilibili'), status: 'draft', version: 1, createdAt: 'x', updatedAt: 'x' }),
+      )
+      fs.writeFileSync(
+        path.join(dirB, 'same.json'),
+        JSON.stringify({ id: 'same', title: 'B independent', topic: 't', channelVariants: variants('youtube'), status: 'draft', version: 1, createdAt: 'x', updatedAt: 'x' }),
+      )
+
+      // 动态目录：先指向 A，启动保存后切到 B
+      let dir = dirA
+      const store = new DraftStore(undefined, () => dir)
+      const pending = store.saveDraft({ id: 'same', title: 'A updated' })
+      await Promise.resolve()
+      dir = dirB
+      await pending
+
+      // A 被更新；B 必须保持不变（不得被 A 的内容覆盖）
+      const a = JSON.parse(fs.readFileSync(path.join(dirA, 'same.json'), 'utf-8'))
+      const b = JSON.parse(fs.readFileSync(path.join(dirB, 'same.json'), 'utf-8'))
+      expect(a.title).toBe('A updated')
+      expect(b.title).toBe('B independent')
+      expect(b.channelVariants[0].platform).toBe('youtube')
+
+      fs.rmSync(base, { recursive: true, force: true })
+    })
+
+    it('S3: 部分回填后普通保存不得降级为 draft', async () => {
+      const { DraftStore } = await import('../src/storage/draft-store.js')
+      const os = await import('node:os')
+      const fs = await import('node:fs')
+      const path = await import('node:path')
+      const base = fs.mkdtempSync(path.join(os.tmpdir(), 'gs-s3-'))
+      const store = new DraftStore(undefined, base)
+
+      await store.saveDraft({
+        id: 's3',
+        title: 't',
+        channelVariants: [
+          { platform: 'wechat_mp', kind: 'article', title: 'a', body: 'a', tags: [] },
+          { platform: 'bilibili', kind: 'video', title: 'b', body: 'b', tags: [] },
+        ],
+      })
+      // 仅回填一个渠道 -> 部分发布
+      const partial = await store.markPublished('s3', 'wechat_mp', 'https://mp.weixin.qq.com/s/s3')
+      expect(partial!.status).toBe('prefilled')
+
+      // 普通保存传入 status: 'draft' 不得把部分发布降级
+      const after = await store.saveDraft({ id: 's3', title: 't2', status: 'draft' })
+      expect(after.status).toBe('prefilled')
+      expect(after.publishedUrls!.wechat_mp).toBe('https://mp.weixin.qq.com/s/s3')
+
+      // 无任何发布凭据的草稿仍可正常处于 draft
+      const plain = await store.saveDraft({
+        id: 's3-plain',
+        title: 'p',
+        channelVariants: [{ platform: 'wechat_mp', kind: 'article', title: 'a', body: 'a', tags: [] }],
+      })
+      expect(plain.status).toBe('draft')
+
+      fs.rmSync(base, { recursive: true, force: true })
+    })
+    it('S1(RPC): config.save 切到新目录后立即可写；不可用目录必须拒绝保存', async () => {
+      const os = await import('node:os')
+      const fs = await import('node:fs')
+      const path = await import('node:path')
+      const base = fs.mkdtempSync(path.join(os.tmpdir(), 'gs-s1rpc-'))
+      const mod = await import('../src/ops-rpc.js')
+      const conn = await import('../src/config-store.js')
+      const { InjoysClient } = await import('../src/injoys/client.js')
+      const { AdapterRegistry } = await import('../src/adapters/registry.js')
+      const { DraftStore } = await import('../src/storage/draft-store.js')
+
+      let handler: ((req: Request) => Promise<Response>) | undefined
+      const ctx: any = {
+        connection: { fetch: { register: (opts: any) => { handler = opts.fetch } } },
+      }
+      const configStore = new conn.ConfigStore(undefined, { draftsDir: base })
+      const injoys = new InjoysClient({ endpoint: 'http://127.0.0.1:1/mcp', token: 't' })
+      // 目录由 configStore 动态提供，复刻 src/index.ts 的真实装配
+      const draftStore = new DraftStore(undefined, () => configStore.load().draftsDir)
+      mod.registerOpsRpc(ctx, configStore, injoys, new AdapterRegistry(), draftStore as any)
+
+      const call = async (method: string, payload: any) => {
+        const res = await handler!(new Request('http://localhost/api/ops', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'client-request', rpcId: 'x', method: 'ops', payload: { method, payload } }),
+        }))
+        return (await res.json()) as any
+      }
+
+      // 切到尚不存在的深层新目录 -> 应立即创建并成功，随后保存草稿不得 ENOENT
+      const newDir = path.join(base, 'fresh', 'deep')
+      expect((await call('config.save', { draftsDir: newDir })).result.ok).toBe(true)
+      const saveDraft = await call('drafts.save', {
+        title: 'in new dir',
+        channelVariants: [{ platform: 'bilibili', kind: 'video', title: 'b', body: 'b', tags: [] }],
+      })
+      expect(saveDraft.result.ok).toBe(true)
+
+      // 目录不可用（父路径是普通文件）-> config.save 必须拒绝，而非先报成功
+      const blocker = path.join(base, 'blocker')
+      fs.writeFileSync(blocker, 'x')
+      const badCfg = await call('config.save', { draftsDir: path.join(blocker, 'nope') })
+      expect(badCfg.result.ok).toBe(false)
+      expect(badCfg.result.error.code).toBe('config/invalid-drafts-dir')
+
+      fs.rmSync(base, { recursive: true, force: true })
     })
   })
 

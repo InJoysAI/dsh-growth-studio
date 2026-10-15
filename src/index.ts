@@ -74,7 +74,9 @@ export function apply(ctx: Context, config: Config): void {
   }
 
   const adapters = new AdapterRegistry(browserOsClient)
-  const draftStore = new DraftStore(ctx)
+  // Resolve the drafts directory from live config so a `draftsDir` change takes
+  // effect immediately without recreating the plugin (architecture §3.10.4).
+  const draftStore = new DraftStore(ctx, () => configStore.load().draftsDir)
 
   ctx.inject(['connection'], (connectionCtx) => {
     registerOpsRpc(connectionCtx, configStore, injoys, adapters, draftStore, browserOsClient)

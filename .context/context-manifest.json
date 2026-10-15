@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generated_at": "2026-10-15T21:05:00+08:00",
+  "generated_at": "2026-10-15T22:10:00+08:00",
   "generator": "Context-Agent v1.0",
   "generation_pipeline": {
     "root_assets": "Context-Dev-Agent v1.0",
@@ -30,7 +30,7 @@
       "path": "docs/technical_architecture.md",
       "archived_to": ".context/architecture/source/technical_architecture.md",
       "type": "system_architecture",
-      "content_hash": "8e764b64586b2150ac8670ee19cea311ead3bbc5acab287a8dce6b93592594ca",
+      "content_hash": "7a23fdfa0145eb7b9cee2f737201bb64f3ce6a9279a05d194b3cf0665c3264b9",
       "status": "archived"
     }
   },
@@ -71,13 +71,12 @@
     "ordering": "ascending_by_synced_at"
   },
   "last_context_sync": {
-    "source": "docs/product_requirements.md, docs/technical_architecture.md",
+    "source": "docs/technical_architecture.md §3.10.4",
     "workflow": "context-update",
-    "authority": "源文档（PRD/TAD）经用户确认的 4 项审查整改",
+    "authority": "用户裁决：目录热切换在途操作写原目录为确定行为，不加 dirChangedDuringSave；配置页提示文案按指定措辞",
     "mode": "apply",
-    "synced_at": "2026-10-15T21:05:00+08:00",
+    "synced_at": "2026-10-15T22:10:00+08:00",
     "updated_context_files": [
-      ".context/domain/source/product_requirements.md",
       ".context/architecture/source/technical_architecture.md",
       ".context/criterion.md",
       ".context/context-manifest.json"

@@ -10,7 +10,7 @@ import { join } from 'node:path'
 import { randomBytes } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
 import type { ContentDraft, PlatformId } from '../types.js'
-import { resolveDshHome } from '../config-store.js'
+import { resolveDshHome, defaultDraftsDir } from '../config-store.js'
 
 export class DraftConcurrencyError extends Error {
   constructor(
@@ -23,74 +23,234 @@ export class DraftConcurrencyError extends Error {
   }
 }
 
+/**
+ * Raised when a caller tries to write `status: 'published'` through a path other than
+ * the publish-URL backfill. See architecture §3.2.3 / §5.2.
+ */
+export class DraftPublishGuardError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'DraftPublishGuardError'
+  }
+}
+
+/**
+ * Raised when the target platform is not a channel of the draft being backfilled.
+ * See architecture §3.2.5.
+ */
+export class DraftUnknownChannelError extends Error {
+  constructor(
+    message: string,
+    public readonly platform: string,
+  ) {
+    super(message)
+    this.name = 'DraftUnknownChannelError'
+  }
+}
+
+/**
+ * Raised when the backfilled URL is not a structurally valid http(s) URL.
+ */
+export class DraftInvalidPublishUrlError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'DraftInvalidPublishUrlError'
+  }
+}
+
 export interface SaveDraftOptions {
   /** If specified, verifies that the existing draft matches this version before updating. */
   expectedVersion?: number
 }
 
+/**
+ * A URL that may legitimately serve as publish evidence.
+ *
+ * The previous `\S+` regex accepted structurally invalid values like `https://%`,
+ * which then advanced a draft to `published` — i.e. an unusable link was treated as
+ * proof of a real release. Parse with the URL parser instead and require a real
+ * http(s) scheme plus a non-empty host. Parsing validity is necessary, not sufficient:
+ * it does not prove the platform actually published anything (no network check here).
+ */
+export function isValidPublishUrl(value: string): boolean {
+  if (typeof value !== 'string' || value.trim().length === 0) return false
+  try {
+    const parsed = new URL(value)
+    return (parsed.protocol === 'http:' || parsed.protocol === 'https:') && parsed.hostname.length > 0
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Effective publish progress of a draft.
+ *
+ * A channel counts as published only when it maps to a *valid* URL, so an empty or
+ * malformed entry can never make a draft look complete.
+ */
+export function getPublishProgress(draft: Pick<ContentDraft, 'channelVariants' | 'publishedUrls'>): {
+  publishedChannels: number
+  totalChannels: number
+  allPublished: boolean
+} {
+  const totalChannels = draft.channelVariants.length
+  const publishedChannels = draft.channelVariants.filter(variant =>
+    isValidPublishUrl(draft.publishedUrls?.[variant.platform] ?? ''),
+  ).length
+  return { publishedChannels, totalChannels, allPublished: totalChannels > 0 && publishedChannels === totalChannels }
+}
+
+/**
+ * Ensure a draft directory exists, surfacing failures.
+ *
+ * `recursive: true` also covers a directory that disappears between config save and the
+ * next write. Errors are thrown rather than swallowed: claiming a directory is usable
+ * when it is not is exactly how a "successful" config save turns into an ENOENT later.
+ */
+export function ensureDirectory(dir: string): void {
+  try {
+    mkdirSync(dir, { recursive: true })
+  } catch (err) {
+    throw new DraftStorageError(
+      `草稿目录不可用或无法创建（${dir}）：${(err as Error)?.message ?? '未知错误'}`,
+      dir,
+      { cause: err },
+    )
+  }
+}
+
+/**
+ * Raised when the draft directory cannot be prepared or written to.
+ * Storage failures must surface, never be silently swallowed into a "success".
+ */
+export class DraftStorageError extends Error {
+  constructor(
+    message: string,
+    public readonly dir: string,
+    options?: { cause?: unknown },
+  ) {
+    super(message, options)
+    this.name = 'DraftStorageError'
+  }
+}
+
 export class DraftStore {
-  private readonly draftsDir: string
+  /**
+   * Resolved per operation, not per file access.
+   *
+   * A `draftsDir` change must take effect for **new** operations (architecture §3.10.4),
+   * but a single operation has to read, validate and write against ONE fixed directory —
+   * otherwise a config switch mid-flight makes `getDraft` read library A while the write
+   * lands in library B, overwriting an unrelated same-ID draft. Each public method
+   * therefore resolves the directory exactly once and threads it through.
+   */
+  private readonly dirProvider: () => string
+  /** Locks keyed by absolute file path, so the same ID in different libraries is independent. */
   private readonly writeLocks = new Map<string, Promise<void>>()
 
-  constructor(ctx?: Context, customDir?: string) {
-    if (customDir) {
-      this.draftsDir = customDir
+  constructor(ctx?: Context, customDir?: string | (() => string)) {
+    if (typeof customDir === 'function') {
+      this.dirProvider = customDir
+    } else if (typeof customDir === 'string' && customDir.length > 0) {
+      this.dirProvider = () => customDir
     } else {
-      const dshHome = resolveDshHome(ctx)
-      this.draftsDir = join(dshHome, 'growth-studio', 'drafts')
+      this.dirProvider = () => defaultDraftsDir(ctx)
     }
 
+    // Best-effort at construction; the authoritative check happens per write, where a
+    // failure must be reported rather than swallowed.
     try {
-      if (!existsSync(this.draftsDir)) {
-        mkdirSync(this.draftsDir, { recursive: true })
-      }
+      ensureDirectory(this.getDirectory())
     } catch (err) {
-      console.warn(`[DraftStore] Failed to ensure drafts directory ${this.draftsDir}:`, err)
+      console.warn(`[DraftStore] Failed to ensure drafts directory ${this.getDirectory()}:`, err)
     }
   }
 
   getDirectory(): string {
-    return this.draftsDir
+    return this.dirProvider()
   }
 
-  private getFilePath(id: string): string {
+  private filePathIn(dir: string, id: string): string {
     // Sanitize id to prevent path traversal
     const safeId = id.replace(/[^a-zA-Z0-9_-]/g, '_')
-    return join(this.draftsDir, `${safeId}.json`)
+    return join(dir, `${safeId}.json`)
   }
 
-  private async withWriteLock<T>(id: string, fn: () => Promise<T>): Promise<T> {
-    const prevLock = this.writeLocks.get(id) ?? Promise.resolve()
+  private async withFileLock<T>(filePath: string, fn: () => Promise<T>): Promise<T> {
+    const prevLock = this.writeLocks.get(filePath) ?? Promise.resolve()
     let releaseLock!: () => void
     const nextLock = new Promise<void>((resolve) => {
       releaseLock = resolve
     })
-    this.writeLocks.set(id, nextLock)
+    this.writeLocks.set(filePath, nextLock)
 
     try {
       await prevLock
       return await fn()
     } finally {
       releaseLock()
-      if (this.writeLocks.get(id) === nextLock) {
-        this.writeLocks.delete(id)
+      if (this.writeLocks.get(filePath) === nextLock) {
+        this.writeLocks.delete(filePath)
       }
+    }
+  }
+
+  /** Atomic write: temp file + rename, inside an already-prepared directory. */
+  private writeDraftFile(filePath: string, dir: string, draft: ContentDraft): void {
+    const tmpPath = `${filePath}.tmp.${Date.now()}`
+    try {
+      writeFileSync(tmpPath, JSON.stringify(draft, null, 2), 'utf-8')
+      renameSync(tmpPath, filePath)
+    } catch (err) {
+      throw new DraftStorageError(
+        `草稿目录不可写或写入失败（${dir}）：${(err as Error)?.message ?? '未知错误'}`,
+        dir,
+        { cause: err },
+      )
     }
   }
 
   /**
    * Save or update a draft. Auto-increments version and updates timestamps.
    * Throws DraftConcurrencyError if expectedVersion is provided and does not match.
+   *
+   * ⛔ Publish governance: this generic entry point may not touch release evidence.
+   *   - `status: 'published'` is rejected outright (only {@link markPublished} may set it).
+   *   - `publishedUrls` is a **server-governed** field: caller input is ignored so a
+   *     client cannot fabricate release evidence (e.g. `{ wechat_mp: '' }`) and let the
+   *     all-channels invariant appear satisfied.
+   *   - The overall status is **recomputed** from the effective per-channel URLs whenever
+   *     the channel set or stored URLs change, so a draft that was fully published and
+   *     then gained a new, un-backfilled channel drops back to `prefilled` instead of
+   *     continuing to claim it is live everywhere.
    */
   async saveDraft(
     input: Partial<ContentDraft> & { title: string },
     options?: SaveDraftOptions,
   ): Promise<ContentDraft> {
-    const id = input.id ?? `draft_${Date.now()}_${randomBytes(4).toString('hex')}`
+    if (input.status === 'published') {
+      throw new DraftPublishGuardError(
+        'published 状态不可经 drafts.save 写入；请在平台真实发布后调用 drafts.updatePublishUrl 回填链接。',
+      )
+    }
 
-    return this.withWriteLock(id, async () => {
+    const id = input.id ?? `draft_${Date.now()}_${randomBytes(4).toString('hex')}`
+    // Fix the target directory for this whole operation (see dirProvider docs).
+    const dir = this.getDirectory()
+    const filePath = this.filePathIn(dir, id)
+
+    return this.withFileLock(filePath, async () => {
+      try {
+        ensureDirectory(dir)
+      } catch (err) {
+        // Directory failures must reach the caller as a real error, not a silent miss.
+        throw err instanceof DraftStorageError
+          ? err
+          : new DraftStorageError(`草稿目录不可用（${dir}）`, dir, { cause: err })
+      }
+
       const now = new Date().toISOString()
-      const existing = await this.getDraft(id)
+      const existing = await this.getDraft(id, dir)
 
       if (options?.expectedVersion !== undefined) {
         const currentVersion = existing ? existing.version : 0
@@ -103,32 +263,54 @@ export class DraftStore {
         }
       }
 
+      const channelVariants = input.channelVariants ?? existing?.channelVariants ?? []
+
+      // Release evidence is never taken from caller input. Prune stored URLs that no
+      // longer correspond to a current channel so removed channels can't keep a draft
+      // "complete", and so no stale/orphan keys linger in the record.
+      const knownPlatforms = new Set(channelVariants.map(variant => variant.platform))
+      const publishedUrls: Partial<Record<PlatformId, string>> = {}
+      for (const [platform, url] of Object.entries(existing?.publishedUrls ?? {})) {
+        if (knownPlatforms.has(platform as PlatformId) && isValidPublishUrl(url)) {
+          publishedUrls[platform as PlatformId] = url
+        }
+      }
+
+      // Recompute the overall status from the invariant rather than trusting stored state.
+      // Order matters: a *fully* published draft stays published; a *partially* published
+      // draft is pinned to `prefilled` and may NOT be edited back down to `draft`, since
+      // release evidence still exists and the approval we made to the user would otherwise
+      // silently disagree with the stored URLs; only a draft with no evidence at all may
+      // take an ordinary draft-stage status (architecture §3.2.5, criterion §4).
+      const progress = getPublishProgress({ channelVariants, publishedUrls })
+      const requestedStatus = input.status ?? existing?.status ?? 'draft'
+      const status: ContentDraft['status'] = progress.allPublished
+        ? 'published'
+        : progress.publishedChannels > 0
+          ? 'prefilled'
+          : requestedStatus === 'published'
+            ? 'prefilled'
+            : requestedStatus
+
       const draft: ContentDraft = {
         id,
         title: input.title,
         topic: input.topic ?? existing?.topic ?? input.title,
         targetAudience: input.targetAudience ?? existing?.targetAudience,
-        channelVariants: input.channelVariants ?? existing?.channelVariants ?? [],
-        status: input.status ?? existing?.status ?? 'draft',
+        channelVariants,
+        status,
         version: existing ? existing.version + 1 : 1,
         injoysDocId: input.injoysDocId ?? existing?.injoysDocId,
         prefillResults: {
           ...(existing?.prefillResults ?? {}),
           ...(input.prefillResults ?? {}),
         },
-        publishedUrls: {
-          ...(existing?.publishedUrls ?? {}),
-          ...(input.publishedUrls ?? {}),
-        },
+        publishedUrls,
         createdAt: existing ? existing.createdAt : now,
         updatedAt: now,
       }
 
-      const filePath = this.getFilePath(id)
-      const tmpPath = `${filePath}.tmp.${Date.now()}`
-
-      writeFileSync(tmpPath, JSON.stringify(draft, null, 2), 'utf-8')
-      renameSync(tmpPath, filePath)
+      this.writeDraftFile(filePath, dir, draft)
 
       return draft
     })
@@ -136,9 +318,12 @@ export class DraftStore {
 
   /**
    * Retrieve a draft by ID.
+   *
+   * `dir` may be supplied by a caller that already fixed the directory for its operation
+   * (see {@link saveDraft}); otherwise it is resolved once here.
    */
-  async getDraft(id: string): Promise<ContentDraft | null> {
-    const filePath = this.getFilePath(id)
+  async getDraft(id: string, dir?: string): Promise<ContentDraft | null> {
+    const filePath = this.filePathIn(dir ?? this.getDirectory(), id)
     if (!existsSync(filePath)) return null
 
     try {
@@ -154,14 +339,15 @@ export class DraftStore {
    * List all drafts, sorted by updatedAt descending.
    */
   async listDrafts(): Promise<ContentDraft[]> {
-    if (!existsSync(this.draftsDir)) return []
+    const dir = this.getDirectory()
+    if (!existsSync(dir)) return []
 
-    const files = readdirSync(this.draftsDir).filter(f => f.endsWith('.json'))
+    const files = readdirSync(dir).filter(f => f.endsWith('.json'))
     const drafts: ContentDraft[] = []
 
     for (const file of files) {
       try {
-        const fullPath = join(this.draftsDir, file)
+        const fullPath = join(dir, file)
         const content = readFileSync(fullPath, 'utf-8')
         drafts.push(JSON.parse(content) as ContentDraft)
       } catch (err) {
@@ -176,7 +362,7 @@ export class DraftStore {
    * Delete a draft by ID.
    */
   async deleteDraft(id: string): Promise<boolean> {
-    const filePath = this.getFilePath(id)
+    const filePath = this.filePathIn(this.getDirectory(), id)
     if (!existsSync(filePath)) return false
 
     try {
@@ -196,8 +382,11 @@ export class DraftStore {
     platform: PlatformId,
     result: { draftId?: string; draftUrl?: string },
   ): Promise<ContentDraft | null> {
-    return this.withWriteLock(draftId, async () => {
-      const freshDraft = await this.getDraft(draftId)
+    const dir = this.getDirectory()
+    const filePath = this.filePathIn(dir, draftId)
+
+    return this.withFileLock(filePath, async () => {
+      const freshDraft = await this.getDraft(draftId, dir)
       if (!freshDraft) return null
 
       const prefillResults = { ...(freshDraft.prefillResults ?? {}) }
@@ -207,50 +396,76 @@ export class DraftStore {
         prefilledAt: new Date().toISOString(),
       }
 
+      // Prefilling must not downgrade release state: keep the invariant authoritative.
+      const progress = getPublishProgress({
+        channelVariants: freshDraft.channelVariants,
+        publishedUrls: freshDraft.publishedUrls ?? {},
+      })
+      const status: ContentDraft['status'] = progress.allPublished ? 'published' : 'prefilled'
+
       const updatedDraft: ContentDraft = {
         ...freshDraft,
-        status: 'prefilled',
+        status,
         prefillResults,
         version: freshDraft.version + 1,
         updatedAt: new Date().toISOString(),
       }
 
-      const filePath = this.getFilePath(draftId)
-      const tmpPath = `${filePath}.tmp.${Date.now()}`
-      writeFileSync(tmpPath, JSON.stringify(updatedDraft, null, 2), 'utf-8')
-      renameSync(tmpPath, filePath)
+      this.writeDraftFile(filePath, dir, updatedDraft)
 
       return updatedDraft
     })
   }
 
   /**
-   * Mark draft as published and record platform callback URL atomically.
+   * Mark a single channel as published by recording its real platform URL.
+   *
+   * Per architecture §3.2.5 the draft's *overall* `status` only becomes `published`
+   * once EVERY channel variant has a backfilled URL; a partial backfill keeps the
+   * draft at `prefilled` and the per-channel detail lives in `publishedUrls`.
+   * This prevents "one channel live" from being reported as "everything published".
    */
   async markPublished(
     draftId: string,
     platform: PlatformId,
     publishedUrl: string,
   ): Promise<ContentDraft | null> {
-    return this.withWriteLock(draftId, async () => {
-      const freshDraft = await this.getDraft(draftId)
+    // Validate the URL before taking the lock: an invalid link must never count as
+    // release evidence, and must not write or bump the version (architecture §3.2.5).
+    if (!isValidPublishUrl(publishedUrl)) {
+      throw new DraftInvalidPublishUrlError('回填的发布链接必须是合法的 http(s) URL。')
+    }
+
+    const dir = this.getDirectory()
+    const filePath = this.filePathIn(dir, draftId)
+
+    return this.withFileLock(filePath, async () => {
+      const freshDraft = await this.getDraft(draftId, dir)
       if (!freshDraft) return null
+
+      // Membership is checked against the freshly-read draft inside the same write
+      // lock, so an unrelated platform key cannot pollute release records.
+      if (!freshDraft.channelVariants.some(variant => variant.platform === platform)) {
+        throw new DraftUnknownChannelError(
+          `草稿 [${draftId}] 不包含渠道 [${String(platform)}]，无法回填发布链接。`,
+          String(platform),
+        )
+      }
 
       const publishedUrls = { ...(freshDraft.publishedUrls ?? {}) }
       publishedUrls[platform] = publishedUrl
 
+      const progress = getPublishProgress({ channelVariants: freshDraft.channelVariants, publishedUrls })
+
       const updatedDraft: ContentDraft = {
         ...freshDraft,
-        status: 'published',
+        status: progress.allPublished ? 'published' : 'prefilled',
         publishedUrls,
         version: freshDraft.version + 1,
         updatedAt: new Date().toISOString(),
       }
 
-      const filePath = this.getFilePath(draftId)
-      const tmpPath = `${filePath}.tmp.${Date.now()}`
-      writeFileSync(tmpPath, JSON.stringify(updatedDraft, null, 2), 'utf-8')
-      renameSync(tmpPath, filePath)
+      this.writeDraftFile(filePath, dir, updatedDraft)
 
       return updatedDraft
     })

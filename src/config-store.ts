@@ -11,6 +11,10 @@ import type { Context } from '@deepseek-ai/cordis'
 export interface OpsManagerConfig {
   /** Default product name for knowledge base matching */
   defaultProduct: string
+  /** Generation tone (PRD §5.7 全局运营策略「调性基调」) */
+  tone: OpsTone
+  /** Local draft storage directory (PRD §5.7). Defaults to $DSH_HOME/growth-studio/drafts/ */
+  draftsDir: string
   /** Whether to reuse host local browser profile for BrowserOS sessions */
   reuseHostBrowserProfile: boolean
   /** Injoys MCP connection settings */
@@ -22,14 +26,26 @@ export interface OpsManagerConfig {
   autoSyncToInjoys?: boolean
 }
 
+export type OpsTone = 'technical' | 'viral' | 'concise'
+
 export interface OpsManagerConfigInput {
   defaultProduct?: string
+  tone?: OpsTone
+  draftsDir?: string
   reuseHostBrowserProfile?: boolean
   injoys?: {
     endpoint?: string
     token?: string
   }
   autoSyncToInjoys?: boolean
+}
+
+/**
+ * Default local draft directory, resolved lazily against the active DSH home so a
+ * custom `DSH_HOME` / profile home is honoured (see {@link resolveDshHome}).
+ */
+export function defaultDraftsDir(ctx?: Context): string {
+  return join(resolveDshHome(ctx), 'growth-studio', 'drafts')
 }
 
 /**
@@ -43,6 +59,8 @@ export interface OpsManagerConfigInput {
  */
 export const DEFAULT_OPS_CONFIG: OpsManagerConfig = {
   defaultProduct: 'DeepSeek Harness',
+  tone: 'technical',
+  draftsDir: '',
   reuseHostBrowserProfile: true,
   injoys: {
     endpoint: 'http://127.0.0.1:17688/mcp',
@@ -66,6 +84,8 @@ export class ConfigStore {
   constructor(ctx?: Context, initialConfig?: OpsManagerConfigInput) {
     this.inMemory = {
       defaultProduct: initialConfig?.defaultProduct ?? DEFAULT_OPS_CONFIG.defaultProduct,
+      tone: initialConfig?.tone ?? DEFAULT_OPS_CONFIG.tone,
+      draftsDir: initialConfig?.draftsDir ?? defaultDraftsDir(ctx),
       reuseHostBrowserProfile:
         initialConfig?.reuseHostBrowserProfile ?? DEFAULT_OPS_CONFIG.reuseHostBrowserProfile,
       injoys: {
@@ -105,6 +125,12 @@ export class ConfigStore {
         if (typeof data.defaultProduct === 'string' && data.defaultProduct.length > 0) {
           this.inMemory.defaultProduct = data.defaultProduct
         }
+        if (data.tone === 'technical' || data.tone === 'viral' || data.tone === 'concise') {
+          this.inMemory.tone = data.tone
+        }
+        if (typeof data.draftsDir === 'string' && data.draftsDir.length > 0) {
+          this.inMemory.draftsDir = data.draftsDir
+        }
         if (typeof data.reuseHostBrowserProfile === 'boolean') {
           this.inMemory.reuseHostBrowserProfile = data.reuseHostBrowserProfile
         }
@@ -128,6 +154,12 @@ export class ConfigStore {
   async save(newConfig: Partial<OpsManagerConfig>): Promise<void> {
     if (typeof newConfig.defaultProduct === 'string' && newConfig.defaultProduct.length > 0) {
       this.inMemory.defaultProduct = newConfig.defaultProduct
+    }
+    if (newConfig.tone === 'technical' || newConfig.tone === 'viral' || newConfig.tone === 'concise') {
+      this.inMemory.tone = newConfig.tone
+    }
+    if (typeof newConfig.draftsDir === 'string' && newConfig.draftsDir.length > 0) {
+      this.inMemory.draftsDir = newConfig.draftsDir
     }
     if (typeof newConfig.reuseHostBrowserProfile === 'boolean') {
       this.inMemory.reuseHostBrowserProfile = newConfig.reuseHostBrowserProfile

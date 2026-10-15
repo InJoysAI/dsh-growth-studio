@@ -100,6 +100,7 @@ MUST:
   - Injoys 与 BrowserOS 调用必须集中在各自客户端封装入口
   - 错误不得吞没（开发计划 §二 基线要求：错误不吞，如实抛出）
   - 配置热更新须实时生效并传给 `InjoysClient`（`updateConfig`）
+  - `config.save` 修改 `draftsDir` 前必须**先准备并校验**目标目录；不可用时拒绝保存并返回 `config/invalid-drafts-dir`，不得先报成功
   - 会话探测、预填执行、指标采集必须统一由**同一个** BrowserOS MCP 实例调度
 
 MUST NOT:
@@ -161,10 +162,17 @@ MUST:
   - 版本自增（`version`）与 `expectedVersion` 乐观锁并发控制
   - 系统文件权限仅限当前操作系统用户
   - 文件路径统一经 `resolveDshHome` 解析（`profileContext.home` → `DSH_HOME` → `~/.dsh` 回退）
+  - **目录在单次操作内固定**：一次草稿操作（加锁 → 读取 → 版本校验 → 写临时文件 → rename）必须始终针对同一目录；配置热切换只对**新发起**的操作生效，在途操作继续使用原目录
+  - **该语义为确定行为，不得当作异常**：不引入 `dirChangedDuringSave` 之类的告警标记
+  - **配置页切换提示文案**（实现时照此展示）：新目录对后续操作生效；正在进行的保存仍写入原目录。旧草稿不会自动迁移
+  - **写入前准备并校验目录**：目标目录不存在则创建；不可用（如父路径为文件）必须如实抛错（`DraftStorageError`），不得吞掉异常后谎报成功
+  - **写锁按绝对文件路径归属**，使不同库中的同 ID 草稿互不阻塞、互不覆盖
 
 MUST NOT:
   - 绕过 `config-store` / `draft-store` 模块直接操作配置文件或草稿文件
   - 在无锁情况下并发回写同一草稿文件
+  - 在单次操作中途重新解析 `draftsDir`（会导致「从 A 库读取、写入 B 库」并覆盖 B 库同 ID 草稿）
+  - 先让 `config.save` 报告成功、再由后续 `drafts.save` 以 `ENOENT` 失败
 
 ---
 
@@ -177,10 +185,17 @@ MUST NOT:
 - **会话隔离**: BrowserOS 会话在本地沙箱运行，**禁止将会话数据（Cookie）向任何第三方服务上报**
 - **审计与风控**:
   - **铁律：始终仅预填草稿，严禁自动确认发布**。`ops_publish_now` 已从工具白名单、RPC 端点与文档中彻底移除，不得以任何形式重新引入
+  - **发布闭环守卫（契约级，须在宿主侧强制）**：`published` 只能经 `drafts.updatePublishUrl` 回填**合法 `http(s)` URL**（须用 URL 解析器校验，禁止用宽松正则）后写入；`drafts.save` 传入 `published` 必须拒绝并返回 `drafts/published-requires-url`
+  - **`publishedUrls` 为服务端治理字段**：通用保存入口（`drafts.save`）必须**忽略**调用方传入的该字段，不得让其伪造发布凭据
+  - **全渠道不变量**：多渠道草稿仅在**全部渠道**均回填有效 URL 时才整体 `published`，部分回填固定为 `prefilled`（渠道进度由 `publishedUrls` 体现，不新增中间态）；**渠道集合变化后必须重算状态**（已发布草稿新增未回填渠道须回退为 `prefilled`），且须在同一写锁内维持该不变量
+  - **状态优先级**：全渠道回填 → `published`；部分回填 → 固定 `prefilled`，普通保存**不得**降级为 `draft`；无任何发布凭据时才可写入编辑态。渠道删除后须剪除孤儿 URL，避免残留凭据维持假「已发布」
+  - **渠道成员校验**：回填的 `platform` 必须属于该草稿的 `channelVariants`，否则返回 `drafts/unknown-channel`，且不写盘、不递增版本
   - 预填止步于平台原生「保存为草稿」：微信公众号填标题 / 作者 / 正文并触发平台原生保存草稿按键；B站创作者中心填标题 / 简介 / 标签 / 分区并保存草稿
   - 预填完成后返回草稿直达链接，由人工在平台后台完成最终发布
-  - 发布后由用户回填平台真实 URL，状态方可流转为 `published`
 - **指标真实性**: 采集失败或平台不支持的指标必须为 `null`，不得按 0 或估算值伪造填充
+  - **汇总口径**：应采平台未全部成功时，汇总值为 `null`，不得只汇总已成功平台冒充全网总量；须填充 `measuredPlatforms` / `unmeasuredPlatforms` 标注覆盖范围
+  - **零值语义**：平台真实返回 `0` 为有效值参与求和，与「采集失败」的 `null` 严格区分
+  - **环比基准**：取自本地指标历史快照（`$DSH_HOME/growth-studio/metrics/`）；历史不足以覆盖完整对比窗口时 delta 必须为 `null`
 
 ---
 
@@ -240,7 +255,9 @@ interface RpcEnvelopeRequest {
 
 **架构文档 §3 已定义但尚未实现的方法**（新增须先补契约再实现）：
 
-- `workbench.generateCalendar`（排期生成与 Injoys 单向导出）
+- `workbench.generateCalendar`、`calendar.list`、`calendar.updateStatus`、`workbench.exportCalendar`、`workbench.importCalendar`（排期生成 / 读取 / 状态推进 / 导出 / 导入）
+- `drafts.listVersions`、`drafts.getVersion`、`drafts.restoreVersion`（草稿版本历史）
+- `workbench.sinkToInjoysDoc`（主动沉淀物料至 Injoys 知识文档）
 - `tools.catalog`、`tools.toggle`、`tools.executeSandbox`、`tools.telemetry`（AI 工具中枢与沙箱）
 - `browser.login.startQr` / `pollQr` / `openHeadful` / `cancel`（Phase 2 愿景，需 BrowserOS CDP PoC 验证）
 
@@ -251,10 +268,13 @@ interface RpcEnvelopeRequest {
 
 - `PlatformId`: `wechat_mp` | `wechat_channels` | `bilibili` | `douyin` | `xiaohongshu` | `youtube` | `twitter_x` | `product_hunt` | `tiktok`
 - `ContentKind`: `article` | `video` | `post`
-- `ItemStatus`: `planned` → `drafting` → `draft_ready` → `prefilled` → `approved` → `published` → `archived`（内容生命周期状态机见架构文档 §4.2）
+- `ItemStatus`: `planned` → `drafting` → `draft_ready` → `prefilled` → `published`（**五态，与 PRD §5.3.1 严格一一对应**；`approved` / `archived` 已于 2026-10-15 裁决移除，不得重新引入。状态机见架构文档 §4.2）
+- `ContentDraft.status`: `draft` | `ready_for_review` | `prefilled` | `published`（与 `ItemStatus` 是**两套不同枚举**，须经架构文档 §4.3 映射表转换，禁止直接互换赋值）
 - `SessionState`: `unknown` | `needs_login` | `authenticated` | `no_publish_permission`（**严禁退化为 boolean**，杜绝假阳性）
-- `PlatformMetrics`: `impressions`（曝光 / 阅读）与 `plays`（播放）**必须独立且可空**；无法获取时为 `null`，不得按 0 计算；`views` 仅为兼容字段（`impressions ?? plays ?? 0`）
-- `ContentDraft`: 含 `channelVariants`、`version`、`prefillResults`、`publishedUrls`（见架构文档 §4.1）
+- `PlatformMetrics`: `impressions`（曝光 / 阅读）与 `plays`（播放）**必须独立且可空**；无法获取时为 `null`，不得按 0 计算；`views` 仅为兼容字段（`impressions ?? plays ?? 0`），不得当作真实缺失指标的值
+- `ContentDraft`: 含 `channelVariants`（含 `partition`）、`version`、`prefillResults`、`publishedUrls`（见架构文档 §4.1）
+- `CalendarItem`: 见架构文档 §4.1；与 `ContentDraft` 经 `documentId` 关联（`documentId` 是**草稿 ID，不是 Injoys 文档 ID**）
+- **产品切换语义**：`defaultProduct` 仅切换知识库检索与生成上下文，**不做数据隔离**；指标 / 排期 / 草稿 / 会话均全局共享，实体不新增 `productId`（见架构文档 §3.10.3）
 
 > 注：`AdapterRegistry` 当前注册 8 个平台适配器（`wechat_mp` / `bilibili` / `wechat_channels` / `douyin` / `youtube` / `tiktok` / `twitter_x` / `product_hunt`）；
 > `xiaohongshu` 已列入 `PlatformId` 但尚未注册适配器。

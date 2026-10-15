@@ -26,6 +26,12 @@ export interface VideoPayload {
   tags: string[]
   localVideoPath: string
   coverPath?: string
+  /**
+   * Platform category/section (e.g. Bilibili 科技/数码). Must be carried through to the
+   * platform's category control; it is skipped rather than treated as an error when the
+   * platform has no such field (architecture §3.5).
+   */
+  partition?: string
 }
 
 export interface PlatformAdapter {
