@@ -1,0 +1,114 @@
+{
+  "version": "1.0.0",
+  "generated_at": "2026-10-15T12:19:00+08:00",
+  "generator": "Context-Agent v1.0",
+  "generation_pipeline": {
+    "root_assets": "Context-Dev-Agent v1.0",
+    "scoped_assets": "Context-Agent v1.0",
+    "manifest_writer": "Context-Agent v1.0"
+  },
+  "project": {
+    "name": "dsh-growth-studio",
+    "path": "/home/dust/Desktop/dsh-growth-studio"
+  },
+  "sources": {
+    "PRD": {
+      "path": "docs/product_requirements.md",
+      "archived_to": ".context/domain/source/product_requirements.md",
+      "type": "product_requirements",
+      "content_hash": "7efff9a354830e6a9e366630a87c90695258e7b76e2626ab9960cef4aa69ec50",
+      "status": "archived"
+    },
+    "DEVELOPMENT_PLAN": {
+      "path": "docs/development_plan.md",
+      "archived_to": ".context/domain/source/development_plan.md",
+      "type": "development_plan",
+      "content_hash": "8bb3be81c3a81b975cefa5334309f0805494b1e2b975dd74c7b29e101b753b05",
+      "status": "archived"
+    },
+    "ARCHITECTURE": {
+      "path": "docs/technical_architecture.md",
+      "archived_to": ".context/architecture/source/technical_architecture.md",
+      "type": "system_architecture",
+      "content_hash": "c1a854764de42ce10cce57a14421f5259d0caf2c1a4616f0590635c9ef8e3330",
+      "status": "archived"
+    }
+  },
+  "generated_files": {
+    "root": [
+      ".context/README.md",
+      ".context/AGENTS.md",
+      ".context/criterion.md",
+      ".context/context-manifest.json"
+    ],
+    "architecture": [
+      ".context/architecture/README.md"
+    ],
+    "domain": [
+      ".context/domain/README.md"
+    ],
+    "db": [
+      ".context/db/README.md"
+    ],
+    "ui": [
+      ".context/ui/README.md"
+    ],
+    "legacy": [
+      ".context/legacy/README.md"
+    ],
+    "openspec": []
+  },
+  "pending_generation": {
+    "architecture": [
+      ".context/architecture/tech_stack.md",
+      ".context/architecture/system_design.md",
+      ".context/architecture/security_policy.md"
+    ],
+    "domain": [
+      ".context/domain/business_rules.md",
+      ".context/domain/user_journeys.md"
+    ],
+    "db": [
+      ".context/db/schema_design.md"
+    ],
+    "ui": [
+      ".context/ui/design_system.md"
+    ],
+    "openspec": [
+      "openspec/config.yaml",
+      "openspec/proposal-roadmap.md"
+    ],
+    "note": "由 .agent/workflows/context-openspec.md 生成"
+  },
+  "ssot": {
+    "initialized": false,
+    "decision": "skipped",
+    "decided_at": "2026-10-15T12:19:00+08:00",
+    "authority": ".context/architecture/source/technical_architecture.md",
+    "layers": {
+      "schema": {
+        "enabled": false,
+        "reason": "项目无 SQL/关系型数据库/ORM/迁移；持久化为本地 JSON 文件存储，类型契约即 src/types.ts"
+      },
+      "api": {
+        "enabled": false,
+        "reason": "架构文档定义的是自研 POST /api/ops RPC 信封，非 REST/OpenAPI/gRPC/GraphQL；前后端同为 TypeScript 且同进程，无跨语言消费方"
+      },
+      "ipc": {
+        "enabled": false,
+        "reason": "插件为 DSH 宿主内进程（in-process Cordis 插件），无原生/前端跨边界 IPC"
+      },
+      "shared": {
+        "enabled": false,
+        "reason": "依赖 API 层与 IPC 层同时启用"
+      }
+    },
+    "recorded_in": ".context/criterion.md §2, §7.1, §7.2, §7.3"
+  },
+  "context_sync_history": {
+    "path": ".context/history/context-sync.jsonl",
+    "format": "jsonl",
+    "ordering": "ascending_by_synced_at"
+  },
+  "last_context_sync": null
+}
