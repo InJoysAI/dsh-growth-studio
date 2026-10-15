@@ -137,6 +137,18 @@ DSH Desktop 客户端通过 Cordis `slots` 注入扩展机制工作：
       readyChannelsCount: number       // 已认证就绪平台数 (state === 'authenticated')
       totalChannelsCount: number       // 当前阶段支持平台数 (Phase 0 为 2)
       metricsAnnotation: string        // "全网非去重曝光与播放累计人次"
+      /**
+       * 环比走势（PRD §5.1.2 要求指标卡配备「副标题 + 环比走势 + 轻量化渐变进度条」）。
+       * 每项为相对上一对比周期的变化率（百分比，正数=上涨，负数=下跌）。
+       * 与指标本身一致遵循可空语义：无可比历史数据时必须为 null，不得用 0 冒充「无变化」。
+       */
+      comparison: {
+        period: '7d' | '30d' | null       // 对比周期基准；无历史数据时为 null
+        impressionsDeltaPercent: number | null
+        playsDeltaPercent: number | null
+        engagementsDeltaPercent: number | null  // 点赞+评论+转发+收藏 汇总环比
+        followersDeltaPercent: number | null
+      }
     }
     statuses: Array<{
       id: PlatformId
@@ -384,6 +396,21 @@ export type PlatformId =
 
 export type ContentKind = 'article' | 'video' | 'post'
 
+/**
+ * 排期项（CalendarItem）生命周期状态。
+ *
+ * 溯源说明（PRD ↔ TAD 一致性）：
+ * - `planned` / `drafting` / `draft_ready` / `prefilled` / `published` 五态直接对应 PRD §5.3.1 的状态胶囊。
+ * - `approved`：对应 PRD §3.2 用户旅程第 4 步「人工确认」与 §5.4.3 安全约束中的人机协同审核环节，
+ *   语义为「草稿已推入平台草稿箱、开发者已在工作台完成核验」，是 `prefilled` 与 `published` 之间的中间态。
+ *   ⚠️ PRD §5.3.1 的胶囊文案未显式列出该态，需在 PRD 侧补充确认（见下）。
+ * - `archived`：技术侧终态，用于发布后归档与指标复盘留存，对应 §4.2 状态机的 `Archived` 终止节点。
+ *   ⚠️ PRD 全文未出现「归档」概念，该状态属技术侧引入，需 PRD 确认归档触发条件与保留策略。
+ *
+ * ⚠️ 可达性提示：承载本状态的 `CalendarItem` 目前**尚无 RPC 对外暴露**
+ * （`workbench.generateCalendar` 仅在本文档定义、未在 `src/ops-rpc.ts` 注册），
+ * 因此 `approved` / `archived` 当前均不可通过接口写入。补实现前必须先确认上述溯源。
+ */
 export type ItemStatus =
   | 'planned'        // 已纳入计划
   | 'drafting'       // 文案/脚本撰写中
@@ -508,6 +535,18 @@ stateDiagram-v2
 * **边框层级**：`var(--dsw-alias-border-l1)`、`var(--dsw-alias-border-l2)`；
 * **文字阶梯**：`var(--dsw-alias-label-primary)`、`var(--dsw-alias-label-secondary)`、`var(--dsw-alias-label-tertiary)`；
 * **交互点缀色**：主操作蓝 `#1677ff`，安全绿 `#15803d`，告警橙 `#b45309`，活力紫 `#7c3aed`。
+  > 上述四色为**交互点缀色**（按钮、状态强调、图标着色）的权威取值，PRD §六「视觉基调」与本表对齐。
+
+---
+
+### 5.5 数据刷新与状态同步策略 (Refresh Strategy)
+
+对应 PRD §六「数据卡片支持即时刷新，无需强制重载页面」：
+
+* **Phase 0 基线**：刷新由用户在卡片/驾驶舱上**手动触发**对应的 RPC 调用（如 `workbench.overview`、`browser.sessions`、`injoys.test`），前端仅做局部状态替换，不整页重载；
+* **不引入持久连接**：Phase 0 不使用 WebSocket / SSE，也不做后台定时轮询，避免在宿主内进程引入常驻连接与额外资源占用；
+* **单飞约束**：同一张卡片的并发刷新请求应做去重（in-flight 合并），避免用户连点导致会话探测与指标采集重复执行；
+* **远期演进**：若后续确需准实时大盘，须先在架构文档中补充连接生命周期、断线重连与令牌校验方案，再行实施。
 
 ---
 

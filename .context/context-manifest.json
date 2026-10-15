@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generated_at": "2026-10-15T20:23:00+08:00",
+  "generated_at": "2026-10-15T21:05:00+08:00",
   "generator": "Context-Agent v1.0",
   "generation_pipeline": {
     "root_assets": "Context-Dev-Agent v1.0",
@@ -16,7 +16,7 @@
       "path": "docs/product_requirements.md",
       "archived_to": ".context/domain/source/product_requirements.md",
       "type": "product_requirements",
-      "content_hash": "7efff9a354830e6a9e366630a87c90695258e7b76e2626ab9960cef4aa69ec50",
+      "content_hash": "760eb853bf29975223a92d0d66b90b9efe13d1e1487b3c3314b0b8301d5d9472",
       "status": "archived"
     },
     "DEVELOPMENT_PLAN": {
@@ -30,7 +30,7 @@
       "path": "docs/technical_architecture.md",
       "archived_to": ".context/architecture/source/technical_architecture.md",
       "type": "system_architecture",
-      "content_hash": "c1a854764de42ce10cce57a14421f5259d0caf2c1a4616f0590635c9ef8e3330",
+      "content_hash": "8e764b64586b2150ac8670ee19cea311ead3bbc5acab287a8dce6b93592594ca",
       "status": "archived"
     }
   },
@@ -70,5 +70,18 @@
     "format": "jsonl",
     "ordering": "ascending_by_synced_at"
   },
-  "last_context_sync": null
+  "last_context_sync": {
+    "source": "docs/product_requirements.md, docs/technical_architecture.md",
+    "workflow": "context-update",
+    "authority": "源文档（PRD/TAD）经用户确认的 4 项审查整改",
+    "mode": "apply",
+    "synced_at": "2026-10-15T21:05:00+08:00",
+    "updated_context_files": [
+      ".context/domain/source/product_requirements.md",
+      ".context/architecture/source/technical_architecture.md",
+      ".context/criterion.md",
+      ".context/context-manifest.json"
+    ],
+    "history_path": ".context/history/context-sync.jsonl"
+  }
 }

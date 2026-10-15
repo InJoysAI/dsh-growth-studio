@@ -3,7 +3,7 @@
 > **Metadata**
 > - **Source**: `design/context-dev/templates/context-agents.md.template`
 > - **Generated At**: `2026-10-15 20:23`
-> - **Updated At**: `2026-10-15 20:23`
+> - **Updated At**: `2026-10-15 21:05`
 > - **Generator**: `Context-Dev-Agent v1.0`
 
 ---
@@ -39,11 +39,13 @@
 │   ├── README.md
 │   └── source/
 │       └── technical_architecture.md
-└── domain/
-    ├── README.md
-    └── source/
-        ├── product_requirements.md
-        └── development_plan.md
+├── domain/
+│   ├── README.md
+│   └── source/
+│       ├── product_requirements.md
+│       └── development_plan.md
+└── history/
+    └── context-sync.jsonl
 ```
 <!-- CONTEXT-TREE:END -->
 
