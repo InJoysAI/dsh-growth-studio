@@ -1,0 +1,196 @@
+# Generated from: .context/context-manifest.json + listed Context assets
+# Context-SHA256: 20d4b16abcf8f36b9194d80f9cadc1710938c153822c36800304fdeed11d0715
+# Context-SHA256-Algo: path-nl-content-then-join-hex  # optional marker; algorithm defined in design/context-dev/openspec/project/AGENTS.md
+# DO NOT EDIT: regenerate with .agent/workflows/context-openspec.md project
+#
+# Sources (28): .context/criterion.md
+#   architecture: adr_001_unified_browseros_session.md, adr_002_prefill_only_human_in_the_loop.md,
+#     adr_003_custom_rpc_envelope.md, adr_004_local_primary_injoys_export.md, adr_005_five_state_lifecycle.md,
+#     adr_006_product_switch_context_only.md, adr_007_manual_refresh_no_persistent_connection.md,
+#     adr_008_version_snapshot_storage.md, api_strategy.md, constraints.md, container_component_view.md,
+#     context_view.md, cross_cutting_concepts.md, data_architecture.md, introduction_and_goals.md,
+#     risks_and_debt.md, runtime_view.md, security_policy.md, system_design.md, tech_stack.md
+#   domain: business_rules.md, data_strategy.md, edge_cases.md, market_insights.md, risks_and_debt.md,
+#     testing_strategy.md, user_journeys.md
+# Skipped: */README.md, .context/openspec/* (avoid cycles), */source/* (on demand), history/context-sync.jsonl (audit log)
+schema: spec-driven
+
+context: |
+  # dsh-growth-studio — Project Context (derived snapshot)
+
+  This file is a read-only, refined snapshot derived from the authoritative `.context/` assets
+  (authority: `.context/criterion.md`; architecture/domain facts: the corresponding assets).
+  It adds no constraints absent from those sources. Do not hand-edit.
+
+  ## Purpose
+  DSH Desktop plugin ("Growth Studio / 个人产品增长推广工坊") for individual developers doing
+  multi-platform product promotion. It closes the loop 排期 → 创作 → 预填 → 人工发布 → 指标复盘
+  inside the DSH settings page (BR-001).
+  - Delivers one channel matrix across domestic (微信公众号, 哔哩哔哩, 微信视频号, 抖音) and
+    overseas (YouTube, X, Product Hunt, TikTok) platforms, staged: Phase 0 = 微信公众号 + 哔哩哔哩;
+    Phase 1 adds 视频号 + 抖音; Phase 2 adds YouTube / X / Product Hunt / TikTok (BR-002).
+  - Core stance: AI only generates and prefills; the final publish action is always done by a human
+    (Human-in-the-Loop). Local-first: drafts/schedules/metrics/config live on the user's machine.
+
+  ## Tech Stack
+  Runtime form: in-process Cordis plugin inside DSH Desktop — NO standalone server, NO listening port,
+  NO container, NO cloud resources.
+  - Host side: TypeScript `^5.6.0`, Node.js `^22.19.0 || >=24.0.0`, ESM (`"type": "module"`),
+    microkernel `@deepseek-ai/cordis` `^4.0.2`, `@deepseek-ai/dsh-tools` `0.2.1-alpha.2`,
+    `@deepseek-ai/dsh-system-prompt` `0.2.1-alpha.2`; only runtime dependency `@deepseek-ai/schemastery` `^3.18.4`.
+  - Client side: JavaScript (ESM) + React 18, bundled with esbuild `^0.28.2`; injected into the
+    `settings.section` slot (`id: 'ops'`, `order: 60`) via `window.__ModuleLoader__.load(...)`
+    (loaderId `dsh-growth-studio`, inject `@deepseek-ai/dsh-client-connection` + `@deepseek-ai/dsh-client-ui-settings`).
+  - Tooling: pnpm workspace; `pnpm build` (tsc), `pnpm build:client` (esbuild), `pnpm typecheck`,
+    `pnpm test` (vitest `^3.0.0`).
+  - Persistence: local JSON files only (no DB / ORM / migrations): `$DSH_HOME/ops-manager/config.json`,
+    `$DSH_HOME/growth-studio/drafts/{id}.json`, `.../calendar/{id}.json`, `.../metrics/{YYYY-MM-DD}.json`.
+
+  ## Code Style
+  - Host side is TypeScript; client side is JavaScript (ESM). Types are NOT shared across that boundary.
+  - All RPC methods return the unified envelope `{ ok, result?, error? }`; errors must be thrown
+    truthfully with a machine-readable code of form `{domain}/{kebab-case-reason}`
+    (e.g. `drafts/published-requires-url`); do not invent near-duplicate codes.
+  - Platform differences MUST be confined to `src/adapters/` (Adapter Pattern); never branch on platform
+    in generic flows.
+  - Client data access MUST go through the single wrapper `callOpsRpc` (`POST /api/ops`).
+  - Client styling MUST use DSH design tokens (`var(--dsw-alias-*)`) for background/border/text;
+    the only tokenized exception is interaction accent colors (主操作蓝 `#1677ff`, 安全绿 `#15803d`,
+    告警橙 `#b45309`, 活力紫 `#7c3aed`). No hardcoded background/border/text colors.
+  - UI state domains named consistently (`loading` / `error` / `data`); a `null` metric renders as
+    “暂无数据”, never as `0`.
+  - Logs and telemetry MUST be redacted (never log tokens, cookies or full body text).
+  - Source code style / Git branch / commit conventions: N/A — not provided by source assets
+    (`architecture/constraints.md` §技术标准).
+
+  ## Architecture Patterns
+  - Layered architecture: client view layer → host RPC gateway → business domain services →
+    external MCP integration → local persistence infrastructure.
+  - RPC gateway: `POST /api/ops` with a custom envelope (NOT REST/OpenAPI/gRPC). Client sends
+    `{ type:'client-request', rpcId, method:'ops', payload:{ method, payload } }`; host replies
+    `{ type:'server-response', rpcId, result }`. The gateway validates `Content-Type: application/json`,
+    `type === 'client-request'`, `method === 'ops'`, and presence of `payload` (implementation field is
+    `payload`, not `params`). Unknown methods are rejected.
+  - Unified RPC error boundary: all write entry points map storage failures to
+    `drafts/storage-unavailable` (none may leak `ops/internal-error` for recoverable storage errors).
+  - Persistence: atomic write (temp file + `rename`) + serial write lock keyed by absolute file path
+    + `version`/`expectedVersion` optimistic locking; directory is captured at request start and fixed
+    for the whole operation (including every write inside a cross-`await` composite RPC).
+  - MVP draft storage: keep only the current `{id}.json`; `version` is for concurrency control only —
+    no snapshots, no history list/restore methods.
+  - Session/metrics/prefill share ONE BrowserOS MCP instance. Refresh is manual-trigger + local state
+    replacement + in-flight de-duplication; no WebSocket/SSE/polling in Phase 0.
+  - Local `$DSH_HOME/growth-studio/` is the golden master data source; Injoys Spreadsheet/Document are
+    one-way export/sink targets (idempotent by `externalRowId` / `injoysDocId`).
+  - Scheduling: `ops_setup_schedule` registers periodic inspection via the DSH automation task center
+    (host tool call, default cron `0 9 * * 1`, `Asia/Shanghai`) — distinct from the forbidden background polling.
+
+  ## Testing Strategy
+  - Acceptance criteria are written as BDD Gherkin (Given/When/Then), organized by module
+    (驾驶舱/渠道矩阵, 日历与发布流水线, 创作室, 草稿箱预填安全边界, 舆情提炼, 引擎配置, 工具中枢, 热点与沉淀).
+  - Verification commands: `pnpm typecheck` (`tsc -p tsconfig.json --noEmit`) and `pnpm test` (vitest).
+  - Test isolation MUST take effect at module scope BEFORE test files are imported/collected
+    (`tests/setup-isolation.ts`; NOT in `beforeAll`); each config-writing case uses its own `DSH_HOME`
+    or explicit `profileContext.home`. Tests MUST NOT write the developer's real `$DSH_HOME`.
+  - Definition of Done includes: 铁律 checks (no auto-publish tool; prefill stops at save-as-draft),
+    full-channel publish invariants, metric truthfulness (true 0 vs missing, partial → null summary,
+    insufficient history → null delta), Phase 0 Live checklist, UAT sign-off.
+  - Note: client RPC consumption (`callOpsRpc` / `unwrapRpcResult`) currently has no test coverage (TD-014).
+
+  ## Domain Context
+  - Epics/journeys: E1 晨会巡检与大盘监控; E2 选题策划与排期规划; E3 内容创作与多端自适应;
+    E4 自动化预填与人工发布; E5 舆情复盘与需求反哺.
+  - Channel session state is four-valued: `unknown` / `needs_login` / `authenticated` /
+    `no_publish_permission` — never degrade to a boolean; `unknown` must not be reported as ready.
+    Not-ready channels surface a `去登录 ↗` shortcut link.
+  - Schedule lifecycle `ItemStatus` is five states: `planned` → `drafting` → `draft_ready` →
+    `prefilled` → `published`, forward-only. `approved` / `archived` were removed and MUST NOT return.
+  - `ContentDraft.status` is a SEPARATE four-state enum: `draft` / `ready_for_review` / `prefilled` /
+    `published`; convert only via the mapping table (never assign across enums). `partially_published`
+    is not introduced.
+  - Publish closure: prefill stops at the platform-native “save as draft”; `published` is reached only
+    by backfilling a valid `http(s)` URL via `drafts.updatePublishUrl`. Multi-channel drafts become
+    `published` only when ALL channels are backfilled; partial backfill stays `prefilled`; adding an
+    unbackfilled channel reverts `published`→`prefilled`; deleted channels prune orphan URLs.
+  - Metrics truthfulness: `impressions` (both text/tweet and video exposure reads) and `plays`
+    (video plays) are independent and nullable; collection failure/unsupported → `null`, never `0`;
+    a true platform `0` is a valid value; when not all expected platforms succeed the aggregate is
+    `null` with `measuredPlatforms` / `unmeasuredPlatforms`; `totalEngagements` is `null` if any of
+    likes/comments/shares/favorites is `null`; insufficient history → delta `null`.
+  - Product switch: `defaultProduct` only changes knowledge-base retrieval scope and generation
+    context — NO data isolation; metrics/schedules/drafts/sessions are global; no `productId` field.
+  - Content write boundary: generation saves locally only; writing to Injoys documents requires an
+    explicit user action (`workbench.sinkToInjoysDoc`). Knowledge-base reads are unrestricted.
+  - `PlatformId` currently lists 9 values; `xiaohongshu` is listed but has no registered adapter
+    (8 adapters registered).
+  - Implementation status is NOT implied by contracts: several defined methods
+    (`workbench.generateCalendar`, `calendar.*`, `workbench.sinkToInjoysDoc`, `tools.*`, `browser.login.*`)
+    are not yet implemented, and `workbench.overview` does not yet implement partial-missing aggregation
+    semantics (see TD-001 / TD-007 / TD-008 / TD-009 / TD-010 / TD-012 in `architecture/risks_and_debt.md`).
+
+  ## Important Constraints
+  Four architecture iron laws (highest priority; any proposal violating them fails):
+  1. Always prefill drafts only — NEVER auto-confirm publish. `ops_publish_now` was fully removed from
+     the tool whitelist, RPC endpoints and docs; it MUST NOT be reintroduced in any form. There are no
+     publish-class tools, so such a call cannot be constructed.
+  2. `published` may only be advanced by backfilling a real URL via `drafts.updatePublishUrl`
+     (`drafts.save` must reject `published` with `drafts/published-requires-url`; URL validated by a URL
+     parser, not a loose regex). Enforcement is host-side, not client-side.
+  3. Never pass off incomplete data as whole-network totals — partial metrics → aggregate `null`;
+     distinguish true `0` from missing `null`.
+  4. Session data (cookies) is zero-egress — it stays in the local sandbox; do not read the daily Chrome
+     cookie store.
+
+  Key MUST NOTs: hardcode Injoys tokens / BrowserOS credentials / any sensitive config; embed a global
+  universal Master Key or generic credentials; bypass `callOpsRpc` from the client to reach Injoys /
+  BrowserOS / external services; fake success (never return success when there is no client or the
+  action failed); fabricate or hardcode metric data; bypass `config-store` / `draft-store` to touch
+  config/draft files directly; concurrently rewrite the same draft without a lock; re-resolve `draftsDir`
+  mid-operation; let `config.save` report success and then have `drafts.save` fail with `ENOENT`; let
+  tests write the developer's real `$DSH_HOME`; send session cookies to any third party; disable the
+  BrowserOS shell/cmd ban; deliver sensitive policy/tokens to the client; introduce an external
+  long-running server or extra listening port; introduce WebSocket/SSE/background polling in Phase 0;
+  carry core business rules (state machine, permission logic) on the client; hardcode colors;
+  implement any auto-publish capability.
+
+  Key MUSTs: `config.save` must prepare and verify writability of `draftsDir` before applying
+  (create + unique probe file; failure → `config/invalid-drafts-dir`, never report success first);
+  system file permissions limited to the current OS user; paths resolved via `resolveDshHome`
+  (`profileContext.home` → `DSH_HOME` → `~/.dsh`); publish-URL backfill channel must belong to the
+  draft's `channelVariants` (`drafts/unknown-channel`, no write/no version bump); `publishedUrls` is a
+  server-governed field that `drafts.save` must ignore; error handling must not swallow errors.
+
+  ## External Dependencies
+  - DSH Desktop host: plugin container, slot injection, `POST /api/ops` RPC gateway, automation task
+    center (hard dependency; plugin cannot load without it). Failure → plugin cannot load.
+  - BrowserOS MCP (CDP/Playwright): session probing and draft-box prefill; action whitelist
+    `tabs` / `navigate` / `snapshot` / `act`, shell/cmd disabled. Failure → cannot prefill; session state
+    returns `unknown` (never a false positive).
+  - Injoys MCP (JSON-RPC 2.0 over HTTPS + `Authorization: Bearer {token}`): knowledge base, Spreadsheet
+    export/import, Document sink. Verify HTTP status and `result.isError`. No built-in token default
+    (user config or `INJOYS_MCP_ENDPOINT` / `INJOYS_MCP_TOKEN` fallback); when unconfigured, do not
+    falsely report "auth failed".
+  - Content platform backends (via BrowserOS CDP): prefill target; stop at native “save as draft”.
+  - Local filesystem `$DSH_HOME`: config / drafts / calendar / metrics; prepare and verify writability
+    before writing.
+  - No database, message queue, or cloud service: this is a local-first, single-user desktop plugin.
+
+rules:
+  proposal:
+    - State which BR-XXX / criterion constraint / ADR the change derives from, and include asset paths.
+    - Keep proposals atomic (one module or functional point); split large features into several atomic proposals scoped to 1–3 days.
+    - Explicitly mark compliance with the four architecture iron laws; any proposal touching publish, status, metrics aggregation, storage or session must state how it preserves them.
+    - Produce acceptance criteria in Given/When/Then (Gherkin) form, traceable to source rules.
+    - Do NOT propose reintroducing `ops_publish_now` / auto-publish, DB/ORM, WebSocket/SSE/polling, a standalone server, or multi-product data isolation.
+    - Reflect known gaps honestly — mark contract-vs-implementation differences and cite the relevant TD-xx / RISK-xx entries instead of claiming a capability is already implemented.
+  specs:
+    - Use Given/When/Then (WHEN/THEN) scenario format consistent with `.context/domain/testing_strategy.md`.
+    - Cover the edge paths — partial channel backfill, channel add/remove recompute, collection failure vs true zero, insufficient history, unconfigured engine, unwritable dir, concurrency conflict.
+  design:
+    - Follow the SSoT-first order — `src/types.ts` contract, then `src/ops-rpc.ts` method contract, then Adapter / domain services, then client UI and tests.
+    - Reuse existing error codes; keep the RPC envelope backward compatible (or version it explicitly).
+    - Enforce all new rules host-side; never rely on client behavior.
+  tasks:
+    - Break tasks by the SSoT-first layers; include contract update, implementation, and tests per task.
+    - Verification gate — `pnpm typecheck` and `pnpm test` pass; test isolation is module-scope; tests never write the real `$DSH_HOME`.
+    - Note that OpenSpec validate/archive commands are maintained by the `/context-*` workflows, not redefined here (criterion §6).

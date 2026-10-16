@@ -3,7 +3,7 @@
 > **Metadata**
 > - **Source**: `design/context-dev/templates/context-agents.md.template`
 > - **Generated At**: `2026-10-15 20:23`
-> - **Updated At**: `2026-10-16 16:41`
+> - **Updated At**: `2026-10-16 17:04`
 > - **Generator**: `Context-Dev-Agent v1.0`
 
 ---
@@ -81,7 +81,7 @@
 本目录树按 `context-manifest.json#generated_files`、实际 `source/` 文件及 `context_sync_history.path` 生成；审计日志不属于生成资产，精确机器清单仍以 Manifest 为准。
 
 > 尚未创建的类别（`db/`、`ui/`、`legacy/`）说明项目未提供对应源文档，补充后由 `.agent/workflows/context-update.md` 创建。
-> 分域总结文件 `domain/**`（8 个）、`architecture/**`（21 个，含 `system_design.md` 与 `tech_stack.md`）与 `.context/openspec/integration.md` 均已生成；`pending_generation` 现仅剩项目根目录的 `openspec/config.yaml`、`openspec/proposal-roadmap.md`（由 `.agent/workflows/context-openspec.md project` 与 `plan` 子命令生成）。
+> 分域总结文件 `domain/**`（8 个）、`architecture/**`（21 个，含 `system_design.md` 与 `tech_stack.md`）与 `.context/openspec/integration.md` 均已生成；项目根目录 `openspec/config.yaml` 已由 `.agent/workflows/context-openspec.md project` 生成（`.context/` 权威资产的只读派生快照，指纹见 Manifest `last_openspec_project`），`pending_generation` 现仅剩 `openspec/proposal-roadmap.md`（由 `plan` 子命令生成）。
 
 ## 核心文件
 
