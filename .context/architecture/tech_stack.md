@@ -214,7 +214,7 @@
 | 层 | 契约工具 | 校验命令 | 生成命令 |
 |----|---------|---------|---------|
 | 数据层 | 未启用（无 DB） | — | — |
-| **API 层** | **手写 TypeScript**（`src/types.ts` + `src/ops-rpc.ts` 信封） | `pnpm typecheck` + `pnpm test` | **无**（同进程同语言，无跨语言消费方，Codegen 无收益） |
+| **API 层** | **手写 TypeScript**（`src/types.ts` + `src/ops-rpc.ts` 信封） | `pnpm typecheck` + `pnpm test` | **无**（自研信封无 schema 源可生成；客户端为 JavaScript，不共享 TS 类型，Codegen 无收益） |
 | IPC 层 | 未启用（无 IPC 边界） | — | — |
 | 共享层 | 未启用 | — | — |
 

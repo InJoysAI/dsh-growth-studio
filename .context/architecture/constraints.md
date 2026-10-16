@@ -16,11 +16,11 @@
 | 约束 | 描述 | 原因 |
 |------|------|------|
 | **运行形态** | 宿主内 Cordis 插件，**无独立服务端**、**无网络监听端口** | DSH Desktop 插件模型；criterion §3.4 |
-| **编程语言** | 宿主侧 **TypeScript**；客户端 **JavaScript (ESM)** | 同进程同语言，类型经 `src/types.ts` 共享 |
+| **编程语言** | 宿主侧 **TypeScript**；客户端 **JavaScript (ESM)** | 客户端为 DSH Desktop 渲染层 JS bundle；宿主侧类型经 `src/types.ts` 共享，客户端按信封运行时消费，不共享 TS 类型 |
 | **微内核** | **Cordis 4.x**（`@deepseek-ai/cordis` `^4.0.2`） | 宿主插件容器 |
 | **UI 框架** | **React 18** + esbuild 打包 | criterion §3.1 |
 | **数据层** | **禁止数据库 / ORM / Schema 迁移** —— 本地 JSON 文件 | 个人开发者单机场景；criterion §7.3 |
-| **RPC 协议** | **自研信封** `POST /api/ops`，**非** REST / OpenAPI / gRPC | 无跨语言消费方，Codegen 无收益 |
+| **RPC 协议** | **自研信封** `POST /api/ops`，**非** REST / OpenAPI / gRPC | 非 schema 驱动，无跨语言外部消费方，Codegen 无收益 |
 | **动作白名单** | BrowserOS 仅允许 `tabs / navigate / snapshot / act`；**禁用 shell/cmd** | 最小权限；criterion §4 |
 | **会话模型** | **统一 BrowserOS 实例**；禁止探取日用 Chrome Cookie 库 | 实例一致性 + WAL 完整性 + 隐私 |
 | **刷新机制** | 手动触发 + 局部替换 + in-flight 去重；**禁止 WebSocket / SSE / 后台轮询** | 避免宿主内常驻连接 |
@@ -109,7 +109,7 @@ Adapter / 领域服务实现
 | 层 | 判定 | 工具 |
 |----|------|------|
 | 数据层 | 未启用 | — |
-| **API 层** | **启用（工具 = 手写）** | `pnpm typecheck` + `pnpm test`；生成命令 = 无（同进程同语言） |
+| **API 层** | **启用（工具 = 手写）** | `pnpm typecheck` + `pnpm test`；生成命令 = 无（自研信封无 schema 源，客户端为 JS 不共享类型） |
 | IPC 层 | 未启用（无 IPC 边界） | — |
 | 共享层 | 未启用 | — |
 

@@ -3,7 +3,7 @@
 > **Metadata**
 > - **Source**: `.context/domain/source/product_requirements.md`（PRD v1.2.0）、`.context/domain/source/development_plan.md`（验收条件）
 > - **Generated At**: `2026-10-16 09:00`
-> - **Updated At**: `2026-10-16 14:42`
+> - **Updated At**: `2026-10-16 16:46`
 > - **Generator**: `Context-Agent v1.0`
 
 ---
@@ -486,6 +486,7 @@ Then 界面应明确提示该能力不可用
 | TD-011 错误码 `ops/not-found` 与 `ops/draft-not-found` 语义重复 | —（错误码契约层，无对应 BDD 场景） | **缺口**（非 BDD） |
 | TD-012 BrowserOS 动作白名单契约与实现不一致 | —（安全边界检查：宿主侧动作白名单校验；无对应 BDD 场景） | **缺口**（非 BDD / 待实现） |
 | TD-013 criterion 文件权限约束无实现落点 | —（工程检查：落盘文件 `0o600` / 目录 `0o700` 权限位；无对应 BDD 场景） | **缺口**（非 BDD / 待实现） |
+| TD-014 客户端 RPC 消费无测试覆盖 | —（客户端消费（`callOpsRpc` / `unwrapRpcResult`）单元测试与宿主响应 ↔ 客户端解包契约用例；无对应 BDD 场景） | **缺口**（非 BDD / 待补） |
 | PD-006 3 个工具未实现且未按名登记 | 模块 7 场景 1（BR-040） | **缺口（待实现）** |
 
 ---

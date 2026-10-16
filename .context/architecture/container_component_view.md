@@ -181,7 +181,7 @@ C4Component
 | BrowserOS | MCP 动作白名单 | `tabs` / `navigate` / `snapshot` / `act` |
 | 领域类型 | TypeScript 权威定义 | `src/types.ts`（criterion §5.5） |
 
-> **无 OpenAPI / gRPC / TypeSpec**：项目为同进程同语言，Codegen 无收益（criterion §7.2）。
+> **无 OpenAPI / gRPC / TypeSpec**：协议为自研信封、无 schema 源可生成，客户端为 JavaScript 不共享 TS 类型，Codegen 无收益（criterion §7.2）。
 
 ---
 

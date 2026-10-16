@@ -3,7 +3,7 @@
 > **Metadata**
 > - **Source**: `design/context-dev/templates/context-agents.md.template`
 > - **Generated At**: `2026-10-15 20:23`
-> - **Updated At**: `2026-10-16 14:42`
+> - **Updated At**: `2026-10-16 16:41`
 > - **Generator**: `Context-Dev-Agent v1.0`
 
 ---

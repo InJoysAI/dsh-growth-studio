@@ -3,7 +3,7 @@
 > **Metadata**
 > - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.3.0）
 > - **Generated At**: `2026-10-16 09:44`
-> - **Updated At**: `2026-10-16 14:42`
+> - **Updated At**: `2026-10-16 16:46`
 > - **Generator**: `Context-Agent v1.0`
 
 > ⚠️ **本文只记录源文档中有明确依据的风险与债务**。源文档未提供的字段标注 `N/A – 源文档未提供`，
@@ -339,6 +339,18 @@
 | **解决方案** | 补实现：草稿 / 配置文件写入显式 `mode: 0o600`、目录 `0o700`（或在统一落盘封装内集中设定），并补权限位断言测试。属实现变更，须走提案。 |
 | **估算工作量** | N/A – 源文档未提供 |
 
+### TD-014: 客户端 RPC 消费无测试覆盖（契约同步机制未闭环）
+
+| 属性 | 值 |
+|------|-----|
+| **类型** | 测试债务 |
+| **严重性** | 中 |
+| **描述** | criterion §7.2 将 `pnpm test` 列为 API 层契约的同步/校验方式之一。但 `tests/`（`ops-manager.spec.ts`、`browseros-scraping.spec.ts`、`isolation.spec.ts`）仅覆盖宿主侧 `registerOpsRpc`、`ConfigStore`、`DraftStore`、领域服务与适配器，**无任何用例引用 `callOpsRpc` / `unwrapRpcResult`**（`grep -rn "callOpsRpc\|unwrapRpcResult" tests/` 为空）。客户端消费实现位于 `plugin-src/management-rpc.mjs`（`callOpsRpc` / `unwrapRpcResult`）与 `plugin-src/client/index.js`、`plugin-src/client/ops-page.js`，为 JavaScript（ESM），无编译期类型校验，亦无对应测试。 |
+| **影响** | 宿主信封与客户端消费的字段/错误语义一致性缺少自动化证据；criterion §7.2 所述「同步方式」在客户端侧目前只是目标口径而非既有保障，易被误读为已覆盖。 |
+| **目标解决时间** | N/A – 源文档未提供 |
+| **解决方案** | 补客户端消费测试：对 `callOpsRpc`（`POST /api/ops` 请求构造、错误码透传）与 `unwrapRpcResult`（`ok/result/error` 解包、失败抛出）建立用例，并可加一条「宿主响应形状 ↔ 客户端解包」契约用例。属测试/实现变更，须走提案。 |
+| **估算工作量** | N/A – 源文档未提供 |
+
 > ⚠️ 本文档**只记录债务，不在架构资产内修改实现**。生成资产已忠实于源文档契约；
 > 修复须由实现侧按 criterion §6 的顺序完成。
 
@@ -373,6 +385,7 @@
 | TD-011 | 技术债 | 错误码 `ops/not-found` 与 `ops/draft-not-found` 语义重复 | 低 | N/A | 待处理 | 2026-10-16 |
 | TD-012 | 技术债 | BrowserOS 动作白名单契约与实现不一致（安全边界缺口） | 高 | N/A | 待处理 | 2026-10-16 |
 | TD-013 | 技术债 | criterion 文件权限约束无实现落点 | 中 | N/A | 待处理 | 2026-10-16 |
+| TD-014 | 技术债 | 客户端 RPC 消费无测试覆盖（契约同步机制未闭环） | 中 | N/A | 待处理 | 2026-10-16 |
 
 ---
 

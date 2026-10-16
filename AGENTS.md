@@ -44,7 +44,7 @@
 - `openspec/changes/` — 进行中的变更提案
 - `openspec/specs/` — 当前规范
 
-若这些文件不存在，说明还没有运行 `.agent/workflows/context-openspec.md`。
+若其中部分文件不存在，请以 `.context/context-manifest.json` 的 `pending_generation` 判断各阶段状态：分域总结与 `.context/openspec/integration.md` 可能已生成，此时通常仅缺 `openspec/config.yaml`、`openspec/proposal-roadmap.md`（分别由 `.agent/workflows/context-openspec.md project` 与 `plan` 子命令生成）。
 
 ### 工作流命令（`.agent/workflows/`）
 

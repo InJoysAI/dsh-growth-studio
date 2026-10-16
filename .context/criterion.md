@@ -3,7 +3,7 @@
 > **Metadata**
 > - **Source**: `docs/product_requirements.md`, `docs/development_plan.md`, `docs/technical_architecture.md`
 > - **Generated At**: `2026-10-15 20:23`
-> - **Updated At**: `2026-10-16 14:42`
+> - **Updated At**: `2026-10-16 16:46`
 > - **Generator**: `Context-Dev-Agent v1.0`
 
 > **用途**: 定义 AI 代理必须遵守的工程约束和技术规范。
@@ -325,7 +325,7 @@ Adapter / 领域服务实现
 | 层 | 契约工具 | 校验命令 | 生成命令 | 生成产物（路径 → 消费方） | 产物是否提交 | 选型依据 |
 |----|---------|---------|---------|--------------------------|:-----------:|---------|
 | 数据层 | — | — | — | — | — | 架构文档 §5.3 / 开发计划 §4.2：本地 `$DSH_HOME/growth-studio/` 为黄金主数据源，无 DB |
-| API 层 | 手写 TypeScript 契约（`RpcEnvelope` 信封 + `src/types.ts` 领域类型） | `pnpm typecheck`（`tsc -p tsconfig.json --noEmit`）；测试 `pnpm test`（vitest） | 无（前后端同进程、同语言 TypeScript，无跨语言消费方，Codegen 无收益；同步方式：契约变更后由 `pnpm typecheck` + `pnpm test` 校验实现一致） | 无（类型经 `src/types.ts` 直接共享） | — | 架构文档 §2.2、§3：`POST /api/ops` 为项目内自研 RPC 信封，非 REST/OpenAPI/gRPC |
+| API 层 | 手写 TypeScript 契约（`RpcEnvelope` 信封 + `src/types.ts` 领域类型） | `pnpm typecheck`（`tsc -p tsconfig.json --noEmit`）；测试 `pnpm test`（vitest） | 无（协议为项目内自研 RPC 信封，非 REST/OpenAPI/gRPC/TypeSpec，无 schema 源可生成，Codegen 无收益；宿主侧为 TypeScript、客户端为 JavaScript（ESM，`plugin-src/client/`），TS 类型不能跨该边界共享，一致性同步方式：契约变更后 `pnpm typecheck` 校验宿主实现、`pnpm test` 校验宿主 RPC 与领域实现；**客户端消费（`callOpsRpc` / `unwrapRpcResult`）测试尚未覆盖，待补，见 TD-014**） | 无（宿主侧 TypeScript 经 `src/types.ts` 直接引用；客户端 JavaScript 无编译期类型产物，仅按信封运行时形状消费） | — | 架构文档 §2.2、§3：`POST /api/ops` 为项目内自研 RPC 信封，非 REST/OpenAPI/gRPC |
 | IPC 层（可选） | — | — | — | — | — | 架构文档 §1.1：客户端视图层经宿主 RPC 网关通信，非 IPC |
 | 共享层（可选） | — | — | — | — | — | 无 API / IPC 双层可复用模型 |
 
@@ -341,7 +341,7 @@ Adapter / 领域服务实现
 | 层 | 判定 | 依据（引用架构文档章节） |
 |----|------|------------------------|
 | 数据层 | 未启用 | 架构文档 §1.1「本地持久化基础设施层」与 §5.3：持久化为 `$DSH_HOME` 下 JSON 文件；文档中无 SQL / 关系型数据库 / Schema / 迁移 / ORM 任何描述，契约即 `src/types.ts` 类型 |
-| API 层 | **启用（工具 = 手写）** | 架构文档 §2.2 定义宿主 RPC 通信机制（`POST /api/ops` + 信封）并明确信封字段；§3 逐条定义 RPC API Reference。协议为自研信封而非 REST/OpenAPI/gRPC，且无跨语言消费方，故以手写 TypeScript 契约承载，不引入 TypeSpec/OpenAPI + Codegen |
+| API 层 | **启用（工具 = 手写）** | 架构文档 §2.2 定义宿主 RPC 通信机制（`POST /api/ops` + 信封）并明确信封字段；§3 逐条定义 RPC API Reference。协议为自研信封而非 REST/OpenAPI/gRPC/TypeSpec，无 schema 源可生成，且消费方仅宿主自身与同仓客户端（客户端为 JavaScript，不共享 TS 类型），故以手写 TypeScript 契约承载，不引入 TypeSpec/OpenAPI + Codegen |
 | IPC 层 | 未启用 | 架构文档 §1.1：客户端视图层与宿主经「宿主 RPC 协议网关层」以 HTTP POST 通信，插件为宿主内进程，不存在原生/前端跨边界 IPC |
 | 共享层 | 未启用 | 依赖 API 层与 IPC 层同时启用；本项目仅 API 层启用 |
 

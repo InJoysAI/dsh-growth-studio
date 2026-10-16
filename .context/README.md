@@ -3,7 +3,7 @@
 > **Metadata**
 > - **Source**: `docs/product_requirements.md`, `docs/development_plan.md`, `docs/technical_architecture.md`
 > - **Generated At**: `2026-10-15 20:23`
-> - **Updated At**: `2026-10-16 14:42`
+> - **Updated At**: `2026-10-16 16:41`
 > - **Generator**: `Context-Dev-Agent v1.0`
 
 > **用途**: 为 AI 代理提供 `dsh-growth-studio`（Growth Studio）项目的结构化上下文资产。
@@ -26,7 +26,7 @@
 | `openspec/integration.md` | OpenSpec 集成说明与 Context 资产索引（`CONTEXT_ASSET_INDEX`） |
 | `history/context-sync.jsonl` | 同步/决策审计日志（已创建，持续追加扁平事件） |
 
-> 上表为**入口级索引**；分域资产的完整清单以 `AGENTS.md` 的「核心文件」表与 `context-manifest.json#generated_files` 为准（architecture 21 / domain 8 / openspec 1）。
+> 上表为**入口级索引**，非完整清单；`AGENTS.md` 的「核心文件」表也仅列出关键入口文件（同样不是完整清单），分域资产的**完整清单**以 `context-manifest.json#generated_files` 为准（architecture 21 / domain 8 / openspec 1）。
 
 ---
 
