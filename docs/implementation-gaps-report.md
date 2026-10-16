@@ -1,9 +1,9 @@
-# 实现缺陷登记：P0-1 / P0-2 / TD-011
+# 实现缺陷登记：P0-1 / P0-2 / TD-011 / TD-014
 
 - **登记日期**: 2026-10-16
-- **范围**: `dsh-growth-studio` 插件的宿主侧实现与 `.context/` 契约的一致性
-- **状态**: **未修复**。本文件仅为登记与取证记录；`.context/` 侧已登记（`architecture/risks_and_debt.md` 的 **TD-008 / TD-009 / TD-011**，其中 TD-008 / TD-009 存在覆盖缺口，见 §4），实现侧尚未改动。
-- **修复前置**: 创建变更提案所需的 `openspec/config.yaml`、`openspec/proposal-roadmap.md` **尚未生成**，见文末 §5。
+- **范围**: `dsh-growth-studio` 插件的宿主侧实现、客户端契约测试与 `.context/` 契约的一致性
+- **状态**: **未修复**。本文件仅为登记与取证记录；`.context/` 侧已登记（`architecture/risks_and_debt.md` 的 **TD-008 / TD-009 / TD-011 / TD-014**，其中 TD-008 / TD-009 存在覆盖缺口，见 §5），实现侧与测试侧尚未改动。
+- **修复前置**: 创建变更提案所需的 `openspec/config.yaml`、`openspec/proposal-roadmap.md` **尚未生成**，见文末 §6。
 - **证据口径**: 所有 `文件:行号` 写于 2026-10-16 的仓库状态，后续改动可能使行号迁移，检索时以符号名（函数名 / 错误码字面量）为准。
 
 > 权威来源：工程约束以 `.context/criterion.md` 为准；技术事实以 `.context/architecture/source/technical_architecture.md`（TAD v1.3.0）为准。本文不重复定义契约，只记录"实现与契约的落差"。
@@ -147,13 +147,59 @@
 
 ---
 
-## 4. 与 `.context/` 登记项的对应关系
+## 4. TD-014 客户端 RPC 消费无测试覆盖
+
+**结论：不是运行期 bug，是测试缺口（API 层契约的同步机制未闭环）。**
+
+### 契约（应当怎样）
+
+| 依据 | 原文要点 |
+|---|---|
+| `.context/criterion.md` §7.2 | API 层契约变更后的同步 / 校验方式为 `pnpm typecheck`（宿主实现）与 `pnpm test`（覆盖面含客户端消费） |
+| `.context/architecture/adr_003_custom_rpc_envelope.md`（方案 C 缺点、后果） | 契约一致性依赖 `pnpm typecheck` + `pnpm test` 保障；客户端为 JavaScript，**无编译期类型保证** |
+| `.context/architecture/risks_and_debt.md` **TD-014** | 客户端消费测试缺失，已登记为技术债（中） |
+
+信封形状（`src/ops-rpc.ts` / `RpcEnvelopeRequest`、`RpcEnvelopeResponse`，TAD §2.2）是宿主与客户端的共同契约；客户端消费侧（`callOpsRpc` / `unwrapRpcResult`）应被 `pnpm test` 覆盖，否则该"同步方式"在客户端侧无自动化证据。
+
+### 实现（实际怎样）
+
+| 位置 | 行为 |
+|---|---|
+| `tests/ops-manager.spec.ts:737` | 仅验证宿主侧 `registerOpsRpc`（信封注册 / 分发） |
+| `tests/ops-manager.spec.ts:692`、`:1257` | `ConfigStore` / `DraftStore` 生命周期、并发冲突，均为宿主侧 |
+| `tests/browseros-scraping.spec.ts`、`tests/isolation.spec.ts` | 采集解析与 `$DSH_HOME` 隔离，与客户端消费无关 |
+| `plugin-src/management-rpc.mjs:17`（`callOpsRpc`）、`:25`（`unwrapRpcResult`）、`plugin-src/client/index.js:44`、`plugin-src/client/ops-page.js` | 客户端消费实现（JavaScript / ESM），**无对应测试** |
+
+关键事实：`grep -rn "callOpsRpc\|unwrapRpcResult" tests/` 为**空**——现有宿主信封测试不能证明客户端消费已被覆盖。
+
+### 影响
+
+- 宿主信封（`{ ok, result?, error? }`）与客户端解包（`unwrapRpcResult` 取 `result.value`、失败抛错并保留 `error.code`）的一致性缺少自动化证据。
+- criterion §7.2 所述「同步方式」在客户端侧目前只是**目标口径而非既有保障**，易被误读为已覆盖。
+- 客户端为 JavaScript，无编译期类型校验，测试是唯一可自动化的防线。
+
+### 建议修复方向（SSoT-first）
+
+1. 为 `callOpsRpc` 补用例：请求构造（`method` / `payload` / `signal`）、经 `POST /api/ops` 调用、网络异常与错误码透传。
+2. 为 `unwrapRpcResult` 补用例：`ok: true` 解包 `result.value`；`ok: false` 抛出并保留 `error.code` / `error.message` / `error.details`。
+3. 补一条「宿主响应形状 ↔ 客户端解包」契约用例，锁定信封字段形状（当前实现口径为 `{ value }`，**不得**改为嵌套 `{ config }`）。
+4. 该批变更属测试 / 实现变更，须走提案（受 §6 的 OpenSpec 资产缺失阻塞）。
+
+### 验收口径
+
+- `pnpm test` 中存在引用 `callOpsRpc` / `unwrapRpcResult` 的用例，且覆盖成功解包与失败透传两条路径。
+- 信封字段形状或错误语义变更时，客户端消费用例**会失败**（而非静默通过）。
+
+---
+
+## 5. 与 `.context/` 登记项的对应关系
 
 | 本文 | `.context` 登记 | 类型 | 严重性 |
 |---|---|---|---|
 | §1 P0-1（5 处写入站点） | `architecture/risks_and_debt.md` **TD-008** | 契约 / 实现债务 | 高 |
 | §2 P0-2（`ops_generate_review` + `ops_draft_launch_kit` 2 处假编号） | `architecture/risks_and_debt.md` **TD-009** | 契约 / 实现债务 | 高 |
 | §3 TD-011 | `architecture/risks_and_debt.md` **TD-011** | 契约 / 代码债务 | 低 |
+| §4 TD-014（客户端消费测试缺口） | `architecture/risks_and_debt.md` **TD-014** | 测试债务 | 中 |
 
 > ⚠️ **已知覆盖缺口**：TD-008 仅登记 4 处写入站点（漏 `ops_draft_launch_kit`）；TD-009 仅登记 `ops_generate_review` 一处假编号（漏 `ops_draft_launch_kit` / `saveLaunchKitDocument`）。两处需在下次 `.context` 维护时补登（并同步 Manifest 与 history）。
 
@@ -161,13 +207,15 @@
 
 - **TD-007** `workbench.overview` 缺失"部分缺失 → `null`"汇总语义。
 - **TD-010** `calendar/` 与 `metrics/` 持久化契约未落地。
+- **TD-012** BrowserOS 动作白名单契约与实现不一致（安全边界缺口）。
+- **TD-013** criterion 文件权限约束无实现落点。
 - **PD-006**（`domain/risks_and_debt.md`）PRD §5.5.1 中 3 个 `ops_*` 工具未实现且未按名登记。
 
 覆盖闭环见 `.context/domain/testing_strategy.md` 的"风险覆盖对照（RISK ↔ 验收场景）"。
 
 ---
 
-## 5. 修复前置：OpenSpec 资产尚未生成
+## 6. 修复前置：OpenSpec 资产尚未生成
 
 按 `.context/openspec/integration.md` 的硬门禁，**当前不得创建变更提案**：
 
@@ -186,9 +234,9 @@
 
 ---
 
-## 6. 建议的修复顺序（提案内）
+## 7. 建议的修复顺序（提案内）
 
-按 `criterion §6` 的 SSoT-first 顺序，三者可并入**同一条**修复提案（同批接口 / 工具）：
+按 `criterion §6` 的 SSoT-first 顺序，四者可并入**同一条**修复提案（同批接口 / 工具 / 客户端契约测试）：
 
 ```
 src/types.ts（injoysDocId 可空等类型调整，如有）
@@ -198,6 +246,7 @@ src/ops-rpc.ts（补 sinkToInjoysDoc 契约；统一错误码）
 src/tools/index.ts（工具 schema / 描述 / 去假编号）与 src/injoys/client.ts、src/analytics/
     ↓
 测试 + .context 资产回填 + Manifest / history 刷新
+（含 TD-014：callOpsRpc / unwrapRpcResult 客户端消费用例 + 信封形状契约用例）
 ```
 
-优先级：P0-2（真 bug，可独立小修）≥ P0-1（越权写入，行为范围较大）> TD-011（设计一致性）。
+优先级：P0-2（真 bug，可独立小修）≥ P0-1（越权写入，行为范围较大）> TD-011（设计一致性）> TD-014（补客户端消费测试；无契约变更，可随同批提案收口）。
