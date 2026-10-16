@@ -13,8 +13,28 @@
   - `.context/AGENTS.md`
   - `.context/criterion.md`
   - `.context/context-manifest.json`
-- Architecture (1 个文件):
+- Architecture (21 个文件):
   - `.context/architecture/README.md`
+  - `.context/architecture/system_design.md`
+  - `.context/architecture/tech_stack.md`
+  - `.context/architecture/security_policy.md`
+  - `.context/architecture/risks_and_debt.md`
+  - `.context/architecture/api_strategy.md`
+  - `.context/architecture/data_architecture.md`
+  - `.context/architecture/runtime_view.md`
+  - `.context/architecture/cross_cutting_concepts.md`
+  - `.context/architecture/introduction_and_goals.md`
+  - `.context/architecture/constraints.md`
+  - `.context/architecture/context_view.md`
+  - `.context/architecture/container_component_view.md`
+  - `.context/architecture/adr_001_unified_browseros_session.md`
+  - `.context/architecture/adr_002_prefill_only_human_in_the_loop.md`
+  - `.context/architecture/adr_003_custom_rpc_envelope.md`
+  - `.context/architecture/adr_004_local_primary_injoys_export.md`
+  - `.context/architecture/adr_005_five_state_lifecycle.md`
+  - `.context/architecture/adr_006_product_switch_context_only.md`
+  - `.context/architecture/adr_007_manual_refresh_no_persistent_connection.md`
+  - `.context/architecture/adr_008_version_snapshot_storage.md`
 - Domain (8 个文件):
   - `.context/domain/README.md`
   - `.context/domain/business_rules.md`

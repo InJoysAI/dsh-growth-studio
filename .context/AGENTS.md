@@ -3,7 +3,7 @@
 > **Metadata**
 > - **Source**: `design/context-dev/templates/context-agents.md.template`
 > - **Generated At**: `2026-10-15 20:23`
-> - **Updated At**: `2026-10-16 09:00`
+> - **Updated At**: `2026-10-16 09:44`
 > - **Generator**: `Context-Dev-Agent v1.0`
 
 ---
@@ -37,6 +37,26 @@
 ├── context-manifest.json
 ├── architecture/
 │   ├── README.md
+│   ├── system_design.md
+│   ├── tech_stack.md
+│   ├── security_policy.md
+│   ├── risks_and_debt.md
+│   ├── api_strategy.md
+│   ├── data_architecture.md
+│   ├── runtime_view.md
+│   ├── cross_cutting_concepts.md
+│   ├── introduction_and_goals.md
+│   ├── constraints.md
+│   ├── context_view.md
+│   ├── container_component_view.md
+│   ├── adr_001_unified_browseros_session.md
+│   ├── adr_002_prefill_only_human_in_the_loop.md
+│   ├── adr_003_custom_rpc_envelope.md
+│   ├── adr_004_local_primary_injoys_export.md
+│   ├── adr_005_five_state_lifecycle.md
+│   ├── adr_006_product_switch_context_only.md
+│   ├── adr_007_manual_refresh_no_persistent_connection.md
+│   ├── adr_008_version_snapshot_storage.md
 │   └── source/
 │       └── technical_architecture.md
 ├── domain/
@@ -61,7 +81,7 @@
 本目录树按 `context-manifest.json#generated_files`、实际 `source/` 文件及 `context_sync_history.path` 生成；审计日志不属于生成资产，精确机器清单仍以 Manifest 为准。
 
 > 尚未创建的类别（`db/`、`ui/`、`legacy/`）说明项目未提供对应源文档，补充后由 `.agent/workflows/context-update.md` 创建。
-> 分域总结文件 `domain/**`（8 个）与 `.context/openspec/integration.md` 已生成；`architecture/system_design.md`、`architecture/tech_stack.md` 仍**尚未生成**，见 `context-manifest.json` 的 `pending_generation`。
+> 分域总结文件 `domain/**`（8 个）、`architecture/**`（21 个，含 `system_design.md` 与 `tech_stack.md`）与 `.context/openspec/integration.md` 均已生成；`pending_generation` 现仅剩项目根目录的 `openspec/config.yaml`、`openspec/proposal-roadmap.md`（由 `.agent/workflows/context-openspec.md project` 与 `plan` 子命令生成）。
 
 ## 核心文件
 
@@ -70,8 +90,8 @@
 | `criterion.md` | 项目准则 — AI 必须遵守的工程约束（MUST / MUST NOT、SSoT 工具链与 Codegen） |
 | `context-manifest.json` | 元数据清单 — 追踪源文件 hash 和生成时间 |
 | `history/context-sync.jsonl` | 扁平同步/决策审计日志；默认不作为生成资产加载（首次 `context-update sync` 时创建） |
-| `architecture/tech_stack.md` | 技术栈约束 (MUST/SHOULD) — ⏳ 待生成 |
-| `architecture/system_design.md` | 系统设计总结 — ⏳ 待生成 |
+| `architecture/tech_stack.md` | 技术栈约束 (MUST/SHOULD) — ✅ 已生成 |
+| `architecture/system_design.md` | 系统设计总结 — ✅ 已生成 |
 | `domain/business_rules.md` | 业务逻辑规则 — ✅ 已生成 |
 | `domain/user_journeys.md` | 用户旅程 — ✅ 已生成 |
 | `domain/market_insights.md` | 市场洞察 — ✅ 已生成 |
