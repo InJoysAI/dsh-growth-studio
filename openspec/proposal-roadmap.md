@@ -39,9 +39,9 @@
 | 阶段 | 名称 | 目标 | 预计周期 | 提案数 | 详情 |
 |:----:|------|------|----------|:------:|------|
 | Phase 0 | 安全与数据真实性修复 | 消除触碰铁律 2 / 铁律 3、内容写入边界与安全边界的实现缺口，让既有接口先「不说假话」 | ~10 人日 | 6 | [Phase-0](./proposal-roadmap-Phase-0.md) |
-| Phase 1 | 排期主数据与 Injoys 单向同步 | 让排期成为本地黄金主数据源，并打通生成 / 状态推进 / 单向导出 / 显式导入 | ~13 人日 | 5 | [Phase-1](./proposal-roadmap-Phase-1.md) |
+| Phase 1 | 排期主数据与 Injoys 单向同步 | 让排期成为本地黄金主数据源，并打通生成 / 状态推进 / 单向导出 / 显式导入 | ~14 人日 | 5 | [Phase-1](./proposal-roadmap-Phase-1.md) |
 | Phase 2 | 内容沉淀与 AI 工具中枢 | 补齐「用户显式触发」的唯一沉淀入口，并落地工具目录 / 白名单 / 沙箱 / 遥测 | ~13 人日 | 5 | [Phase-2](./proposal-roadmap-Phase-2.md) |
-| Phase 3 | 客户端工作台 UI 接入 | 把宿主侧契约接进 6 大 Tab 中 Phase 0 所需的 5 个 Tab，补齐 PD-004 的界面缺口 | ~17 人日 | 6 | [Phase-3](./proposal-roadmap-Phase-3.md) |
+| Phase 3 | 客户端工作台 UI 接入 | 把宿主侧契约接进 6 大 Tab 中 Phase 0 所需的 5 个 Tab，补齐 PD-004 的界面缺口 | ~17.5 人日 | 6 | [Phase-3](./proposal-roadmap-Phase-3.md) |
 | Phase 4 | 契约收口与端到端验收 | 统一重复错误码、补齐客户端 RPC 消费测试，为 Phase 0 Live 实测与签收做准备 | ~3 人日 | 2 | [Phase-4](./proposal-roadmap-Phase-4.md) |
 
 > Phase 顺序按 **SSoT-first 依赖**而非严重性单独排序：Phase 0 是必须最先做的合规修复；Phase 1 / 2 提供后续 UI 所依赖的宿主契约；Phase 3 的客户端 UI 之所以不在 Phase 0，是因为它**依赖**前序契约（`criterion.md` §6：类型契约 → 宿主 RPC 契约 → 领域实现 → 客户端 UI 与测试）。PD-004（高严重性）的界面缺口在 Phase 3 集中偿还。
@@ -90,6 +90,7 @@ graph LR
     end
 
     A1 --> A2
+    A6 --> A2
     A1 --> D2
     A2 --> D2
     A3 --> A4
@@ -101,7 +102,9 @@ graph LR
     B4 --> B5
     B1 --> B5
     B2 --> D5
+    B2 --> D2
     B3 --> D5
+    B4 --> D5
     B5 --> D5
 
     C1 --> D3
@@ -124,7 +127,7 @@ graph LR
 | Change ID | Phase | 标题 | 优先级 | 前置依赖 | 状态 | 详情 |
 |-----------|:-----:|------|:------:|----------|------|------|
 | `fix-overview-metrics-null-semantics` | 0 | 工作台总览的汇总空值语义与真实数据来源 | P0 | 无 | proposed | [Phase-0](./proposal-roadmap-Phase-0.md) |
-| `feat-storage-metrics-snapshot` | 0 | 指标历史快照落盘（环比基准） | P1 | `fix-overview-metrics-null-semantics` | proposed | [Phase-0](./proposal-roadmap-Phase-0.md) |
+| `feat-storage-metrics-snapshot` | 0 | 指标历史快照落盘（环比基准） | P1 | `fix-overview-metrics-null-semantics`、`fix-storage-file-permissions` | proposed | [Phase-0](./proposal-roadmap-Phase-0.md) |
 | `fix-unauthorized-injoys-doc-write` | 0 | 移除生成 / 复盘路径未授权的 Injoys 文档写入 | P0 | 无 | proposed | [Phase-0](./proposal-roadmap-Phase-0.md) |
 | `fix-review-doc-id-fabrication` | 0 | 复盘工具不得以字面量冒充文档编号 | P0 | `fix-unauthorized-injoys-doc-write` | proposed | [Phase-0](./proposal-roadmap-Phase-0.md) |
 | `fix-browseros-action-whitelist` | 0 | BrowserOS 动作白名单契约与实现对齐 | P0 | 无 | proposed | [Phase-0](./proposal-roadmap-Phase-0.md) |
@@ -140,10 +143,10 @@ graph LR
 | `feat-tools-telemetry` | 2 | 工具执行遥测（脱敏） | P2 | `feat-tools-sandbox-execute` | proposed | [Phase-2](./proposal-roadmap-Phase-2.md) |
 | `feat-tools-lifecycle-gaps` | 2 | 补齐生命周期分类缺失的 3 个工具 | P2 | `feat-tools-catalog-toggle` | proposed | [Phase-2](./proposal-roadmap-Phase-2.md) |
 | `feat-client-engine-config` | 3 | 引擎策略配置页接入 | P0 | 无 | proposed | [Phase-3](./proposal-roadmap-Phase-3.md) |
-| `feat-client-dashboard` | 3 | 运营驾驶舱接入 | P0 | `fix-overview-metrics-null-semantics`、`feat-storage-metrics-snapshot` | proposed | [Phase-3](./proposal-roadmap-Phase-3.md) |
+| `feat-client-dashboard` | 3 | 运营驾驶舱接入 | P0 | `fix-overview-metrics-null-semantics`、`feat-storage-metrics-snapshot`、`feat-calendar-generate-list` | proposed | [Phase-3](./proposal-roadmap-Phase-3.md) |
 | `feat-client-content-studio` | 3 | 内容创作室与草稿库接入 | P0 | `feat-workbench-sink-to-injoys-doc` | proposed | [Phase-3](./proposal-roadmap-Phase-3.md) |
 | `feat-client-feed-simulators` | 3 | 公众号 / B站 真实样式模拟器 | P1 | `feat-client-content-studio` | proposed | [Phase-3](./proposal-roadmap-Phase-3.md) |
-| `feat-client-schedule-view` | 3 | 排期日历流水与回填入口 | P1 | `feat-calendar-generate-list`、`feat-calendar-status-transitions`、`feat-calendar-injoys-import` | proposed | [Phase-3](./proposal-roadmap-Phase-3.md) |
+| `feat-client-schedule-view` | 3 | 排期日历流水与回填入口 | P1 | `feat-calendar-generate-list`、`feat-calendar-status-transitions`、`feat-calendar-injoys-export`、`feat-calendar-injoys-import` | proposed | [Phase-3](./proposal-roadmap-Phase-3.md) |
 | `feat-client-tools-console` | 3 | AI 工具中枢与沙箱控制台 | P2 | `feat-tools-catalog-toggle`、`feat-tools-sandbox-execute`、`feat-tools-telemetry` | proposed | [Phase-3](./proposal-roadmap-Phase-3.md) |
 | `fix-not-found-error-code-unify` | 4 | 统一「未找到」错误码 | P2 | 无 | proposed | [Phase-4](./proposal-roadmap-Phase-4.md) |
 | `fix-client-rpc-consumption-tests` | 4 | 客户端 RPC 消费测试覆盖 | P1 | 无 | proposed | [Phase-4](./proposal-roadmap-Phase-4.md) |

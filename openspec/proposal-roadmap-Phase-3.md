@@ -4,7 +4,7 @@
 > **文件名**: `proposal-roadmap-Phase-3.md`（编号与总纲阶段总览一致：Phase 3 → `Phase-3`）
 > **状态**: proposed
 > **来源**: `.context/architecture/risks_and_debt.md`（TD-002）；`.context/domain/risks_and_debt.md`（PD-004）；`.context/architecture/adr_003_custom_rpc_envelope.md` / `adr_007_manual_refresh_no_persistent_connection.md`；`.context/architecture/api_strategy.md` §3.7 / §4；`.context/domain/testing_strategy.md` 模块 1 / 2 / 3 / 6 / 7
-> **预计工作量与周期**: ~17 人日（**规划估算**；源文档工作量字段为 `N/A – 源文档未提供`）
+> **预计工作量与周期**: ~17.5 人日（**规划估算**；源文档工作量字段为 `N/A – 源文档未提供`）
 
 ## 阶段目标与范围
 
@@ -86,10 +86,16 @@
     And 界面应提示"新目录对后续操作生效；正在进行的保存仍写入原目录。旧草稿不会自动迁移"
 ```
 
+**风险与处理决定（按需）**:
+
+| 风险 | 影响 | 处理决定及理由 |
+|------|------|----------|
+| `criterion.md` §3.4 令牌例外口径未裁决即实施 | 实现可能违反 MUST NOT「将敏感策略 / 令牌下发到客户端」 | ⛔ **实施门槛未满足，不启动**：以 `criterion.md` 为准；`security_policy.md`「令牌返回策略」的例外只登记为待决项，**不得**用安全总结覆盖准则。裁决须经 `context-update` 并取得用户授权后方可排期 |
+
 **依赖**:
 - 前置: 无
 - 被依赖: 无
-- 约束: 样式走设计令牌（criterion §3.3）
+- 约束: 样式走设计令牌（criterion §3.3）；⛔ **实施门槛**：`criterion.md` §3.4 令牌例外口径未裁决前**不得进入实现**（见本 Phase「待决事项」）
 
 ---
 
@@ -159,7 +165,7 @@
 ```
 
 **依赖**:
-- 前置: `fix-overview-metrics-null-semantics`、`feat-storage-metrics-snapshot`
+- 前置: `fix-overview-metrics-null-semantics`、`feat-storage-metrics-snapshot`、`feat-calendar-generate-list`
 - 被依赖: 无
 - 约束: 依赖 Phase 0 的汇总语义与环比基准；UI 只呈现，不自行计算全网汇总
 
@@ -184,6 +190,7 @@
 | ✅ In | 草稿库列表 / 编辑 / 覆盖保存（`drafts.list` / `drafts.get` / `drafts.save`） |
 | ✅ In | 「沉淀至 Injoys 知识文档」入口接入 `workbench.sinkToInjoysDoc`（显式触发） |
 | ✅ In | 一键复制物料 |
+| ✅ In | 从排期项发起创作时建立 `CalendarItem.documentId ↔ ContentDraft.id` 关联并推进排期状态（宿主侧不变量见 `feat-calendar-status-transitions`，criterion §5.5） |
 | ❌ Out | 公众号 / B站模拟器（提案 4） |
 | ❌ Out | 草稿历史 / 版本恢复（MVP 不提供） |
 
@@ -308,11 +315,11 @@
 
 **Change ID:** `feat-client-schedule-view`  
 **优先级:** P1  
-**预计时间:** 3 人日（规划估算）  
+**预计时间:** 3.5 人日（规划估算）  
 **状态:** proposed
 
 **业务目标（Business Goal）**:
-- 把排期生成 / 读取 / 状态推进 / 导入接入排期日历 Tab，呈现周 / 月视图与五态流水。
+- 把排期生成 / 读取 / 状态推进 / 单向导出 / 显式导入接入排期日历 Tab，呈现周 / 月视图与五态流水。
 - 在流水内完成「一键预填 → 人工发布 → 回填 URL → 已发布」的闭环操作与状态可见。
 
 **范围边界（In / Out）**:
@@ -321,9 +328,10 @@
 |------|------|
 | ✅ In | 排期生成 / 读取（`workbench.generateCalendar` / `calendar.list`）接入周 / 月视图 |
 | ✅ In | 状态推进（`calendar.updateStatus`）与回填 URL（`drafts.updatePublishUrl`）入口 |
+| ✅ In | 导出至 Injoys 表格入口（`workbench.exportCalendar`，显式触发，展示成功 / 跳过 / 失败结果） |
 | ✅ In | 从 Injoys 导入入口（`workbench.importCalendar`，显式触发） |
 | ✅ In | 状态胶囊样式（五态）与「草稿直达链接」外链 |
-| ❌ Out | 自动状态推进 / 自动导入 |
+| ❌ Out | 自动状态推进 / 自动导出 / 自动导入 |
 | ❌ Out | 双向同步（PRD Phase 3） |
 
 **关联 Context 资产**:
@@ -339,7 +347,8 @@
 1. 周 / 月视图与排期生成 / 读取接入（1.25 人日）
 2. 状态推进与五态胶囊呈现（0.75 人日）
 3. 预填直达链接与回填 URL 入口（0.75 人日）
-4. Injoys 导入入口与样式令牌化（0.25 人日）
+4. 导出至 Injoys 表格入口与成功 / 跳过 / 失败提示（0.5 人日）
+5. Injoys 导入入口与样式令牌化（0.25 人日）
 
 **验证标准**:
 
@@ -348,6 +357,8 @@
 | 五态呈现 | 状态依五态呈现对应胶囊样式 | UI 验收 |
 | 回填闭环 | 预填后状态为「已推草稿箱」，回填 URL 后才「已发布」 | UI 验收 |
 | 部分回填 | 多渠道部分回填固定停留「已推草稿箱」，可看出已回填数量 | UI 验收 |
+| 导出入口 | 触发导出后展示 `exportedCount` / `skippedCount`；导出失败如实提示，不谎报成功 | UI 验收 |
+| 导入入口 | 触发导入后展示 `importedCount` / `updatedCount` / `conflicts` | UI 验收 |
 
 **验收场景（按需，建议 BDD）**:
 
@@ -366,12 +377,19 @@
   When 用户只为其中 1 个渠道填入有效 URL
   Then 状态应固定停留在"已推草稿箱"
     And 界面应能看出 2 个渠道中已回填 1 个
+
+场景: 排期单向导出（BR-024）
+  Given 本地排期库中存在待导出的排期项
+  When 用户点击"导出至 Injoys 表格"
+  Then 应以 externalRowId 幂等更新远端表格行
+    And 界面应展示 exportedCount 与 skippedCount
+    And 导出失败时应如实提示，不得显示为成功
 ```
 
 **依赖**:
-- 前置: `feat-calendar-generate-list`、`feat-calendar-status-transitions`、`feat-calendar-injoys-import`
+- 前置: `feat-calendar-generate-list`、`feat-calendar-status-transitions`、`feat-calendar-injoys-export`、`feat-calendar-injoys-import`
 - 被依赖: 无
-- 约束: `published` 仅经 `drafts.updatePublishUrl` 写入（criterion §4）
+- 约束: `published` 仅经 `drafts.updatePublishUrl` 写入（criterion §4）；导出 / 导入均为用户显式触发
 
 ---
 
@@ -445,16 +463,17 @@
 ## 执行顺序与依赖
 
 - **可并行三条主线**：
-  1. `feat-client-engine-config`（无前置，可最先启动）。
+  1. `feat-client-engine-config`（无前置，可最先启动；但须待 `criterion.md` §3.4 令牌口径裁决后方可**进入实现**，见本 Phase「待决事项」与提案 1 风险表）。
   2. 内容线：`feat-client-content-studio` → `feat-client-feed-simulators`。
   3. 排期线：`feat-client-schedule-view`；工具线：`feat-client-tools-console`。
 - **驾驶舱线**：`feat-client-dashboard` 待 Phase 0 的汇总语义与环比基准完成后再接入。
-- 跨阶段前置条件：驾驶舱依赖 Phase 0（A1 / A2）；创作室依赖 Phase 2（C1）；排期视图依赖 Phase 1（B2 / B3 / B5）；工具控制台依赖 Phase 2（C2 / C3 / C4）。
+- 跨阶段前置条件：驾驶舱依赖 Phase 0（A1 / A2）与 Phase 1（B2 的 `weeklyPipeline` 周聚合）；创作室依赖 Phase 2（C1）；排期视图依赖 Phase 1（B2 / B3 / B4 / B5）；工具控制台依赖 Phase 2（C2 / C3 / C4）。
 - 提供给后续阶段的能力：可端到端操作的 Phase 0 工作台界面（供 Phase 0 Live 实测与签收）。
 
 ## 阶段整体验收
 
 - 模块 1 / 2 / 3 / 6 / 7 BDD 场景通过；PD-004 的界面缺口闭合（草稿管理 → 多变体编辑 → 预填入口可视化）。
+- **跨提案联合验收「排期 → 创作 → 预填 → 回填」**：由 `feat-calendar-status-transitions`（宿主 `documentId` 不变量）+ `feat-client-content-studio`（从排期项发起创作时建立关联）+ `feat-client-schedule-view`（预填 / 回填入口）联合保证——从排期项发起创作后自动写回 `CalendarItem.documentId`，无 `documentId` 不可进入「草稿就绪」，预填后「已推草稿箱」，回填 URL 后才「已发布」。
 - 代码审查确认：客户端仅经 `callOpsRpc` 访问宿主；无硬编码色值；无 WebSocket / SSE / 后台轮询（`criterion.md` §3.1 / §3.3 / §3.4）。
 - Phase 0 Live 实测清单中界面相关项可勾选（状态呈现、生成持久化、预填入口、回填 URL）。
 

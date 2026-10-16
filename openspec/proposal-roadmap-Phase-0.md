@@ -42,6 +42,7 @@
 | ✅ In | 移除 `src/ops-rpc.ts` 中 `workbench.overview` 硬编码的 `keyword: 'Agentic AI'` / `heatScore: 95` 等样例热点数据，改为来自真实来源或如实返回空 |
 | ✅ In | 补测试覆盖「部分缺失 → `null`」与「真实 0 参与求和」两条用例 |
 | ❌ Out | 指标历史快照的落盘实现（`feat-storage-metrics-snapshot`） |
+| ❌ Out | `weeklyPipeline` 的真实排期数据接入（Phase 0 无排期存储，本提案只补字段契约；真实数据由 Phase 1 的 `feat-calendar-generate-list` 接入 `workbench.overview`） |
 | ❌ Out | 驾驶舱 UI 呈现（`feat-client-dashboard`，Phase 3） |
 | ❌ Out | 采集侧的 Adapter 能力扩展（平台采集失败本身的修复不在本提案） |
 
@@ -164,9 +165,9 @@
 ```
 
 **依赖**:
-- 前置: `fix-overview-metrics-null-semantics`
+- 前置: `fix-overview-metrics-null-semantics`、`fix-storage-file-permissions`
 - 被依赖: `feat-client-dashboard`
-- 约束: 快照写入须经统一落盘封装，复用 `drafts/storage-unavailable` 类错误映射口径
+- 约束: 快照写入须经**统一落盘封装**（其 `mode` 权限位由 `fix-storage-file-permissions` 提供），复用 `drafts/storage-unavailable` 类错误映射口径；故本提案须待权限封装落地后再实施
 
 ---
 
@@ -202,7 +203,7 @@
 | criterion | `.context/criterion.md` | §4 内容写入边界、§3.5 目录固定（贯穿每次落盘） |
 | architecture | `.context/architecture/risks_and_debt.md` | TD-008（高） |
 | architecture | `.context/architecture/api_strategy.md` | §3.1 `generateArticleDraft` / `generateVideoMeta` 的「只保存本地」契约 |
-| domain | `.context/domain/testing_strategy.md` | 模块 3 场景 1、模块 8 场景 2 / 3 |
+| domain | `.context/domain/testing_strategy.md` | 模块 3 场景 1（宿主生成路径「未经明确要求不得创建 / 更新」）；沉淀界面的 模块 8 场景 2 / 3 属 Phase 2 / 3 |
 
 **关键任务**:
 1. 定位并移除生成路径的无条件 `document.create` 调用（`workbench.generateArticleDraft`、`ops_draft_article`、`ops_draft_video_meta`）（1 人日）
@@ -234,11 +235,11 @@
   Then 物料应自动保存至本地草稿库
     And 未经用户明确要求不得创建或更新 Injoys 文档
 
-场景: 知识库未连通时沉淀不可用（BR-073）
-  Given 知识库中枢未连通
-  When 用户点击"沉淀至 Injoys 知识文档"
-  Then 界面应明确提示该能力不可用
-    And 不得显示"沉淀成功"
+场景: 复盘路径不得无条件写入 Injoys
+  Given 用户触发周度复盘
+  When 复盘生成完成
+  Then 不得向 Injoys 发出无条件的 saveReviewDocument 请求
+    And 未经用户明确要求不得创建或更新 Injoys 文档
 ```
 
 **依赖**:
@@ -275,7 +276,7 @@
 |-------|---------|----------|
 | criterion | `.context/criterion.md` | §3.2 虚报成功 |
 | architecture | `.context/architecture/risks_and_debt.md` | TD-009（高）、架构 §3.5.1「不得谎报成功，也不得静默写本地假 ID」 |
-| domain | `.context/domain/testing_strategy.md` | 模块 8 场景 3 |
+| domain | `.context/domain/testing_strategy.md` | 模块 8 场景 3 的**宿主复盘路径子集**（「不返回假编号」）；完整沉淀界面场景（点击「沉淀至 Injoys 知识文档」的 模块 8 场景 2 / 3）依赖 Phase 2 接口与 Phase 3 界面，不在本 Phase |
 
 **关键任务**:
 1. 将 `ops_generate_review` 的 `injoysDocId` 改为可空并取消 `required`（0.5 人日）
@@ -405,8 +406,8 @@
 
 **依赖**:
 - 前置: 无
-- 被依赖: 无
-- 约束: 后续 `metrics/` / `calendar/` 落盘须复用同一封装（Phase 1 / 本 Phase 提案 2）
+- 被依赖: `feat-storage-metrics-snapshot`
+- 约束: 后续 `metrics/` / `calendar/` 落盘须复用同一封装（Phase 1 / 本 Phase 提案 2）；`metrics/` 部分即 `feat-storage-metrics-snapshot` 的显式前置
 
 ---
 
@@ -415,14 +416,14 @@
 本 Phase 内可并行的两条主线：
 
 1. **数据真实性线**：`fix-overview-metrics-null-semantics` → `feat-storage-metrics-snapshot`（严格顺序）。
-2. **安全边界线**：`fix-unauthorized-injoys-doc-write` → `fix-review-doc-id-fabrication`（严格顺序）；`fix-browseros-action-whitelist`、`fix-storage-file-permissions` 与两条主线**均可并行**。
+2. **安全边界线**：`fix-unauthorized-injoys-doc-write` → `fix-review-doc-id-fabrication`（严格顺序）；`fix-browseros-action-whitelist` 与两条主线**均可并行**；`fix-storage-file-permissions` 是 `feat-storage-metrics-snapshot` 的**前置**（统一落盘封装的权限位），须先于其完成。
 
 - 跨阶段前置条件：无（本 Phase 是路线图起点）。
 - 提供给后续阶段的能力：正确的汇总 `null` 语义与环比基准（供 Phase 3 驾驶舱）、只写本地的生成路径与 `InjoysClient` 文档写入能力（供 Phase 2 显式沉淀入口）、对齐后的 BrowserOS 白名单与落盘权限（供所有后续落盘）。
 
 ## 阶段整体验收
 
-- `criterion.md` §3.2 / §4 相关的 BDD 场景通过：模块 5 场景 4 / 5 / 6、模块 3 场景 1、模块 8 场景 2 / 3。
+- `criterion.md` §3.2 / §4 相关的 BDD 场景通过：模块 5 场景 4 / 5 / 6、模块 3 场景 1（宿主生成路径未经明确要求不得创建 / 更新 Injoys 文档）。**模块 8 场景 2 / 3 依赖沉淀能力（Phase 2 的 `feat-workbench-sink-to-injoys-doc`）与沉淀界面（Phase 3），不在本 Phase 验收**；本 Phase 只验证宿主路径「未授权写入已移除」「复盘不返回假编号」「未连通不谎报」。
 - `pnpm typecheck` + `pnpm test` 通过；新增用例覆盖「部分缺失 → `null`」「真实 0 参与求和」「未显式触发不写远端」「未连通不返回成功文档编号」「白名单越界被拒」「文件权限位」。
 - `workbench.overview` 响应不再包含硬编码样例数据；`src/` 内生成 / 复盘路径无无条件 `document.create` 调用；`src/` 内存在动作白名单校验实现。
 
