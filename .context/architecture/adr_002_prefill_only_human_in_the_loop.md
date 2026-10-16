@@ -130,7 +130,7 @@
 - 回填渠道**必须**属于该草稿的 `channelVariants`，否则 `drafts/unknown-channel` 且**不写盘、不递增版本**
 - 多渠道草稿**必须**在**全部渠道**回填有效 URL 后才整体 `published`
 - 上述校验**必须**位于**宿主侧**，**不得**仅依赖客户端
-- `opssetup_schedule` 注册的巡检任务执行时仍**必须**受本铁律约束
+- `ops_setup_schedule` 注册的巡检任务执行时仍**必须**受本铁律约束
 
 ---
 

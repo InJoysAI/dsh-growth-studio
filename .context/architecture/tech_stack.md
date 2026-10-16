@@ -76,7 +76,12 @@
 **客户端 MUST**
 
 - 按源文档 §2.1 的 Cordis 扩展机制封装为 `window.__ModuleLoader__.load(...)`
-  （实现：`id: 'dsh-growth-studio'`，`inject` 声明 `@deepseek-ai/dsh-client-connection` 与 `@deepseek-ai/dsh-client-ui-settings`）
+  - ⚠️ **实现口径（与源文档 §2.1 差异，以此为准）**：源文档 §2.1 示例写作
+    `load('@deepseek-ai/dsh-ops-manager/client', ['@deepseek-ai/dsh-core/client'], …)`，
+    但实际 `loaderId` 为 **`dsh-growth-studio`**，`inject` 声明为
+    **`@deepseek-ai/dsh-client-connection`** 与 **`@deepseek-ai/dsh-client-ui-settings`**
+    （见 `package.json` 的 `dsh.client.inject` 与 `plugin-src/client/build.mjs`）。
+    该差异性质与 `params` vs `payload`（见 `api_strategy.md` §1.2、`risks_and_debt.md` TD-003）相同：**文档示例滞后于实现**。
 - 在 `settings.section` 槽位注入，`id: 'ops'`，`order: 60`（置于 Jet Hub 之后）
 - 全部数据经统一 RPC 封装 `callOpsRpc`（`POST /api/ops`）获取
 - 样式一律走设计令牌：背景 `--dsw-alias-bg-layer-1/2/3`、边框 `--dsw-alias-border-l1/l2`、文字 `--dsw-alias-label-primary/secondary/tertiary`

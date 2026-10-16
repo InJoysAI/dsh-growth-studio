@@ -133,6 +133,13 @@ export interface PlatformMetrics {
 }
 ```
 
+> ⚠️ **`windowStart` / `windowEnd` 状态说明（源文档先有、实现待补）**：
+> 这两个字段由**源文档 §4.1 定义**（用于表达「采集时刻 ≠ 指标所属周期」），
+> 但 **`src/types.ts` 的 `PlatformMetrics` 当前尚无这两个字段**，criterion §5.5 也未列出。
+> 因此本节所示类型是**源文档契约**，**不等于当前代码状态**。
+> 实现补齐须走 **SSoT-first**：先改 `src/types.ts`，再改 `src/ops-rpc.ts` 与 `src/analytics/`。
+> 与下方 `PlatformId` 口径注同类处理：**文档如实标注差异，不假装代码已具备**。
+
 > ⚠️ **`views` 使用警告**：其表达式在缺失时**会产出 0**，与「不可按 0 伪造缺失值」冲突。
 > `views` **仅供向后兼容，不得作为缺失指标的真实值** —— 业务逻辑须消费 `impressions` / `plays` 并处理 `null`。
 
@@ -174,7 +181,7 @@ stateDiagram-v2
     Published --> [*]
 ```
 
-- **核验不是状态**：`prefilled` → `published` 之间的「人工核验并发布」是**人工动作**（在平台平台后台完成），系统**不为此设独立状态**；系统可观测的**唯一信号**是用户回填的发布 URL；
+- **核验不是状态**：`prefilled` → `published` 之间的「人工核验并发布」是**人工动作**（在平台后台完成），系统**不为此设独立状态**；系统可观测的**唯一信号**是用户回填的发布 URL；
 - **终态**：`published` 为当前 Phase 0 的终态。**归档不在 Phase 0 范围内**，若引入须先更新 PRD；
 - **只允许前向推进**，禁止回退（`calendar.updateStatus` 强制校验）。
 

@@ -60,7 +60,7 @@ C4Container
 | **InjoysClient** | TypeScript | JSON-RPC 2.0 / HTTP；热更新（`updateConfig`）；按目标隔离缓存 | `src/injoys/` |
 | **BrowserOSClient** | TypeScript | 会话哨兵与浏览器驱动；动作白名单 | `src/browser/` |
 | **ConfigStore** | 本地 JSON | 配置读写；`resolveDshHome` 路径解析 | `src/config-store.ts` |
-| **DraftStore** | 本地 JSON | 草稿持久化；原子写 + 串行写锁 + 版本快照 | `src/`（草稿治理） |
+| **DraftStore** | 本地 JSON | 草稿持久化；原子写 + 串行写锁 + 版本快照 | `src/storage/draft-store.ts` |
 
 > **端口**：本插件**不监听任何网络端口**。`POST /api/ops` 由 DSH 宿主提供。
 

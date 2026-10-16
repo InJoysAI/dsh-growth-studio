@@ -245,7 +245,7 @@ graph TB
 
 | 类型 | 要点 |
 |------|------|
-| `PlatformId` | 9 个：`wechat_mp` / `wechat_channels` / `bilibili` / `douyin` / `xiaohongshu` / `youtube` / `twitter_x` / `product_hunt` / `tiktok` |
+| `PlatformId` | 9 个：`wechat_mp` / `wechat_channels` / `bilibili` / `douyin` / `xiaohongshu` / `youtube` / `twitter_x` / `product_hunt` / `tiktok` — ⚠️ 源文档 §4.1 列 8 个，此处以 criterion §5.5（权威）的 9 个为准；`xiaohongshu` 已列入但**尚未注册适配器** |
 | `ItemStatus`（排期） | **五态**：`planned` → `drafting` → `draft_ready` → `prefilled` → `published`；`approved` / `archived` 已裁决移除 |
 | `ContentDraft.status` | **四态**：`draft` / `ready_for_review` / `prefilled` / `published` —— 与 `ItemStatus` 是**两套枚举**，须经映射表转换（见 `data_architecture.md`） |
 | `SessionState` | 四态：`unknown` / `needs_login` / `authenticated` / `no_publish_permission`；**严禁退化为 boolean** |

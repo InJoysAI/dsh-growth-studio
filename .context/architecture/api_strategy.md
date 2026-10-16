@@ -126,6 +126,11 @@ interface RpcEnvelopeResponse {
 
 #### `workbench.overview` `[Phase 0 首版]`
 
+> ⛔ **实现状态警告**：本节为**契约定义**（忠实于源文档 §3.1），**当前实现并非字段级完整** ——
+> `src/ops-rpc.ts` 的响应缺少下述 `measuredPlatforms` / `unmeasuredPlatforms` / `totalEngagements` /
+> `totalFavorites` / `comparison` / `weeklyPipeline` 等字段，且**未实现部分缺失汇总语义**。
+> 详见 `risks_and_debt.md` **TD-007**。**不得据本节认为「部分缺失 → `null`」已在代码中生效。**
+
 **请求**
 
 ```typescript
@@ -680,10 +685,15 @@ interface SetupScheduleParams {
 
 | 分类 | 方法 |
 |------|------|
-| 工作台 | `workbench.overview`、`workbench.generateArticleDraft`、`workbench.generateVideoMeta`、`workbench.prefillDraft` |
+| 工作台 | `workbench.overview`（⚠️ **部分实现**，见下）、`workbench.generateArticleDraft`、`workbench.generateVideoMeta`、`workbench.prefillDraft` |
 | 草稿 | `drafts.list`、`drafts.get`、`drafts.save`、`drafts.delete`、`drafts.updatePublishUrl` |
 | 浏览器 | `browser.sessions`（额外含 `reuseHostBrowserProfile`） |
 | 配置 | `config.get`、`config.save`、`injoys.test` |
+
+> ⚠️ **「已登记」≠「字段级已实现」**：`workbench.overview` 的方法已注册（路由可达、§3.1 契约已定义），
+> 但其**响应字段与 §3.1 契约不一致**，尤其**未实现部分缺失汇总语义**。
+> 该差异属**实现待补**（见 `risks_and_debt.md` TD-001 / TD-007），非本文档错误 ——
+> 本文档 §3.1 忠实于源文档契约，代码侧须按 SSoT-first 补齐。**不得据本节认为汇总语义已生效。**
 
 ### 已定义但**尚未实现**（新增须先补契约再实现）
 

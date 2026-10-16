@@ -254,6 +254,21 @@
 | **解决方案** | 按源文档 §5.3 的 Phase 3 演进路径实施。 |
 | **估算工作量** | N/A – 源文档未提供 |
 
+### TD-007: `workbench.overview` 未实现部分缺失汇总语义（**触碰架构铁律 3**）
+
+| 属性 | 值 |
+|------|-----|
+| **类型** | 实现债务 / **契约债务** |
+| **严重性** | **高** |
+| **描述** | 源文档 §3.1 与 criterion §4 要求：应采平台未全部成功时汇总值必须为 `null`，并填充 `measuredPlatforms` / `unmeasuredPlatforms`；`totalEngagements` 在点赞/评论/转发/收藏任一为 `null` 时为 `null`。但 `src/ops-rpc.ts` 的 `workbench.overview` 对非 `null` 值**直接累加**，且响应中**缺少** `measuredPlatforms` / `unmeasuredPlatforms` / `totalEngagements` / `totalFavorites` / `comparison` / `weeklyPipeline` 字段。 |
+| **影响** | **可能产出「以偏概全」的全网总量** —— 部分平台采集失败时仍返回数字，违反**架构铁律 3**（绝不用不完整数据冒充全网总量）；环比与本周排期进度亦不可用。这是本项目**质量目标第 2 位（数据真实性）**的直接违反。 |
+| **目标解决时间** | N/A – 源文档未提供（建议**优先于其他 TD**） |
+| **解决方案** | 严格按 **SSoT-first**：① 先补 `src/types.ts`（含 `windowStart` / `windowEnd` 与汇总字段，见 `data_architecture.md` 的 `PlatformMetrics` 注）；② 再补 `src/ops-rpc.ts` 的类型与方法契约；③ 在 `src/analytics/` 实现汇总判定（`measuredPlatforms == P` 才给数字，否则 `null`）；④ 补测试覆盖「部分缺失 → `null`」与「真实 0 参与求和」两条用例。 |
+| **估算工作量** | N/A – 源文档未提供 |
+
+> ⚠️ 本文档**只记录债务，不在架构资产内修改实现**。生成资产已忠实于源文档契约；
+> 修复须由实现侧按 criterion §6 的顺序完成。
+
 ---
 
 ## 📊 追踪看板
@@ -278,6 +293,7 @@
 | TD-004 | 技术债 | 状态枚举命名差异 | 中 | N/A | 长期 | 2026-10-16 |
 | TD-005 | 技术债 | `views` 兼容字段误用 | 中 | N/A | 监控中 | 2026-10-16 |
 | TD-006 | 技术债 | 排期无双向同步 | 低 | N/A | 计划 Phase 3 | 2026-10-16 |
+| TD-007 | 技术债 | `workbench.overview` 未实现部分缺失汇总语义（**违反铁律 3**） | **高** | N/A | **待处理（优先）** | 2026-10-16 |
 
 ---
 
