@@ -1,12 +1,12 @@
-# 实现缺陷登记：P0-1 / P0-2 / TD-011 / TD-014
+# 实现缺陷登记：P0-1 / P0-2 / TD-011 / TD-014 / BrowserOS 会话探测
 
-- **登记日期**: 2026-10-16
+- **登记日期**: 2026-10-16（§6 BrowserOS 会话探测追加于 2026-10-17）
 - **范围**: `dsh-growth-studio` 插件的宿主侧实现、客户端契约测试与 `.context/` 契约的一致性
-- **状态**: **未修复**。本文件仅为登记与取证记录；`.context/` 侧已登记（`architecture/risks_and_debt.md` 的 **TD-008 / TD-009 / TD-011 / TD-014**，其中 TD-008 / TD-009 存在覆盖缺口，见 §5），实现侧与测试侧尚未改动。
-- **修复前置**: 创建变更提案所需的 `openspec/config.yaml`、`openspec/proposal-roadmap.md` **尚未生成**，见文末 §6。
+- **状态**: **未修复**。本文件仅为登记与取证记录；`.context/` 侧已登记（`architecture/risks_and_debt.md` 的 **TD-008 / TD-009 / TD-011 / TD-014**，其中 TD-008 / TD-009 存在覆盖缺口，见 §5；§6 的 Cookie 探测偏差对应 **RISK-003**，但该风险当前标为「已由统一实例缓解」，与实现不符，需回看）。实现侧与测试侧尚未改动。
+- **修复前置**: 变更提案所需的 `openspec/config.yaml`、`openspec/proposal-roadmap.md` 已生成（见 §7）；§6 的 Cookie 探测偏差修复仍须走 SSoT-first 提案，不得仅改文档。
 - **证据口径**: 所有 `文件:行号` 写于 2026-10-16 的仓库状态，后续改动可能使行号迁移，检索时以符号名（函数名 / 错误码字面量）为准。
 
-> 权威来源：工程约束以 `.context/criterion.md` 为准；技术事实以 `.context/architecture/source/technical_architecture.md`（TAD v1.3.0）为准。本文不重复定义契约，只记录"实现与契约的落差"。
+> 权威来源：工程约束以 `.context/criterion.md` 为准；技术事实以 `.context/architecture/source/technical_architecture.md`（TAD v1.4.3）为准。本文不重复定义契约，只记录"实现与契约的落差"。
 
 ---
 
@@ -200,8 +200,10 @@
 | §2 P0-2（`ops_generate_review` + `ops_draft_launch_kit` 2 处假编号） | `architecture/risks_and_debt.md` **TD-009** | 契约 / 实现债务 | 高 |
 | §3 TD-011 | `architecture/risks_and_debt.md` **TD-011** | 契约 / 代码债务 | 低 |
 | §4 TD-014（客户端消费测试缺口） | `architecture/risks_and_debt.md` **TD-014** | 测试债务 | 中 |
+| §6 BrowserOS 会话探测（读日用 Cookie 当已认证） | `architecture/risks_and_debt.md` **RISK-003**（状态当前误标「已缓解」） | 实现偏差 / 风险 | 高 |
 
 > ⚠️ **已知覆盖缺口**：TD-008 仅登记 4 处写入站点（漏 `ops_draft_launch_kit`）；TD-009 仅登记 `ops_generate_review` 一处假编号（漏 `ops_draft_launch_kit` / `saveLaunchKitDocument`）。两处需在下次 `.context` 维护时补登（并同步 Manifest 与 history）。
+> ⚠️ **新增覆盖缺口（§6）**：RISK-003 在 `risks_and_debt.md` 的状态为「已由统一实例缓解」，但实现侧 `browser.sessions`（`reuseHostBrowserProfile` 默认 true）仍在读取日用浏览器 Cookie 判定登录态，与「统一实例探测」目标不一致；需回看并补登为「未缓解/待修复」。
 
 相关但不在本文范围（已另行登记）：
 
@@ -215,38 +217,75 @@
 
 ---
 
-## 6. 修复前置：OpenSpec 资产尚未生成
+## 6. BrowserOS 会话探测：读日用浏览器 Cookie 当已认证（实现偏差）
 
-按 `.context/openspec/integration.md` 的硬门禁，**当前不得创建变更提案**：
+**结论：相对「统一实例探测」目标，是实现偏差（制造会话假阳性）；不是崩溃型 bug，是历史 `reuseHostBrowserProfile` 路径未被移除。**
 
-- `openspec/config.yaml` 缺失且登记在 `pending_generation` → 必须先"生成项目级 OpenSpec 集成"。
-- `openspec/proposal-roadmap.md` 缺失 → 停止提案创建，不得把待生成路径当作已存在文件。
+### 目标（应当怎样）
 
-正确的解阻顺序：
+| 依据 | 原文要点 |
+|---|---|
+| `.context/architecture/source/technical_architecture.md` §5.1.2 | 彻底收敛为统一 BrowserOS 实例：登录态探测、预填、指标采集由同一实例调度；轻量探测经 BrowserOS MCP 查询活跃 Tab / 验签 URL |
+| `.context/architecture/source/technical_architecture.md` §5.1.3 | dsh-growth-studio 复用当前连接的 BrowserOS 实例；Profile 创建/路径/隔离由 BrowserOS 或宿主管理；插件**不自行读取日用浏览器 Cookie，也不切换 Profile** |
+| `.context/architecture/source/technical_architecture.md` §3.10.1 | `reuseHostBrowserProfile` 标记为**待废弃的历史配置**，不应再读取宿主浏览器 Cookie 作为 BrowserOS 已认证证据 |
+| `.context/architecture/risks_and_debt.md` RISK-003 | 会话状态假阳性（工作台显示「就绪」但实际未登录）；「原方案（探取日用 Chrome Cookie 库）已被证实存在此根本缺陷」 |
 
-| 序 | 命令 | 产出 |
-|:--:|---|---|
-| 1 | `.agent/workflows/context-openspec.md project` | `openspec/config.yaml` |
-| 2 | `.agent/workflows/context-openspec.md plan` | `openspec/proposal-roadmap.md` |
-| 3 | `.agent/workflows/context-openspec.md proposal <change-id>` | 变更提案（需 roadmap 中存在对应条目作为锚点） |
+### 实现（实际怎样）
 
-> 子命令模式为"只执行命中的那一个模块"的硬门禁，需逐个执行。
+| 位置 | 行为 |
+|---|---|
+| `src/browser/session-guard.ts:151`（`findHostBrowserCookiesPath`） | 枚举 Linux/macOS/Windows 下 Chrome/Chromium/Edge/Brave/BrowserOS 的 `Cookies` SQLite 路径，返回首个存在的 |
+| `src/browser/session-guard.ts:187`（`checkAllRealSessions`） | 拷贝该 SQLite 到临时文件，用 `node:sqlite` 读 `cookies` 表，按 `PLATFORM_COOKIE_RULES` 匹配 cookie 名，命中即判定 `authenticated` |
+| `src/ops-rpc.ts:185`（`browser.sessions`） | `reuseHostBrowserProfile` 默认 true 时，走 `checkAllRealSessions` 路径；仅当 `activeTabs.length > 0` 时才用 `checkBrowserSessions` 覆盖，否则直接用 Cookie 结果 |
+
+关键事实：`DEFAULT_OPS_CONFIG.reuseHostBrowserProfile = true`（`src/config-store.ts:64`），因此**默认就会读日用浏览器 Cookie**。这与 `checkBrowserSessions`（基于 BrowserOS 活跃 Tab URL）是两条路径：前者把「Cookie 存在」当「BrowserOS 已认证」，正是 §5.1.1 立论批判的「实例不一致 → 假就绪」。
+
+### 影响
+
+- 工作台可能显示「authenticated（就绪）」而实际 BrowserOS 实例未登录，用户预填时才失败（RISK-003 假阳性）。
+- 与「会话数据零外发」的隐私承诺存在落差：虽然实现是本地拷贝 SQLite 到临时文件（不向第三方上报），但把个人 Cookie 读入进程内存，与「仅存在性探测」的隐私边界不符（TAD §5.1.1 第 3 点已指出该落差）。
+
+### 建议修复方向（SSoT-first）
+
+1. 在 `browser.sessions` 中**移除** `checkAllRealSessions`（读日用 Cookie）分支，统一走 `checkBrowserSessions`（BrowserOS 活跃 Tab / 验签 URL 探测）。
+2. `reuseHostBrowserProfile` 经**兼容方案退出**：先忽略该字段并强制统一实例探测，保留字段与旧配置解析（不直接删字段破坏旧配置），后续版本再彻底移除。
+3. 同步 `.context/architecture/risks_and_debt.md`：RISK-003 状态由「已由统一实例缓解」改为「未缓解/待修复」，并在 TD-012 之外单列该探测分支移除任务。
+4. 补测试：`browser.sessions` 不因 `reuseHostBrowserProfile=true` 而读本机 Cookie SQLite。
+
+### 验收口径
+
+- `reuseHostBrowserProfile=true` 时，`browser.sessions` 仍只基于 BrowserOS 实例探测，不读日用浏览器 Cookie。
+- 日用 Chrome 存在登录 Cookie 但 BrowserOS 实例未登录时，会话状态返回 `needs_login` / `unknown`，而非 `authenticated`。
 
 ---
 
-## 7. 建议的修复顺序（提案内）
+## 7. 修复前置：OpenSpec 资产状态
 
-按 `criterion §6` 的 SSoT-first 顺序，四者可并入**同一条**修复提案（同批接口 / 工具 / 客户端契约测试）：
+2026-10-16 已生成 `openspec/config.yaml` 与 `openspec/proposal-roadmap.md`（见 `context-manifest.json#last_openspec_project`）。故本报告 §1～§4 的修复可走提案；§6 的 Cookie 探测偏差修复**同样须走 SSoT-first 提案**（先改 `criterion.md` §7.1 契约 / 类型，再实现，再测试），不得仅改文档。
+
+---
+
+## 8. 建议的修复顺序（提案内）
+
+按 `criterion §6` 的 SSoT-first 顺序，§1～§4 可并入**同一条**修复提案（同批接口 / 工具 / 客户端契约测试）；§6 的 Cookie 探测移除建议**单列一条提案**（安全边界，与能力开关提案解耦）：
 
 ```
-src/types.ts（injoysDocId 可空等类型调整，如有）
-    ↓
-src/ops-rpc.ts（补 sinkToInjoysDoc 契约；统一错误码）
-    ↓
-src/tools/index.ts（工具 schema / 描述 / 去假编号）与 src/injoys/client.ts、src/analytics/
-    ↓
-测试 + .context 资产回填 + Manifest / history 刷新
-（含 TD-014：callOpsRpc / unwrapRpcResult 客户端消费用例 + 信封形状契约用例）
+§1～§4（写入边界 / 假编号 / 错误码 / 客户端测试）:
+  src/types.ts（injoysDocId 可空等类型调整，如有）
+      ↓
+  src/ops-rpc.ts（补 sinkToInjoysDoc 契约；统一错误码）
+      ↓
+  src/tools/index.ts（工具 schema / 描述 / 去假编号）与 src/injoys/client.ts、src/analytics/
+      ↓
+  测试 + .context 资产回填 + Manifest / history 刷新
+  （含 TD-014：callOpsRpc / unwrapRpcResult 客户端消费用例 + 信封形状契约用例）
+
+§6（BrowserOS 会话探测去 Cookie 化）:
+  src/browser/session-guard.ts（移除 checkAllRealSessions 调用）+ src/ops-rpc.ts（browser.sessions 分支）
+      ↓
+  src/config-store.ts（reuseHostBrowserProfile 兼容退出）
+      ↓
+  .context 资产回填（RISK-003 状态 + 新增 TD）+ Manifest / history 刷新
 ```
 
-优先级：P0-2（真 bug，可独立小修）≥ P0-1（越权写入，行为范围较大）> TD-011（设计一致性）> TD-014（补客户端消费测试；无契约变更，可随同批提案收口）。
+优先级：P0-2（真 bug，可独立小修）≥ P0-1（越权写入，行为范围较大）> §6 会话探测偏差（安全/假阳性）> TD-011（设计一致性）> TD-014（补客户端消费测试；无契约变更，可随同批提案收口）。

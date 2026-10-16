@@ -6,8 +6,11 @@
 | :--- | :--- | :--- | :--- |
 | **v1.2.0** | MVP 简化裁决版 (Approved Baseline) | 2026-10-16 | DeepSeek Harness (DSH) 桌面端 / Growth Studio 插件体系 |
 | **v1.2.1** | MVP 简化裁决版 (Approved Baseline) | 2026-10-16 | DeepSeek Harness (DSH) 桌面端 / Growth Studio 插件体系 |
+| **v1.2.2** | MVP 简化裁决版 (Approved Baseline) | 2026-10-17 | DeepSeek Harness (DSH) 桌面端 / Growth Studio 插件体系 |
 
 > **v1.2.1 修订说明（2026-10-16，用户已确认）**：新增「BrowserOS 浏览器引擎 → 能力管理」入口——将原本“BrowserOS 固定四动作”的表述替换为“复用现有 BrowserOS 工具清单、默认启用八项、全部实际能力可开关”的能力管理方案。能力开关只决定哪些底层浏览器工具可被调用，不改变“始终仅预填、人工最终发布、会话数据零外发”等既有业务守卫。本次为源文档修订稿，供后续同步，不代表现行准则或实现已生效。
+>
+> **v1.2.2 修订说明（2026-10-17，P2 语义澄清收口）**：P2-2 删除「BrowserOS 状态灯工作目录」要求（改为展示连接状态，草稿目录留配置页）；P2-6 指标卡由「互动与线索转化」改为「互动与关注增长」，不新增 `leads` 字段；P2-3 隔离 Profile 路径不再作为 MVP 固定承诺（Phase 2 PoC 待验证）；P2-5 工具清单的 `MCP:` 标注改为「外部依赖」并注明其不代表主数据位置或自动写入授权。
 
 ---
 
@@ -137,7 +140,7 @@ journey
 * **产品身份识别**：显示当前正在运营的个人产品名（例如 `DeepSeek Harness`），支持快速切换。
 * **引擎状态指示**：
   * `Injoys 知识库中枢`：以绿灯/红灯标注 MCP 连通性，悬浮显示延迟与文档数；
-  * `BrowserOS 浏览器引擎`：以状态灯标注 BrowserOS 实例连接状态与工作目录。
+  * `BrowserOS 浏览器引擎`：展示连接状态；未连接时提示接入方式。草稿目录继续放在配置页；BrowserOS 的 Profile 路径仅在现有连接能真实提供时展示，不推测、不硬编码。
 * **全局快捷行动组 (Quick Action Group)**：
   * `+ 生成 7 天排期日历`：快捷唤起日历规划；
   * `✍ 新建多端物料`：直接切到创作室并聚焦输入框；
@@ -149,7 +152,7 @@ journey
    * 汇总各平台指标：图文/推文为阅读曝光（`impressions`），视频平台为播放量（`plays`）；
    * 数据来源真实，采集失败或暂未支持平台设为 `null`（不粗暴按 0 计算）；
    * 指标卡下方标注：*全网非去重曝光与播放累计人次*。
-2. **互动与线索转化 (Engagements & Leads)**：汇总真实点赞、评论、转发、收藏数与净增关注数。
+2. **互动与关注增长 (Engagements & Follower Growth)**：汇总真实点赞、评论、转发、收藏数与净增关注数（保留 `totalFollowersDelta`，不新增 `leads` 字段，也不把净增关注等同于销售线索）。
 3. **排期履约流水 (Scheduled Pipeline)**：展示本周规划内容进展（例如 `6 / 7 篇`，3 篇已预填草稿，1 篇待发）。
 4. **分发矩阵连通度 (Ready Channels)**：动态统计当前 BrowserOS 实例中已认证就绪的平台数（例如 `2 / 2` 绿色就绪）。
 
@@ -178,7 +181,7 @@ journey
 * **演进愿景 (Phase 2 PoC)**：
   * 内嵌扫码浮层 (In-App QR Modal)：通过 CDP 截取二维码 Base64 直送 DSH 客户端；
   * 可视前台认证小窗 (Headful Auth Window)：为需滑动拼图/2FA 的平台拉起独立 800x600 辅助窗；
-  * 隔离 Profile：使用 `~/.dsh/browseros-profile/` 保存登录会话。
+  * 隔离 Profile：作为 Phase 2 登录 PoC 的待验证项，不承诺固定路径（`~/.dsh/browseros-profile/` 仅作参考示意，不作为 MVP 固定路径）。
 
 ---
 
@@ -224,26 +227,27 @@ journey
 ### 5.5 模块四：AI 运营工具中枢与技能工坊 (AI Ops Tools Hub & Skill Studio)
 
 #### 5.5.1 工具全景与生命周期分类
+> 工具后的「外部依赖」标注仅表示该工具**调用/读取**的外部能力；**不代表主数据存储位置，也不代表自动写入授权**（生成只存本地、Injoys 写入须显式触发，见 §5.4.1/§5.4.3）。工具名（`ops_*`）是 AI 调用入口，与客户端 RPC 方法名是两套入口，可共享领域服务、不必互相调用；映射关系见技术架构文档 §3.13。
 1. **策划与选题 (Planning)**：
-   * `ops_plan_calendar` *(MCP: Injoys)*：多渠道排期自动规划并同步表格；
-   * `ops_discover_trends` *(Native / Search)*：技术热点与爆款切入点动态嗅探；
-   * `ops_keyword_research` *(Native)*：SEO 核心词与搜索流量词挖掘；
+   * `ops_plan_calendar` *（外部依赖：Injoys 知识库 / 排期表）*：多渠道排期自动规划；本地排期为主，Injoys 用于知识读取与显式导出；
+   * `ops_discover_trends` *（外部依赖：Search）*：技术热点与爆款切入点动态嗅探；
+   * `ops_keyword_research` *（Native）*：SEO 核心词与搜索流量词挖掘；
 2. **创意与生成 (Creative)**：
-   * `ops_draft_article` *(Native / Injoys)*：微信公众号图文草稿与长文撰写；
-   * `ops_draft_video_meta` *(Native)*：视频 AB 测试多候选标题、简介与标签生成；
-   * `ops_draft_launch_kit` *(Native)*：Product Hunt 发布物料与 Twitter 极客推文串生成；
-   * `ops_generate_hooks` *(Native)*：视频前 3 秒吸睛钩子与分镜生成；
+   * `ops_draft_article` *（外部依赖：Injoys 知识库读取）*：微信公众号图文草稿与长文撰写；
+   * `ops_draft_video_meta` *（Native）*：视频 AB 测试多候选标题、简介与标签生成；
+   * `ops_draft_launch_kit` *（Native）*：Product Hunt 发布物料与 Twitter 极客推文串生成；
+   * `ops_generate_hooks` *（Native）*：视频前 3 秒吸睛钩子与分镜生成；
 3. **分发与执行 (Publishing & Automation)**：
-   * `ops_push_drafts` *(MCP: BrowserOS)*：通过 BrowserOS 统一实例批量预填各平台草稿箱；
+   * `ops_push_drafts` *（外部依赖：BrowserOS）*：通过 BrowserOS 统一实例批量预填各平台草稿箱；
    * *(注：彻底废除自动正式发布的 ops_publish_now 工具，坚持草稿箱安全边界)*；
 4. **分析与监听 (Analytics & Listening)**：
-   * `ops_fetch_metrics` *(MCP: BrowserOS)*：创作者数据大屏多维真实采集；
-   * `ops_generate_review` *(Native / Injoys)*：周度/月度曝光、转化复盘报告计算；
-   * `ops_fetch_comments` *(MCP: BrowserOS)*：跨渠道受众真实评论抓取；
-   * `ops_extract_feedback` *(Native / Injoys)*：用户声音聚类（Bug/Feature）与需求池反哺；
+   * `ops_fetch_metrics` *（外部依赖：BrowserOS）*：创作者数据大屏多维真实采集；
+   * `ops_generate_review` *（外部依赖：Injoys 知识库读取）*：周度/月度曝光、转化复盘报告计算；
+   * `ops_fetch_comments` *（外部依赖：BrowserOS）*：跨渠道受众真实评论抓取；
+   * `ops_extract_feedback` *（外部依赖：Injoys 需求池写入，须显式触发）*：用户声音聚类（Bug/Feature）与需求池反哺；
 5. **系统与调度 (System & Schedule)**：
-   * `ops_setup_schedule` *(Native: DSH Host)*：向 DSH 自动化任务中心注册定时巡检任务；
-   * `ops_inspect_sessions` *(Native / BrowserOS)*：BrowserOS 统一实例会话探活。
+   * `ops_setup_schedule` *（宿主能力：DSH 自动化任务中心，无对应 RPC）*：注册定时巡检任务；
+   * `ops_inspect_sessions` *（外部依赖：BrowserOS）*：BrowserOS 统一实例会话探活。
 
 #### 5.5.2 技能工坊与场景技能包编排
 * `[Phase 2 交付]`：提供 5 大官方内置技能包（新版本发布、全球出海、舆情监听、热点排期、多端改编），通过工具白名单（4~6 个工具）切片注入防 Token 膨胀；

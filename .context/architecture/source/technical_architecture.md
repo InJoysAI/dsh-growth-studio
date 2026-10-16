@@ -4,11 +4,15 @@
 >
 > | 属性 | 值 |
 > | :--- | :--- |
-> | **文档版本** | v1.4.1 |
-> | **对应 PRD 基线** | `.context/domain/source/product_requirements.md` **v1.2.1**（MVP 简化裁决版 Approved Baseline） |
+> | **文档版本** | v1.4.3 |
+> | **对应 PRD 基线** | `.context/domain/source/product_requirements.md` **v1.2.2**（MVP 简化裁决版 Approved Baseline） |
 > | **状态** | 评审整改版 |
 > | **初次编写** | 2026-10-13 |
-> | **本次修订** | 2026-10-17（用户裁决 A-1～A-3：生成只存本地、显式沉淀、MVP 单份草稿存储；本次追加 BrowserOS 能力管理方案；补齐 PRD↔TAD 契约缺口） |
+> | **本次修订** | 2026-10-17（用户裁决 A-1～A-3；追加 BrowserOS 能力管理方案；补齐 PRD↔TAD 契约缺口；收窄 P2-2/P2-6 文案、明确 P2-3 Profile 归属、补 P2-5 映射表；修正映射表目标/现状混用与旧指标卡名） |
+>
+> **v1.4.3 的修订（2026-10-17，P2-5 映射表收口）**：§3.13 映射表将「领域服务/外部依赖/主数据位置」三列明确为**目标口径**，并在「当前实现差距」逐条写清现状（`ops_inspect_sessions` 未注册、`ops_draft_article`/`ops_draft_launch_kit` 存在未授权 Injoys 写入、`ops_discover_trends` 用本地模板未接真实搜索、`ops_generate_review` 假编号回退等）；同步 §3.1 指标卡注释由「互动与线索转化」改为「互动与关注增长」。
+>
+> **v1.4.2 的修订（2026-10-17，P2 语义澄清收口）**：P2-2 删除状态灯「工作目录」要求；P2-6 指标卡改「互动与关注增长」（不新增 leads）；P2-3 明确「复用当前连接实例、Profile 由 BrowserOS/宿主管理」，`reuseHostBrowserProfile` 标记待废弃并登记实现偏差（§5.1.3，需后续提案移除 Cookie 探测分支）；P2-5 新增 §3.13 `ops_*` ↔ RPC 映射表，并明确「外部依赖 ≠ 主数据位置 ≠ 自动写入授权」。
 >
 > **v1.4.1 的修订（2026-10-17，PRD↔TAD 双向追溯核对）**：补齐契约缺口——`injoys.test` 增 `documentCount`（§3.10.2）、新增 `browseros.capabilities` 能力清单读接口（§3.12.3）、`overview.statuses` 与 `browser.sessions.statuses` 增 `loginUrl`（§3.1/§3.7）、补 `UserFeedbackItem` 实体（§4.1）、标注接口枚举先定义按阶段开放（§3.4/§3.5）、标注「一键复制物料」为客户端本地操作（§3.5.1）。以上均为文档契约修订，实现状态见 §3.10.2「待实现/差异清单」，不宣称已实现。
 >
@@ -170,7 +174,7 @@ DSH Desktop 客户端通过 Cordis `slots` 注入扩展机制工作：
       totalLikes: number | null        // 全网点赞数
       totalComments: number | null     // 全网评论数
       totalShares: number | null       // 全网分享/转发数
-      totalFavorites: number | null    // 全网收藏数 (PRD §5.1.2「互动与线索转化」含收藏)
+      totalFavorites: number | null    // 全网收藏数 (PRD §5.1.2「互动与关注增长」含收藏)
       totalFollowersDelta: number | null // 净增关注数
       /** 互动汇总 = 点赞 + 评论 + 转发 + 收藏（任一为 null 则整体为 null） */
       totalEngagements: number | null
@@ -691,7 +695,7 @@ interface OpsConfig {
   }
   /** 本地草稿存储目录（PRD §5.7）。缺省 $DSH_HOME/growth-studio/drafts/ */
   draftsDir: string
-  /** 是否复用宿主浏览器 Profile 进行会话探测 */
+  /** 是否复用宿主浏览器 Profile 进行会话探测。⛔ 待废弃的历史配置：不应再读取宿主浏览器 Cookie 作为 BrowserOS 已认证证据，后续经兼容方案退出，不直接删字段破坏旧配置。 */
   reuseHostBrowserProfile: boolean
   /** 是否自动将排期与复盘同步至 Injoys */
   autoSyncToInjoys: boolean
@@ -951,6 +955,33 @@ interface BrowserOsCapabilityDescriptor {
 
 ---
 
+### 3.13 `ops_*` 工具 ↔ RPC 方法映射（追溯关系）
+
+> 对应 PRD §5.5.1。`ops_*` 是 AI 调用入口，RPC 方法是客户端调用入口；二者**可共享领域服务、不必互相调用**。
+> 本表记录「工具名 ↔ 业务能力 ↔ 对应 RPC（无则标注）↔ **目标**领域服务 ↔ **目标**外部依赖 ↔ **目标**主数据位置 ↔ 当前实现差距 ↔ 阶段」。
+> **下表「领域服务 / 外部依赖 / 主数据位置」三列均为目标设计口径，不代表当前实现已具备该行为**；实际现状以「当前实现差距」列为准，避免把目标误读为已实现。
+
+| 工具（AI 入口） | 业务能力 | 对应 RPC | 目标领域服务 | 目标外部依赖 | 目标主数据位置 | 当前实现差距 | 阶段 |
+|---|---|---|---|---|---|---|---|
+| `ops_plan_calendar` | 多渠道排期规划 | `workbench.generateCalendar`（§3.3） | CalendarEngine | Injoys 知识库读取 / 排期表显式导出 | 本地 `calendar/`（黄金主数据源） | 工具已注册；`workbench.generateCalendar` RPC **未实现**（§3.10.2 待实现清单） | Phase 0 |
+| `ops_discover_trends` | 热点嗅探 | 无对应 RPC | TrendsDiscoverer | 真实搜索 | — | 工具已注册，但 `TrendsDiscoverer` 当前用**本地固定模板**（硬编码 heatScore/sampleTopic），**未接入真实搜索**（§1.1 标注 Phase 0 原型） | Phase 0 原型 |
+| `ops_keyword_research` | SEO 关键词挖掘 | 无对应 RPC | — | — | — | **未注册、无实现**（PRD 列出，无契约与工具） | 未定 |
+| `ops_draft_article` | 公众号图文生成 | `workbench.generateArticleDraft`（§3.4） | ContentStudioEngine | Injoys 知识库读取 | 本地草稿 `drafts/` | 工具与 RPC 均存在，但当前 execute **无条件调用 `injoys.saveArticleDocument`**，违反「生成只存本地、Injoys 写入须显式触发」（TD-008） | Phase 0 |
+| `ops_draft_video_meta` | 视频元数据生成 | `workbench.generateVideoMeta`（§3.5） | ContentStudioEngine | — | 本地草稿 `drafts/` | 工具与 RPC 均存在；工具 execute **无条件调用 `injoys.saveVideoDocument`**，违反「生成只存本地」目标（TD-008）；RPC 当前只保存本地，两个入口行为尚未对齐 | Phase 0 |
+| `ops_draft_launch_kit` | PH / X 推文串生成 | 无对应 RPC | OverseasManager | Injoys 知识库读取 | 本地草稿 | 工具已注册，execute **读取 Injoys 知识库并无条件调用 `injoys.saveLaunchKitDocument`**（与「沉淀须显式触发」不符）；无工作台 RPC | Phase 2 |
+| `ops_generate_hooks` | 视频前 3 秒钩子 | 无对应 RPC | ContentStudioEngine | — | 本地草稿 | **未注册、无实现**（PRD 列出，无契约与工具） | 未定 |
+| `ops_push_drafts` | 批量预填草稿箱 | `workbench.prefillDraft`（§3.6，单草稿入口） | BrowserDriver / Adapter | BrowserOS | 平台后台草稿箱 | 工具已注册；`prefillDraft` RPC 已实现（单草稿）；**批量入口无对应 RPC** | Phase 0 |
+| `ops_fetch_metrics` | 多维指标采集 | 与 `workbench.overview`（§3.1）共用采集能力，返回范围不同 | MetricsCollector | BrowserOS | 本地指标快照 `metrics/` | 工具已注册；`overview` RPC 已实现但**缺部分缺失汇总语义**（TD-007） | Phase 0 |
+| `ops_generate_review` | 周/月复盘 | 无对应 RPC | ReviewReporter | Injoys 知识库读取（写入须显式触发） | 本地指标快照 | 工具已注册，但存在**假文档编号回退**（TD-009，`injoysDocId ?? 'doc_review'`）；无工作台 RPC | Phase 1 |
+| `ops_fetch_comments` | 跨渠道评论抓取 | 无对应 RPC | CommentsCrawler | BrowserOS | — | 工具已注册；无工作台 RPC（Phase 1） | Phase 1 |
+| `ops_extract_feedback` | Bug/Feature 聚类反哺 | 无对应 RPC | IssueExtractor | Injoys 需求池（写入须显式触发） | — | 工具已注册；无工作台 RPC（Phase 1） | Phase 1 |
+| `ops_setup_schedule` | 注册定时巡检 | **无对应 RPC**（宿主工具调用，§3.11） | schedule-bridge | DSH 自动化任务中心 | — | 工具已注册；工具调用面，非 `POST /api/ops` | Phase 0 |
+| `ops_inspect_sessions` | 会话探活 | `browser.sessions`（§3.7） | SessionGuard | BrowserOS | — | **工具名未注册**；当前已实现的是 `browser.sessions` RPC（含 `reuseHostBrowserProfile` 历史 Cookie 探测路径，见 §5.1.3），二者不是同一入口 | Phase 0 |
+
+> **口径说明**：`目标外部依赖` 仅表示该工具**目标**调用/读取的外部能力，**不代表主数据存储位置，也不代表自动写入授权**（Injoys 写入须显式触发，见 §3.5.1、§3.10.2、PRD §5.4.3）。PRD 可描述目标行为，但不得据此宣称当前工具已具备该行为。
+
+---
+
 ## 四、 核心技术与数据模型
 
 ### 4.1 核心数据模型契约 (Domain Entities)
@@ -1148,6 +1179,12 @@ $DSH_HOME/growth-studio/drafts/
 1. **单一实例绑定**：登录态探测、草稿箱预填与大屏指标采集，统一由同一个 BrowserOS MCP 实例调度执行；
 2. **轻量探测**：`SessionGuard` 通过 BrowserOS MCP 查询当前活跃 Tab 或后台导航至目标平台验签 URL（如微信后台与 B站创作平台），通过页面特征或网络响应判定会话状态；
 3. **四态流转**：严格向前端返回 `unknown` / `needs_login` / `authenticated` / `no_publish_permission` 四态，杜绝假阳性。
+
+#### 5.1.3 Profile 归属与实现偏差（待后续实施任务）
+
+* **架构决策（已明确）**：dsh-growth-studio 复用**当前连接的 BrowserOS 实例**；会话探测、预填与指标采集使用同一实例。Profile 的创建、路径及隔离**由 BrowserOS 或宿主管理**，插件**不自行读取日用浏览器 Cookie，也不切换 Profile**。
+* **「复用连接实例」≠「读取宿主浏览器 Profile」**：二者必须区分。前者是统一调度同一 BrowserOS 实例；后者是历史配置 `reuseHostBrowserProfile` 曾引入的「读取本机浏览器 Cookie 探测」路径，会制造「Cookie 存在即已认证」的假阳性。
+* **实现偏差（需单独提案，文档修订不能等同运行行为已修复）**：当前 `src/ops-rpc.ts` 的 `browser.sessions` 在 `reuseHostBrowserProfile` 开启时会走读取本机浏览器 Cookie 的探测分支。该分支**不能把 Cookie 存在当成 BrowserOS 已认证的证据**，须后续提案移除，并让 `reuseHostBrowserProfile` 经兼容方案退出。此项登记为待办，不在本文档修订中关闭。
 
 ---
 
