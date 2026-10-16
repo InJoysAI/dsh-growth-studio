@@ -28,9 +28,12 @@ context: |
   inside the DSH settings page (BR-001).
   - Delivers one channel matrix across domestic (微信公众号, 哔哩哔哩, 微信视频号, 抖音) and
     overseas (YouTube, X, Product Hunt, TikTok) platforms, staged: Phase 0 = 微信公众号 + 哔哩哔哩;
-    Phase 1 adds 视频号 + 抖音; Phase 2 adds YouTube / X / Product Hunt / TikTok (BR-002).
+    Phase 1 adds 视频号 + 抖音; Phase 2 adds YouTube / X / Product Hunt / TikTok (BR-002). Channels not
+    yet delivered in the current phase must not appear in the workbench's "ready channels" counts.
   - Core stance: AI only generates and prefills; the final publish action is always done by a human
     (Human-in-the-Loop). Local-first: drafts/schedules/metrics/config live on the user's machine.
+  - Single-product operations view: the header shows and can switch the operating product, and
+    switching changes only the generation/knowledge retrieval scope — NOT data isolation (BR-003).
 
   ## Tech Stack
   Runtime form: in-process Cordis plugin inside DSH Desktop — NO standalone server, NO listening port,
@@ -71,6 +74,10 @@ context: |
     `{ type:'server-response', rpcId, result }`. The gateway validates `Content-Type: application/json`,
     `type === 'client-request'`, `method === 'ops'`, and presence of `payload` (implementation field is
     `payload`, not `params`). Unknown methods are rejected.
+  - Host-side MUSTs: Injoys and BrowserOS calls are centralized in their respective client wrapper entry
+    points (never called directly from generic flows or the client); errors are never swallowed (thrown
+    truthfully); config changes hot-propagate to the running `InjoysClient` (`updateConfig`) with no
+    restart, and saving `injoys` config clears target-isolated caches.
   - Unified RPC error boundary: all write entry points map storage failures to
     `drafts/storage-unavailable` (none may leak `ops/internal-error` for recoverable storage errors).
   - Persistence: atomic write (temp file + `rename`) + serial write lock keyed by absolute file path
@@ -98,13 +105,66 @@ context: |
   - Note: client RPC consumption (`callOpsRpc` / `unwrapRpcResult`) currently has no test coverage (TD-014).
 
   ## Domain Context
-  - Epics/journeys: E1 晨会巡检与大盘监控; E2 选题策划与排期规划; E3 内容创作与多端自适应;
-    E4 自动化预填与人工发布; E5 舆情复盘与需求反哺.
-  - Channel session state is four-valued: `unknown` / `needs_login` / `authenticated` /
-    `no_publish_permission` — never degrade to a boolean; `unknown` must not be reported as ready.
-    Not-ready channels surface a `去登录 ↗` shortcut link.
-  - Schedule lifecycle `ItemStatus` is five states: `planned` → `drafting` → `draft_ready` →
-    `prefilled` → `published`, forward-only. `approved` / `archived` were removed and MUST NOT return.
+  Business rules are numbered BR-XXX in `domain/business_rules.md`; journeys are E1–E5 in
+  `domain/user_journeys.md`. Every rule below traces to those assets.
+  - Product & scope: BR-001 (MUST) end-to-end 策—采—编—发—评 workbench; BR-002 (MUST) staged channel
+    delivery (see Purpose); BR-003 (SHOULD) single operating product, switch changes generation
+    context only.
+  - Channel session state: BR-010 (MUST) four-valued `unknown` / `needs_login` / `authenticated` /
+    `no_publish_permission` — never degrade to a boolean, and only `authenticated` may be presented as
+    "ready"; BR-011 (MUST) a `needs_login` card surfaces a `去登录 ↗` external link; BR-012 (MUST) the
+    「分发矩阵连通度」 metric counts only `authenticated` channels.
+  - Calendar & publish pipeline: BR-020 (MUST) `ItemStatus` five states, forward-only, no skipping or
+    reverting; BR-021 (MUST) publish closure + all-channel invariant (see below); BR-022 (MUST, iron
+    law) prefill-only; BR-023 (SHOULD) one-click 7-day schedule generation plus Injoys export/import;
+    BR-024 (MUST) Phase 0 Injoys schedule sync is one-way with local data as the source of truth (never
+    claim two-way real-time sync).
+  - Content studio: BR-030 (MUST) generation auto-saves locally and never auto-uploads; MVP keeps only
+    the current draft (no history/restore; `version` is concurrency control only); BR-031 (MUST)
+    per-channel variants carrying channel fields (article title/author/body; video title/intro/tags/
+    partition); BR-032 (SHOULD) cross-platform real-style previews by phase (公众号 share card + article
+    detail with code highlighting; B站 3 candidate titles + structured intro + tag cloud + partition;
+    Phase 1 视频号/抖音 cards; Phase 2 X/Product Hunt simulators); BR-033 (MAY) one-click copy + sink to
+    Injoys knowledge doc.
+  - Tool hub: BR-040 (SHOULD) five lifecycle categories (策划与选题 / 创意与生成 / 分发与执行 /
+    分析与监听 / 系统与调度); BR-041 (SHOULD) single-step visual debug sandbox showing render, result and
+    duration; BR-042 (SHOULD) Phase 2 five built-in skill packs injecting only 4–6 whitelisted tools
+    each, Phase 3 custom packs (PRD §5.5.2 names are authoritative; the dev-plan names differ and must
+    not be used before product sign-off).
+  - Feedback & review: BR-050 (MUST) metric truthfulness / nullable semantics; BR-051 (MUST) text/tweet
+    channels use the "阅读曝光" reads metric while video channels use the "播放量" plays metric, and the
+    aggregate is flagged as non-deduplicated 全网曝光/播放累计人次; BR-052 (SHOULD) engagement +
+    net-follower aggregates with sub-caption and comparison trend; BR-053 (SHOULD) weekly pipeline
+    progress (e.g. `6 / 7 篇`) split by stage; BR-054 (MUST, Phase ≥ 1) crawl real published comments →
+    cluster into bugs/feature requests → sink to the Injoys needs pool, never placeholder data;
+    BR-055 (MUST) review reports computed from real metrics, insufficient data annotated, never estimated.
+  - Trends radar: BR-060 (SHOULD) hot-topic radar (heat index + fit platforms) with
+    「采用此选题创作 ➔」 entering the studio with prefilled title/tone — it does NOT generate a schedule.
+  - Engine & config: BR-070 (MUST) visible knowledge-hub and browser-engine connection lights plus
+    one-click connectivity/latency test; BR-071 (MUST) credential fields with mask/plaintext toggle and
+    configurable endpoint/credentials/local drafts dir; BR-072 (SHOULD) global policy (default product
+    name/tone) takes effect immediately, no restart; BR-073 (MUST) capability degradation — actions
+    depending on the knowledge hub (schedule sync, doc sink, needs-pool feedback) or the browser (session
+    probe, prefill, metrics/comment collection) report "unavailable" and never return a fake success.
+  - UI: BR-080 (MUST) DSH native design language, light/dark adaptive, Megaphone settings icon; BR-081
+    (SHOULD) status colors (green = ready/prefilled, amber = pending login/review, grey = planning);
+    BR-082 (SHOULD) card instant refresh, user-triggered, without reloading the whole page; BR-083 (MAY)
+    cockpit quick-action group (`+ 生成 7 天排期日历` / `✍ 新建多端物料` / `🔄 刷新大盘`).
+  - Auth evolution: BR-090 (SHOULD) Phase 0 users log in by scanning in the single unified browser
+    instance; the Phase 2 embedded-login work is a PoC only and MUST NOT be described as "supported" or
+    "will support"; slider/2FA platforms are handled manually until the PoC passes.
+  - NFR (PRD-explicit): BR-NFR-001 (MUST) 8 channels total; BR-NFR-002 (MUST) content retention boundary
+    — draft/schedule master data stays local and is never auto-uploaded, only explicitly triggered Injoys
+    actions send to the user's own Injoys space, and session data (login credentials) is strictly
+    zero-egress; BR-NFR-003 (SHOULD) default 7-day schedule with week/month calendar views; BR-NFR-004
+    (SHOULD) skill packs inject 4–6 tools.
+  - Journey epics: E1 晨会巡检与大盘监控; E2 选题策划与排期规划 (incl. Journey 2b 排期生成与导出);
+    E3 内容创作与多端自适应; E4 自动化预填与人工发布; E5 舆情复盘与需求反哺.
+  - Session state nuances (BR-010/BR-011): `unknown` must not be reported as ready; `no_publish_permission`
+    shows a red lamp with a permission hint (no external link); only `needs_login` surfaces the
+    `去登录 ↗` link.
+  - `ItemStatus` is five states: `planned` → `drafting` → `draft_ready` → `prefilled` → `published`,
+    forward-only. `approved` / `archived` were removed and MUST NOT return.
   - `ContentDraft.status` is a SEPARATE four-state enum: `draft` / `ready_for_review` / `prefilled` /
     `published`; convert only via the mapping table (never assign across enums). `partially_published`
     is not introduced.
@@ -112,34 +172,50 @@ context: |
     by backfilling a valid `http(s)` URL via `drafts.updatePublishUrl`. Multi-channel drafts become
     `published` only when ALL channels are backfilled; partial backfill stays `prefilled`; adding an
     unbackfilled channel reverts `published`→`prefilled`; deleted channels prune orphan URLs.
-  - Metrics truthfulness: `impressions` (both text/tweet and video exposure reads) and `plays`
-    (video plays) are independent and nullable; collection failure/unsupported → `null`, never `0`;
-    a true platform `0` is a valid value; when not all expected platforms succeed the aggregate is
-    `null` with `measuredPlatforms` / `unmeasuredPlatforms`; `totalEngagements` is `null` if any of
-    likes/comments/shares/favorites is `null`; insufficient history → delta `null`.
+  - Metrics truthfulness: text/tweet channels use the 阅读曝光 metric `impressions`; video channels use
+    the 播放量 metric `plays` — the two are independent and nullable; collection failure/unsupported →
+    `null`, never `0`; a true platform `0` is a valid value; when not all expected platforms succeed the
+    aggregate is `null` with `measuredPlatforms` / `unmeasuredPlatforms`; `totalEngagements` is `null` if
+    any of likes/comments/shares/favorites is `null`; insufficient history → delta `null`. Do not consume
+    `views` (compat field `impressions ?? plays ?? 0`) as a real missing metric.
   - Product switch: `defaultProduct` only changes knowledge-base retrieval scope and generation
     context — NO data isolation; metrics/schedules/drafts/sessions are global; no `productId` field.
   - Content write boundary: generation saves locally only; writing to Injoys documents requires an
     explicit user action (`workbench.sinkToInjoysDoc`). Knowledge-base reads are unrestricted.
   - `PlatformId` currently lists 9 values; `xiaohongshu` is listed but has no registered adapter
     (8 adapters registered).
-  - Implementation status is NOT implied by contracts: several defined methods
-    (`workbench.generateCalendar`, `calendar.*`, `workbench.sinkToInjoysDoc`, `tools.*`, `browser.login.*`)
-    are not yet implemented, and `workbench.overview` does not yet implement partial-missing aggregation
-    semantics (see TD-001 / TD-007 / TD-008 / TD-009 / TD-010 / TD-012 in `architecture/risks_and_debt.md`).
+  - Implementation status is NOT implied by contracts: `workbench.generateCalendar`, `calendar.*`,
+    `workbench.sinkToInjoysDoc` and `tools.*` are not yet implemented (TD-001); `workbench.overview` does
+    not yet implement partial-missing aggregation semantics (TD-007); the Phase 2 `browser.login.*`
+    endpoints depend on unvalidated BrowserOS CDP capabilities (RISK-012); further gaps are tracked as
+    TD-008 / TD-009 / TD-010 / TD-012 / TD-013 / TD-014 in `architecture/risks_and_debt.md`.
 
   ## Important Constraints
   Four architecture iron laws (highest priority; any proposal violating them fails):
-  1. Always prefill drafts only — NEVER auto-confirm publish. `ops_publish_now` was fully removed from
+  1. Always prefill drafts only — NEVER auto-confirm publish. Prefill stops at the platform-native
+     "save as draft" (微信公众号 fills title/author/body and triggers the native save-draft action;
+     B站 fills title/intro/tags/partition and saves as draft). `ops_publish_now` was fully removed from
      the tool whitelist, RPC endpoints and docs; it MUST NOT be reintroduced in any form. There are no
      publish-class tools, so such a call cannot be constructed.
   2. `published` may only be advanced by backfilling a real URL via `drafts.updatePublishUrl`
-     (`drafts.save` must reject `published` with `drafts/published-requires-url`; URL validated by a URL
-     parser, not a loose regex). Enforcement is host-side, not client-side.
+     (`drafts.save` must reject `published` with `drafts/published-requires-url`; the URL is validated by
+     a URL parser, else `drafts/invalid-published-url` — a loose regex is forbidden). Multi-channel
+     drafts are `published` only when ALL channels are backfilled; partial backfill stays `prefilled`
+     (never downgraded to `draft`); adding an unbackfilled channel reverts `published`→`prefilled`;
+     deleting a channel prunes orphan URLs. `publishedUrls` is a server-governed field that `drafts.save`
+     must ignore; `calendar.updateStatus` cannot write `published`. Enforcement is host-side, not
+     client-side.
   3. Never pass off incomplete data as whole-network totals — partial metrics → aggregate `null`;
-     distinguish true `0` from missing `null`.
+     distinguish true `0` from missing `null`; fill `measuredPlatforms` / `unmeasuredPlatforms`.
   4. Session data (cookies) is zero-egress — it stays in the local sandbox; do not read the daily Chrome
-     cookie store.
+     cookie store; do not report it to any third party (including Injoys).
+
+  Token boundary: `config.get` returns the plaintext `token` for form backfill and mask-toggle ONLY
+  because the RPC is host-internal (in-process / localhost) and is not an external network endpoint.
+  Its precondition is that if the RPC ever becomes reachable off-host it MUST first return only
+  `hasToken: boolean` with the plaintext on a separate backfill-only channel. Tokens have no built-in
+  default (user config, or `INJOYS_MCP_ENDPOINT` / `INJOYS_MCP_TOKEN` fallback); logs and telemetry MUST
+  redact tokens, cookies and full body text (see RISK-011).
 
   Key MUST NOTs: hardcode Injoys tokens / BrowserOS credentials / any sensitive config; embed a global
   universal Master Key or generic credentials; bypass `callOpsRpc` from the client to reach Injoys /
@@ -153,19 +229,28 @@ context: |
   carry core business rules (state machine, permission logic) on the client; hardcode colors;
   implement any auto-publish capability.
 
-  Key MUSTs: `config.save` must prepare and verify writability of `draftsDir` before applying
-  (create + unique probe file; failure → `config/invalid-drafts-dir`, never report success first);
-  system file permissions limited to the current OS user; paths resolved via `resolveDshHome`
-  (`profileContext.home` → `DSH_HOME` → `~/.dsh`); publish-URL backfill channel must belong to the
-  draft's `channelVariants` (`drafts/unknown-channel`, no write/no version bump); `publishedUrls` is a
-  server-governed field that `drafts.save` must ignore; error handling must not swallow errors.
+  Key MUSTs: all RPC methods return the unified envelope and throw truthful error codes; platform
+  differences stay in the Adapter layer; Injoys and BrowserOS calls remain centralized in their client
+  wrapper entry points; errors are never swallowed; config changes hot-propagate to the running
+  `InjoysClient` (`updateConfig`) with no restart; session probing / prefill / metrics collection share
+  ONE BrowserOS MCP instance; `config.save` must prepare and verify writability of `draftsDir` before
+  applying (create AND delete a unique probe file; failure → `config/invalid-drafts-dir`, never report
+  success first); storage write failures map to `drafts/storage-unavailable` at the unified RPC error
+  boundary across all write entry points; system file permissions limited to the current OS user
+  (implementation gap tracked as TD-013); paths resolved via `resolveDshHome` (`profileContext.home` →
+  `DSH_HOME` → `~/.dsh`); publish-URL backfill channel must belong to the draft's `channelVariants`
+  (`drafts/unknown-channel`, no write/no version bump); `publishedUrls` is a server-governed field that
+  `drafts.save` must ignore; error handling must not swallow errors.
 
   ## External Dependencies
   - DSH Desktop host: plugin container, slot injection, `POST /api/ops` RPC gateway, automation task
     center (hard dependency; plugin cannot load without it). Failure → plugin cannot load.
   - BrowserOS MCP (CDP/Playwright): session probing and draft-box prefill; action whitelist
     `tabs` / `navigate` / `snapshot` / `act`, shell/cmd disabled. Failure → cannot prefill; session state
-    returns `unknown` (never a false positive).
+    returns `unknown` (never a false positive). ⚠️ Implementation divergence: the bridge's actual
+    `EXPECTED_TOOLS` set is wider (adds `read` / `grep` / `wait`, plus an `upload` call) and no host-side
+    whitelist enforcement exists yet — see TD-012; treat the whitelist as the contract, not as an
+    implemented guarantee.
   - Injoys MCP (JSON-RPC 2.0 over HTTPS + `Authorization: Bearer {token}`): knowledge base, Spreadsheet
     export/import, Document sink. Verify HTTP status and `result.isError`. No built-in token default
     (user config or `INJOYS_MCP_ENDPOINT` / `INJOYS_MCP_TOKEN` fallback); when unconfigured, do not
@@ -189,6 +274,7 @@ rules:
   design:
     - Follow the SSoT-first order — `src/types.ts` contract, then `src/ops-rpc.ts` method contract, then Adapter / domain services, then client UI and tests.
     - Reuse existing error codes; keep the RPC envelope backward compatible (or version it explicitly).
+    - Do NOT hand-write types/DTOs equivalent to the contract (`src/types.ts`) in business code — keep the SSoT-first contract authoritative (documented "non-contract extension" fields excepted).
     - Enforce all new rules host-side; never rely on client behavior.
   tasks:
     - Break tasks by the SSoT-first layers; include contract update, implementation, and tests per task.
