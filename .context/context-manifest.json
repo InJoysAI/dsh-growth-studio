@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generated_at": "2026-10-15T22:45:00+08:00",
+  "generated_at": "2026-10-16T09:00:00+08:00",
   "generator": "Context-Agent v1.0",
   "generation_pipeline": {
     "root_assets": "Context-Dev-Agent v1.0",
@@ -45,20 +45,26 @@
       ".context/architecture/README.md"
     ],
     "domain": [
-      ".context/domain/README.md"
+      ".context/domain/README.md",
+      ".context/domain/business_rules.md",
+      ".context/domain/user_journeys.md",
+      ".context/domain/market_insights.md",
+      ".context/domain/testing_strategy.md",
+      ".context/domain/risks_and_debt.md",
+      ".context/domain/data_strategy.md",
+      ".context/domain/edge_cases.md"
     ],
     "db": [],
     "ui": [],
     "legacy": [],
-    "openspec": []
+    "openspec": [
+      ".context/openspec/integration.md"
+    ]
   },
   "pending_generation": {
     "architecture": [
       ".context/architecture/system_design.md",
       ".context/architecture/tech_stack.md"
-    ],
-    "domain": [
-      ".context/domain/business_rules.md"
     ],
     "openspec": [
       "openspec/config.yaml",

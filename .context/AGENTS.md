@@ -3,7 +3,7 @@
 > **Metadata**
 > - **Source**: `design/context-dev/templates/context-agents.md.template`
 > - **Generated At**: `2026-10-15 20:23`
-> - **Updated At**: `2026-10-15 21:05`
+> - **Updated At**: `2026-10-16 09:00`
 > - **Generator**: `Context-Dev-Agent v1.0`
 
 ---
@@ -41,9 +41,18 @@
 │       └── technical_architecture.md
 ├── domain/
 │   ├── README.md
+│   ├── business_rules.md
+│   ├── user_journeys.md
+│   ├── market_insights.md
+│   ├── testing_strategy.md
+│   ├── risks_and_debt.md
+│   ├── data_strategy.md
+│   ├── edge_cases.md
 │   └── source/
 │       ├── product_requirements.md
 │       └── development_plan.md
+├── openspec/
+│   └── integration.md
 └── history/
     └── context-sync.jsonl
 ```
@@ -52,7 +61,7 @@
 本目录树按 `context-manifest.json#generated_files`、实际 `source/` 文件及 `context_sync_history.path` 生成；审计日志不属于生成资产，精确机器清单仍以 Manifest 为准。
 
 > 尚未创建的类别（`db/`、`ui/`、`legacy/`）说明项目未提供对应源文档，补充后由 `.agent/workflows/context-update.md` 创建。
-> 分域总结文件（如 `architecture/system_design.md`、`domain/business_rules.md`）当前**尚未生成**，见 `context-manifest.json` 的 `pending_generation`。
+> 分域总结文件 `domain/**`（8 个）与 `.context/openspec/integration.md` 已生成；`architecture/system_design.md`、`architecture/tech_stack.md` 仍**尚未生成**，见 `context-manifest.json` 的 `pending_generation`。
 
 ## 核心文件
 
@@ -62,7 +71,15 @@
 | `context-manifest.json` | 元数据清单 — 追踪源文件 hash 和生成时间 |
 | `history/context-sync.jsonl` | 扁平同步/决策审计日志；默认不作为生成资产加载（首次 `context-update sync` 时创建） |
 | `architecture/tech_stack.md` | 技术栈约束 (MUST/SHOULD) — ⏳ 待生成 |
-| `domain/business_rules.md` | 业务逻辑规则 — ⏳ 待生成 |
+| `architecture/system_design.md` | 系统设计总结 — ⏳ 待生成 |
+| `domain/business_rules.md` | 业务逻辑规则 — ✅ 已生成 |
+| `domain/user_journeys.md` | 用户旅程 — ✅ 已生成 |
+| `domain/market_insights.md` | 市场洞察 — ✅ 已生成 |
+| `domain/testing_strategy.md` | 验收测试策略 — ✅ 已生成 |
+| `domain/risks_and_debt.md` | 业务风险与项目债务 — ✅ 已生成 |
+| `domain/data_strategy.md` | 数据策略 — ✅ 已生成 |
+| `domain/edge_cases.md` | 异常与边缘情况 — ✅ 已生成 |
+| `openspec/integration.md` | OpenSpec 集成说明与资产索引 — ✅ 已生成 |
 
 ## 更新规则
 
