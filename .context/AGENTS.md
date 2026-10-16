@@ -3,7 +3,7 @@
 > **Metadata**
 > - **Source**: `design/context-dev/templates/context-agents.md.template`
 > - **Generated At**: `2026-10-15 20:23`
-> - **Updated At**: `2026-10-16 11:53`
+> - **Updated At**: `2026-10-16 14:42`
 > - **Generator**: `Context-Dev-Agent v1.0`
 
 ---
@@ -89,7 +89,7 @@
 |------|------|
 | `criterion.md` | 项目准则 — AI 必须遵守的工程约束（MUST / MUST NOT、SSoT 工具链与 Codegen） |
 | `context-manifest.json` | 元数据清单 — 追踪源文件 hash 和生成时间 |
-| `history/context-sync.jsonl` | 扁平同步/决策审计日志；默认不作为生成资产加载（首次 `context-update sync` 时创建） |
+| `history/context-sync.jsonl` | 扁平同步/决策审计日志；默认不作为生成资产加载（已创建，持续追加） |
 | `architecture/tech_stack.md` | 技术栈约束 (MUST/SHOULD) — ✅ 已生成 |
 | `architecture/system_design.md` | 系统设计总结 — ✅ 已生成 |
 | `domain/business_rules.md` | 业务逻辑规则 — ✅ 已生成 |

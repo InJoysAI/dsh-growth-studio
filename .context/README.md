@@ -3,7 +3,7 @@
 > **Metadata**
 > - **Source**: `docs/product_requirements.md`, `docs/development_plan.md`, `docs/technical_architecture.md`
 > - **Generated At**: `2026-10-15 20:23`
-> - **Updated At**: `2026-10-16 11:53`
+> - **Updated At**: `2026-10-16 14:42`
 > - **Generator**: `Context-Dev-Agent v1.0`
 
 > **用途**: 为 AI 代理提供 `dsh-growth-studio`（Growth Studio）项目的结构化上下文资产。
@@ -21,8 +21,12 @@
 | `domain/source/product_requirements.md` | PRD 源文档（只读，权威细节） |
 | `domain/source/development_plan.md` | 开发与落地计划源文档（只读，含实现基线状态矩阵） |
 | `architecture/source/technical_architecture.md` | 技术架构设计说明书源文档（只读，权威技术输入） |
+| `architecture/` | 架构总结 21 项（含 `README.md` 索引、`system_design.md`、`api_strategy.md`、`data_architecture.md`、`risks_and_debt.md`、8 份 ADR 等） |
+| `domain/` | 领域总结 8 项（含 `README.md` 索引、`business_rules.md`、`user_journeys.md`、`testing_strategy.md`、`risks_and_debt.md` 等） |
 | `openspec/integration.md` | OpenSpec 集成说明与 Context 资产索引（`CONTEXT_ASSET_INDEX`） |
-| `history/context-sync.jsonl` | 同步/决策审计日志（首次 `context-update sync` 时创建） |
+| `history/context-sync.jsonl` | 同步/决策审计日志（已创建，持续追加扁平事件） |
+
+> 上表为**入口级索引**；分域资产的完整清单以 `AGENTS.md` 的「核心文件」表与 `context-manifest.json#generated_files` 为准（architecture 21 / domain 8 / openspec 1）。
 
 ---
 

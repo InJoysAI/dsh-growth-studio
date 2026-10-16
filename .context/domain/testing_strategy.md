@@ -3,7 +3,7 @@
 > **Metadata**
 > - **Source**: `.context/domain/source/product_requirements.md`（PRD v1.2.0）、`.context/domain/source/development_plan.md`（验收条件）
 > - **Generated At**: `2026-10-16 09:00`
-> - **Updated At**: `2026-10-16 13:56`
+> - **Updated At**: `2026-10-16 14:42`
 > - **Generator**: `Context-Agent v1.0`
 
 ---
@@ -484,6 +484,8 @@ Then 界面应明确提示该能力不可用
 | TD-009 `ops_generate_review` 假文档编号 | 模块 8 场景 3「知识库未连通时沉淀不可用」 | **缺口（待实现）** |
 | TD-010 `calendar/` 与 `metrics/` 持久化契约未落地 | 模块 5 场景 6「历史不足时环比为空」（BR-052） | **缺口（待实现）** |
 | TD-011 错误码 `ops/not-found` 与 `ops/draft-not-found` 语义重复 | —（错误码契约层，无对应 BDD 场景） | **缺口**（非 BDD） |
+| TD-012 BrowserOS 动作白名单契约与实现不一致 | —（安全边界检查：宿主侧动作白名单校验；无对应 BDD 场景） | **缺口**（非 BDD / 待实现） |
+| TD-013 criterion 文件权限约束无实现落点 | —（工程检查：落盘文件 `0o600` / 目录 `0o700` 权限位；无对应 BDD 场景） | **缺口**（非 BDD / 待实现） |
 | PD-006 3 个工具未实现且未按名登记 | 模块 7 场景 1（BR-040） | **缺口（待实现）** |
 
 ---

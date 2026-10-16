@@ -3,7 +3,7 @@
 > **Metadata**
 > - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.3.0）
 > - **Generated At**: `2026-10-16 09:44`
-> - **Updated At**: `2026-10-16 12:44`
+> - **Updated At**: `2026-10-16 14:42`
 > - **Generator**: `Context-Agent v1.0`
 
 > ⚠️ **本文只记录源文档中有明确依据的风险与债务**。源文档未提供的字段标注 `N/A – 源文档未提供`，
@@ -315,6 +315,30 @@
 | **解决方案** | 按 criterion §6 SSoT-first：在契约提案中统一为**单一「未找到」码**（建议保留 `ops/not-found`，将 `workbench.prefillDraft` 的 `ops/draft-not-found` 并入），并同步 `api_strategy.md` §2.3、`cross_cutting_concepts.md` 与调用方；**不在资产侧擅自改契约或删码**。 |
 | **估算工作量** | N/A – 源文档未提供 |
 
+### TD-012: BrowserOS 动作白名单契约与实现不一致（**安全边界缺口**）
+
+| 属性 | 值 |
+|------|-----|
+| **类型** | 安全契约债务 / 实现债务 |
+| **严重性** | **高** |
+| **描述** | criterion §4「最小权限」声明 BrowserOS 驱动**仅允许** `tabs / navigate / snapshot / act` 白名单动作、禁用 shell/cmd（`criterion.md` §4），且该断言在 `security_policy.md`、`constraints.md`、`context_view.md`、`system_design.md`、`container_component_view.md`（组件表与容器图两处）、`risks_and_debt.md` RISK-002 缓解措施中共约 8 处复述。实现侧：`src/browser/browseros-bridge.ts` 的 `EXPECTED_TOOLS = ['tabs','navigate','snapshot','act','read','grep','wait']`（比白名单多 3 个），`src/browser/browser-driver.ts` 调用 `upload`，`src/browser/browseros-ops.ts` 调用 `read` / `wait`；`src/` 内**无任何动作白名单校验实现**（`grep 白名单/whitelist/allowedTools` 为空）。 |
+| **影响** | 最小权限边界在文档层是"封闭白名单"、实现层是开放集合：AI 按 criterion 实施会误判既有能力合法，安全审查也无法据此定位越界动作。 |
+| **目标解决时间** | N/A – 源文档未提供 |
+| **解决方案** | 按 criterion §6 / §7.1 SSoT-first，**同轮定稿**：① 改 criterion §4 权威口径（确认 `read`/`grep`/`wait`/`upload` 是否纳入允许集，还是收紧为仅四动作）；② 对齐 `browseros-bridge.ts` 的 `EXPECTED_TOOLS` 与 `browser-driver.ts` / `browseros-ops.ts` 调用点，并补宿主侧白名单校验；③ 同步上述 8 处复述文案。⛔ **不得只改资产文案**（会造成文档-实现继续分叉）。 |
+| **估算工作量** | N/A – 源文档未提供 |
+
+### TD-013: criterion 文件权限约束无实现落点
+
+| 属性 | 值 |
+|------|-----|
+| **类型** | 实现债务 |
+| **严重性** | 中 |
+| **描述** | criterion §3.5 MUST 声明「系统文件权限仅限当前操作系统用户」（`criterion.md` §3.5），但 `src/storage/draft-store.ts` 与 `src/config-store.ts` 的 `writeFileSync` / `mkdirSync` 均未传 `mode`（`grep -rn "mode:" src/` 为空），实际权限取决于进程 umask。 |
+| **影响** | 多用户主机上草稿与配置（含 Injoys 令牌）可能对同机其他用户可读，与 MUST 声明不符。 |
+| **目标解决时间** | N/A – 源文档未提供 |
+| **解决方案** | 补实现：草稿 / 配置文件写入显式 `mode: 0o600`、目录 `0o700`（或在统一落盘封装内集中设定），并补权限位断言测试。属实现变更，须走提案。 |
+| **估算工作量** | N/A – 源文档未提供 |
+
 > ⚠️ 本文档**只记录债务，不在架构资产内修改实现**。生成资产已忠实于源文档契约；
 > 修复须由实现侧按 criterion §6 的顺序完成。
 
@@ -347,6 +371,8 @@
 | TD-009 | 技术债 | `ops_generate_review` 以字面量 `doc_review` 冒充文档编号（**虚报成功**） | **高** | N/A | **待处理（优先）** | 2026-10-16 |
 | TD-010 | 技术债 | `calendar/` 与 `metrics/` 持久化契约未落地 | 中 | N/A | 待处理 | 2026-10-16 |
 | TD-011 | 技术债 | 错误码 `ops/not-found` 与 `ops/draft-not-found` 语义重复 | 低 | N/A | 待处理 | 2026-10-16 |
+| TD-012 | 技术债 | BrowserOS 动作白名单契约与实现不一致（安全边界缺口） | 高 | N/A | 待处理 | 2026-10-16 |
+| TD-013 | 技术债 | criterion 文件权限约束无实现落点 | 中 | N/A | 待处理 | 2026-10-16 |
 
 ---
 

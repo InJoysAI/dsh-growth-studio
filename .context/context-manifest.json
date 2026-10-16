@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generated_at": "2026-10-16T14:04:00+08:00",
+  "generated_at": "2026-10-16T14:42:00+08:00",
   "generator": "Context-Agent v1.0",
   "generation_pipeline": {
     "root_assets": "Context-Dev-Agent v1.0",
@@ -93,14 +93,20 @@
     "ordering": "ascending_by_synced_at"
   },
   "last_context_sync": {
-    "synced_at": "2026-10-16T14:04:00+08:00",
-    "source": "评审措辞修正：api_strategy.md 来源说明由「重生成必然回退」改为「存在再次遗漏风险」",
-    "workflow": "context-update (user-authorized wording fix)",
-    "authority": "用户裁定：重生成不必然回退，措辞过强；仅改资产文案，不改源文档与实现代码",
+    "synced_at": "2026-10-16T14:42:00+08:00",
+    "source": "context-check review core 评审（PASS Conditional）修复轮：P1-1 登记 TD-012、P1-2 重生成根 AGENTS.md 摘要、P2-1~P2-5 修复；未改源文档与实现代码",
+    "workflow": "context-update (user-authorized review fix)",
+    "authority": "用户指令修复评审项；不改 *.source/*、openspec/config.yaml、design/context-dev 与实现代码；P1-1 契约与实现收敛、TD-012/TD-013 实现整改须走 SSoT-first 提案（当前受 openspec/config.yaml + proposal-roadmap.md 缺失阻塞）",
     "mode": "apply",
     "updated_context_files": [
-      ".context/architecture/api_strategy.md",
-      ".context/context-manifest.json"
+      ".context/AGENTS.md",
+      ".context/README.md",
+      ".context/architecture/README.md",
+      ".context/architecture/risks_and_debt.md",
+      ".context/context-manifest.json",
+      ".context/criterion.md",
+      ".context/domain/testing_strategy.md",
+      "AGENTS.md"
     ],
     "history_path": ".context/history/context-sync.jsonl"
   }

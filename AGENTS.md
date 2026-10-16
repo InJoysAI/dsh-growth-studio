@@ -15,23 +15,25 @@
 
 ### 关键禁止项（摘自 `.context/criterion.md`，仅为提醒，**以 criterion.md 为准**）
 
-1. 严禁任何自动点击最终确认发布的行为，`ops_publish_now` 已彻底移除，不得以任何形式重新引入。（criterion §4）
-2. 预填止步于平台原生「保存为草稿」，严禁自动确认发布。（criterion §4）
-3. `published` 只能经 `drafts.updatePublishUrl` 回填合法 http(s) URL（须用 URL 解析器校验）后写入；`drafts.save` 必须拒绝 `published` 且忽略传入的 `publishedUrls`；多渠道草稿仅在全部渠道回填有效 URL 后才整体 `published`，渠道集合变化须重算状态；回填渠道必须属于该草稿。（criterion §4）
-4. 禁止将会话数据（Cookie）向任何第三方服务上报，会话在本地沙箱运行。（criterion §4）
-5. 采集失败或平台不支持的指标必须为 `null`，不得按 0 或估算值伪造填充；应采平台未全部成功时汇总值为 `null`，真实零值 `0` 与缺失严格区分。（criterion §4）
-6. 禁止硬编码密钥 / 令牌 / 敏感配置，令牌仅允许来自用户配置或环境变量回退，日志必须脱敏。（criterion §4）
-7. 宿主侧禁止内置全局通用 Master Key 或任何形式的通用凭据。（criterion §3.2）
+1. 严禁自动确认发布。`ops_publish_now` 已从工具白名单、RPC 端点与文档中彻底移除，不得以任何形式重新引入。（criterion §3.2、§4）
+2. 禁止将会话数据（Cookie）向任何第三方服务上报。（criterion §4）
+3. 禁止硬编码 Injoys Token、BrowserOS 凭证或任何敏感配置。（criterion §3.1、§4）
+4. 宿主侧禁止内置全局通用 Master Key 或任何形式的通用凭据。（criterion §3.2）
+5. BrowserOS 驱动禁用 shell / cmd。（criterion §4）
+6. 禁止将敏感策略 / 令牌下发到客户端。（criterion §3.4）
+7. 客户端禁止绕过 `callOpsRpc` 直连 Injoys / BrowserOS MCP 或任何外部服务。（criterion §3.1）
 8. 禁止虚报成功（无客户端或执行失败时严禁返回成功）。（criterion §3.2）
-9. 客户端禁止绕过 `callOpsRpc` 直连 Injoys、BrowserOS 或任何外部服务。（criterion §3.1）
-10. 客户端禁止硬编码色值，必须使用 DSH 设计令牌 `var(--dsw-alias-*)`。（criterion §3.1）
-11. 禁止绕过 `config-store` / `draft-store` 模块直接操作配置文件或草稿文件。（criterion §3.5）
-12. 草稿目录须在单次操作内固定（含跨 `await` 的复合 RPC，不得中途重新解析）；写入前须准备**并验证可写**；存储失败统一返回 `drafts/storage-unavailable`；`config.save` 改目录须先校验，不得先报成功后由 `drafts.save` 报 ENOENT。（criterion §3.2/§3.5）
-13. 禁止让测试写入开发者真实 `$DSH_HOME`（`ConfigStore` 会回退到真实主目录）：隔离须在测试文件**被导入/收集前**生效（模块作用域赋值，不得放 `beforeAll`——否则 describe 捕获的未隔离值会被 `afterEach` 恢复）。每个写配置的用例使用独立 `DSH_HOME` 或显式 `profileContext.home`。（criterion §3.5）
-14. Phase 0 禁止引入 WebSocket / SSE 持久连接或后台定时轮询；刷新由用户手动触发、局部替换并做并发去重。（criterion §3.4）
-15. 内容生成只保存本地；写入 Injoys 文档须用户明确触发，生成、预览、保存及自动同步配置不构成上传授权。MVP 不提供草稿历史查看、恢复或版本快照，`version` / `expectedVersion` 仅用于并发控制；指标历史保留。（criterion §3.5/§4）
+9. 禁止伪造 / 硬编码指标数据（无法获取的字段必须为 `null`）。（criterion §3.2）
+10. 禁止绕过 `config-store` / `draft-store` 模块直接操作配置文件或草稿文件。（criterion §3.5）
+11. 禁止在无锁情况下并发回写同一草稿文件。（criterion §3.5）
+12. 禁止在单次操作中途重新解析 `draftsDir`。（criterion §3.5）
+13. 禁止先让 `config.save` 报告成功、再由后续 `drafts.save` 以 `ENOENT` 失败。（criterion §3.5）
+14. 禁止让测试写入开发者真实 `$DSH_HOME`。（criterion §3.5）
+15. 禁止用宽松正则（回填 URL 的合法性须用 URL 解析器校验）。（criterion §4）
 
-> 本节共列 15 条；另有 6 条禁止项未在此列出（**统计范围限 criterion 的 `MUST NOT` 条目，及「安全约束」等章节中文写作「禁止 / 严禁 / 铁律」的条款**）：§3.1 在客户端承载核心业务规则；§3.3 包含业务黑盒逻辑或本地伪造数据；§3.4 引入外部常驻服务端或额外网络监听端口、将敏感策略 / 令牌下发到客户端；§3.5 在无锁情况下并发回写同一草稿文件；§4 禁用 shell / cmd。完整约束以 criterion.md 为准。
+> 另有 5 条禁止项未在此列出，见 criterion §3.1、§3.3、§3.4：在客户端承载核心业务规则；硬编码色值；包含业务黑盒逻辑或本地伪造数据；引入外部常驻服务端或额外网络监听端口；在 Phase 0 引入 WebSocket / SSE 持久连接或后台定时轮询。
+>
+> 计数口径（可复现）：§3.1–§3.5 的 `MUST NOT` bullet 共 **18** 条；§4 安全约束中含「禁止 / 严禁 / 禁用 / 铁律」措辞的 bullet 共 **5** 条（密钥硬编码、禁用 shell/cmd、Cookie 零外发、严禁自动发布、禁止宽松正则）；跨章节重复的 3 条按「保留更完整表述、来源写全」合并（§3.1↔§4 硬编码凭证、§3.1↔§3.3 硬编码色值、§3.2↔§4 自动发布），去重后合计 **20** 条，按「安全 / 不可逆 / 数据损失优先，其余按出现顺序」取前 15 条。
 
 > 本节由工具根据 `criterion.md` 自动生成/刷新，不要手工修改；完整约束见 `.context/criterion.md`。
 

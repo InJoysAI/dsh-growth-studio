@@ -3,7 +3,7 @@
 > **Metadata**
 > - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.3.0）
 > - **Generated At**: `2026-10-16 09:44`
-> - **Updated At**: `2026-10-16 12:44`
+> - **Updated At**: `2026-10-16 14:42`
 > - **Generator**: `Context-Agent v1.0`
 
 ---
@@ -51,7 +51,7 @@
 | 文件 | 用途 |
 |------|------|
 | `constraints.md` | **约束条件** —— 技术/组织/合规约束、技术标准、SSoT 契约先行、**四条架构铁律**与"绝对禁止的技术引入"清单 |
-| `risks_and_debt.md` | **技术风险与技术债务** —— 12 条风险（含风险矩阵与缓解措施）、11 项技术债（含 TD-007「`workbench.overview` 未实现部分缺失汇总语义」、TD-008「生成路径未授权写入 Injoys 文档」、TD-009「`ops_generate_review` 假文档编号」等高严重性条目）、追踪看板 |
+| `risks_and_debt.md` | **技术风险与技术债务** —— 12 条风险（含风险矩阵与缓解措施）、13 项技术债（含 TD-007「`workbench.overview` 未实现部分缺失汇总语义」、TD-008「生成路径未授权写入 Injoys 文档」、TD-009「`ops_generate_review` 假文档编号」、TD-012「BrowserOS 动作白名单契约与实现不一致」等高严重性条目）、追踪看板 |
 | `introduction_and_goals.md` | **介绍与目标** —— 业务驱动力、Top 5 质量目标与取舍取向、6 个质量场景、利益相关者矩阵、阶段范围 |
 
 ### 架构决策记录 (ADR)
