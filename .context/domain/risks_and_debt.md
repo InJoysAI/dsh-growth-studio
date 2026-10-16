@@ -207,7 +207,9 @@
 
 ## 🔗 相关文档
 
-- **技术风险/技术债务** → [architecture/risks_and_debt.md](../architecture/risks_and_debt.md)（尚未生成）
+- **技术风险/技术债务** → [architecture/risks_and_debt.md](../architecture/risks_and_debt.md)（**按需生成，当前不存在**）
+  - 说明：该文件**不在** `context-manifest.json#pending_generation` 中，属 `.context/architecture/README.md` 定义的"按需生成"资产（见其文件表），待运行 `.agent/workflows/context-openspec.md architecture` 时由 Phase 0 判定是否生成。
+  - 在生成之前，技术实现层面的风险与债务以 [criterion.md](../criterion.md) 为准。
 - **测试与 Live 验收要求** → [testing_strategy.md](./testing_strategy.md)
 
 ---
