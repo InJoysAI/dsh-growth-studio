@@ -83,6 +83,13 @@ context: |
   - Persistence: atomic write (temp file + `rename`) + serial write lock keyed by absolute file path
     + `version`/`expectedVersion` optimistic locking; directory is captured at request start and fixed
     for the whole operation (including every write inside a cross-`await` composite RPC).
+  - Directory hot-switch semantics: the fixed-directory behavior is DETERMINISTIC, not an anomaly —
+    do NOT introduce a `dirChangedDuringSave`-style warning flag. The config-page switch notice must
+    state all three facts: the new directory applies to subsequent operations; an in-progress save
+    still writes to the original directory; old drafts are NOT auto-migrated.
+  - State invariant & lock: the multi-channel publish invariant (channel-set changes recompute
+    `prefilled` / `published`) must be maintained within the SAME write lock as the write that changes
+    the channel set (see iron law 2).
   - MVP draft storage: keep only the current `{id}.json`; `version` is for concurrency control only —
     no snapshots, no history list/restore methods.
   - Session/metrics/prefill share ONE BrowserOS MCP instance. Refresh is manual-trigger + local state
@@ -263,7 +270,7 @@ context: |
 rules:
   proposal:
     - State which BR-XXX / criterion constraint / ADR the change derives from, and include asset paths.
-    - Keep proposals atomic (one module or functional point); split large features into several atomic proposals scoped to 1–3 days.
+    - Keep proposals atomic (one module or functional point); split large features into several atomic proposals.
     - Explicitly mark compliance with the four architecture iron laws; any proposal touching publish, status, metrics aggregation, storage or session must state how it preserves them.
     - Produce acceptance criteria in Given/When/Then (Gherkin) form, traceable to source rules.
     - Do NOT propose reintroducing `ops_publish_now` / auto-publish, DB/ORM, WebSocket/SSE/polling, a standalone server, or multi-product data isolation.
