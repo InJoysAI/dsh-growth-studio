@@ -89,8 +89,9 @@
   "last_openspec_project": {
     "path": "openspec/config.yaml",
     "context_sha256": "20d4b16abcf8f36b9194d80f9cadc1710938c153822c36800304fdeed11d0715",
-    "generated_at": "2026-10-16T17:39:34+08:00",
-    "workflow": "context-openspec project"
+    "config_sha256": "4c85a65ee85430ade733181e0cc056d180058eb925026a371e63fc14a4cabdfb",
+    "generated_at": "2026-10-16T18:08:51+08:00",
+    "workflow": ".agent/workflows/context-openspec.md project"
   },
   "context_sync_history": {
     "path": ".context/history/context-sync.jsonl",
