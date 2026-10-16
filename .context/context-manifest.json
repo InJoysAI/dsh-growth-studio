@@ -78,14 +78,16 @@
     "ui": [],
     "legacy": [],
     "openspec": [
-      ".context/openspec/integration.md"
+      ".context/openspec/integration.md",
+      "openspec/proposal-roadmap.md",
+      "openspec/proposal-roadmap-Phase-0.md",
+      "openspec/proposal-roadmap-Phase-1.md",
+      "openspec/proposal-roadmap-Phase-2.md",
+      "openspec/proposal-roadmap-Phase-3.md",
+      "openspec/proposal-roadmap-Phase-4.md"
     ]
   },
-  "pending_generation": {
-    "openspec": [
-      "openspec/proposal-roadmap.md"
-    ]
-  },
+  "pending_generation": {},
   "last_openspec_project": {
     "path": "openspec/config.yaml",
     "context_sha256": "20d4b16abcf8f36b9194d80f9cadc1710938c153822c36800304fdeed11d0715",
