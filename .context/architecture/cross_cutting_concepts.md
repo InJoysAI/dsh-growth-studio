@@ -3,7 +3,7 @@
 > **Metadata**
 > - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.3.0 §3.9、§5.5、§六）
 > - **Generated At**: `2026-10-16 09:44`
-> - **Updated At**: `2026-10-16 11:05`
+> - **Updated At**: `2026-10-16 11:53`
 > - **Generator**: `Context-Agent v1.0`
 
 > 源文档未定义完整的可观测性体系（无 Prometheus / Jaeger / 日志级别规范）。
@@ -40,6 +40,16 @@ interface RpcEnvelopeResponse<T = unknown> {
 | `config/invalid-drafts-dir` | 前置目录校验失败 | 配置服务（**单独使用**） |
 | `calendar/invalid-transition` | 越级 / 回退 / 写 `published` | 排期服务 |
 | `tools/disabled` | 工具被白名单禁用 | 工具沙箱 |
+| `ops/unknown-method` | 方法名未登记 | 方法路由 |
+| `ops/not-found` | 按 ID 未找到草稿 | `drafts.get` |
+| `ops/concurrency-conflict` | 乐观锁版本冲突 | `drafts.save` |
+| `ops/draft-not-found` | 指定草稿不存在 | `workbench.prefillDraft` |
+| `ops/platform-unsupported` | 指定平台无适配器 | `workbench.prefillDraft` |
+| `ops/variant-not-found` | 草稿缺少该平台变体 | `workbench.prefillDraft` |
+| `ops/material-incomplete` | 变体缺少必要物料 | `workbench.prefillDraft` |
+| `ops/prefill-failed` | 平台适配器预填执行失败 | `workbench.prefillDraft` |
+
+> 后 8 个为当前实现基线（`src/ops-rpc.ts`）已抛出、原清单遗漏的错误码；`calendar/invalid-transition` / `tools/disabled` 为尚未实现方法的契约预留码。完整口径见 `api_strategy.md` §2.3。
 
 ### ⚠️ 统一错误边界的强制要求（关键设计）
 

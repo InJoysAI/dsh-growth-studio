@@ -3,7 +3,7 @@
 > **Metadata**
 > - **Source**: `docs/product_requirements.md`, `docs/development_plan.md`, `docs/technical_architecture.md`
 > - **Generated At**: `2026-10-15 20:23`
-> - **Updated At**: `2026-10-16 11:05`
+> - **Updated At**: `2026-10-16 11:53`
 > - **Generator**: `Context-Dev-Agent v1.0`
 
 > **用途**: 为 AI 代理提供 `dsh-growth-studio`（Growth Studio）项目的结构化上下文资产。
@@ -21,6 +21,7 @@
 | `domain/source/product_requirements.md` | PRD 源文档（只读，权威细节） |
 | `domain/source/development_plan.md` | 开发与落地计划源文档（只读，含实现基线状态矩阵） |
 | `architecture/source/technical_architecture.md` | 技术架构设计说明书源文档（只读，权威技术输入） |
+| `openspec/integration.md` | OpenSpec 集成说明与 Context 资产索引（`CONTEXT_ASSET_INDEX`） |
 | `history/context-sync.jsonl` | 同步/决策审计日志（首次 `context-update sync` 时创建） |
 
 ---

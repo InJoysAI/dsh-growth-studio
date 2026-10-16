@@ -3,7 +3,7 @@
 > **Metadata**
 > - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.3.0 §1.1、§2、§3）
 > - **Generated At**: `2026-10-16 09:44`
-> - **Updated At**: `2026-10-16 11:05`
+> - **Updated At**: `2026-10-16 11:53`
 > - **Generator**: `Context-Agent v1.0`
 
 > ⚠️ 本项目的「容器」不是 Docker 容器，而是 **C4 语义下的运行时单元**（客户端 / 宿主进程 / 外部服务 / 本地存储）。
@@ -54,7 +54,7 @@ C4Container
 
 | 容器 | 技术栈 | 职责 | 位置 |
 |------|--------|------|------|
-| **Ops Workbench** | React 18 + JS ESM + esbuild | 6 大 Tab：驾驶舱 / 排期日历 / 创作室 / AI工具中枢 / 舆情复盘 / 引擎配置；多平台 Feed 模拟器 | `plugin-src/client/` |
+| **Ops Workbench** | React 18 + JS ESM + esbuild | 6 大 Tab：运营驾驶舱 / 排期日历流水 / 内容创作室 / AI工具中枢 / 舆情需求大盘 / 引擎策略配置；多平台 Feed 模拟器 | `plugin-src/client/` |
 | **宿主 RPC 网关** | Node.js / TypeScript | `POST /api/ops`；信封校验（`Content-Type` / `type` / `method` / `payload`）；方法路由；**统一错误边界** | `src/ops-rpc.ts` |
 | **业务领域服务层** | Node.js / TypeScript + Cordis 4.x | 领域逻辑；平台分支**禁止**出现在此层 | `src/` |
 | **平台适配器层** | TypeScript | 按平台解耦（8 个已注册适配器） | `src/adapters/` |

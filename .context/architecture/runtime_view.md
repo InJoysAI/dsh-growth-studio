@@ -3,7 +3,7 @@
 > **Metadata**
 > - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.3.0 §3、§4.2、§5）
 > - **Generated At**: `2026-10-16 09:44`
-> - **Updated At**: `2026-10-16 11:05`
+> - **Updated At**: `2026-10-16 12:06`
 > - **Generator**: `Context-Agent v1.0`
 
 ---
@@ -341,7 +341,7 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     autonumber
-    participant U as 用户（引擎配置页）
+    participant U as 用户（引擎策略配置页）
     participant WB as Workbench UI
     participant RPC as 宿主 RPC 网关
     participant CS as ConfigStore

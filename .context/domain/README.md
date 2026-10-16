@@ -3,7 +3,7 @@
 > **Metadata**
 > - **Source**: `.context/domain/source/product_requirements.md`（PRD v1.2.0）、`.context/domain/source/development_plan.md`
 > - **Generated At**: `2026-10-16 09:00`
-> - **Updated At**: `2026-10-16 11:05`
+> - **Updated At**: `2026-10-16 11:53`
 > - **Generator**: `Context-Agent v1.0`
 
 ---
@@ -39,7 +39,7 @@
 | [`user_journeys.md`](./user_journeys.md) | 5 条核心用户旅程（晨会巡检 / 选题排期 / 内容创作 / 预填发布 / 舆情复盘）、3 个用户画像、异常流程、客户旅程地图 | PRD §3 |
 | [`market_insights.md`](./market_insights.md) | 商业价值陈述、目标与成功度量、用户画像、竞品对标、价值主张 | PRD §2、§3.1、§7 |
 | [`testing_strategy.md`](./testing_strategy.md) | 8 大模块 BDD 验收场景（含工具中枢与沙箱、热点采用与知识沉淀）、覆盖要求、性能目标、安全合规验收、UAT 流程与 Phase 0 Live 实测清单 | PRD §5、§7；开发计划 §三 |
-| [`risks_and_debt.md`](./risks_and_debt.md) | 业务/项目风险 5 项（RISK-B001~B005）、内外依赖、项目债务 5 项（PD-001~005） | PRD §5、§7；开发计划 §二 |
+| [`risks_and_debt.md`](./risks_and_debt.md) | 业务/项目风险 5 项（RISK-B001~B005）、内外依赖、项目债务 6 项（PD-001~006） | PRD §5、§7；开发计划 §二 |
 | [`data_strategy.md`](./data_strategy.md) | 平台指标清单、公共信息、数据治理、核心指标口径定义、数据质量要求、里程碑 | PRD §5.1.2、§5.3.2、§5.6 |
 | [`edge_cases.md`](./edge_cases.md) | 用户视角异常场景：AI 生成、平台会话、草稿预填、指标数据、网络、多端并发、界面状态文案 | PRD §5、§6 |
 
@@ -87,7 +87,7 @@
 ## 相关文档
 
 - 项目准则（技术约束权威来源）→ [`../criterion.md`](../criterion.md)
-- 架构总结 → [`../architecture/`](../architecture/)（部分待生成）
+- 架构总结 → [`../architecture/`](../architecture/)（**已生成**）
 - 资产清单与生成状态 → [`../context-manifest.json`](../context-manifest.json)
 
-> 是否生成见 `../context-manifest.json` 的 `generated_files.domain` 与 `pending_generation.domain`。
+> 是否生成见 `../context-manifest.json` 的 `generated_files.domain`（当前 8 项）与 `generated_files.architecture`（当前 21 项）。

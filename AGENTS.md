@@ -16,7 +16,7 @@
 ### 关键禁止项（摘自 `.context/criterion.md`，仅为提醒，**以 criterion.md 为准**）
 
 1. 严禁任何自动点击最终确认发布的行为，`ops_publish_now` 已彻底移除，不得以任何形式重新引入。（criterion §4）
-2. 预填止步于平台原生「保存为草稿」，不得触发或越过正式发布步骤。（criterion §4）
+2. 预填止步于平台原生「保存为草稿」，严禁自动确认发布。（criterion §4）
 3. `published` 只能经 `drafts.updatePublishUrl` 回填合法 http(s) URL（须用 URL 解析器校验）后写入；`drafts.save` 必须拒绝 `published` 且忽略传入的 `publishedUrls`；多渠道草稿仅在全部渠道回填有效 URL 后才整体 `published`，渠道集合变化须重算状态；回填渠道必须属于该草稿。（criterion §4）
 4. 禁止将会话数据（Cookie）向任何第三方服务上报，会话在本地沙箱运行。（criterion §4）
 5. 采集失败或平台不支持的指标必须为 `null`，不得按 0 或估算值伪造填充；应采平台未全部成功时汇总值为 `null`，真实零值 `0` 与缺失严格区分。（criterion §4）
@@ -30,6 +30,8 @@
 13. 禁止让测试写入开发者真实 `$DSH_HOME`（`ConfigStore` 会回退到真实主目录）：隔离须在测试文件**被导入/收集前**生效（模块作用域赋值，不得放 `beforeAll`——否则 describe 捕获的未隔离值会被 `afterEach` 恢复）。每个写配置的用例使用独立 `DSH_HOME` 或显式 `profileContext.home`。（criterion §3.5）
 14. Phase 0 禁止引入 WebSocket / SSE 持久连接或后台定时轮询；刷新由用户手动触发、局部替换并做并发去重。（criterion §3.4）
 15. 内容生成只保存本地；写入 Injoys 文档须用户明确触发，生成、预览、保存及自动同步配置不构成上传授权。MVP 不提供草稿历史查看、恢复或版本快照，`version` / `expectedVersion` 仅用于并发控制；指标历史保留。（criterion §3.5/§4）
+
+> 本节共列 15 条；另有 6 条禁止项未在此列出（**统计范围限 criterion 的 `MUST NOT` 条目，及「安全约束」等章节中文写作「禁止 / 严禁 / 铁律」的条款**）：§3.1 在客户端承载核心业务规则；§3.3 包含业务黑盒逻辑或本地伪造数据；§3.4 引入外部常驻服务端或额外网络监听端口、将敏感策略 / 令牌下发到客户端；§3.5 在无锁情况下并发回写同一草稿文件；§4 禁用 shell / cmd。完整约束以 criterion.md 为准。
 
 > 本节由工具根据 `criterion.md` 自动生成/刷新，不要手工修改；完整约束见 `.context/criterion.md`。
 

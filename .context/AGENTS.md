@@ -3,7 +3,7 @@
 > **Metadata**
 > - **Source**: `design/context-dev/templates/context-agents.md.template`
 > - **Generated At**: `2026-10-15 20:23`
-> - **Updated At**: `2026-10-16 11:05`
+> - **Updated At**: `2026-10-16 11:53`
 > - **Generator**: `Context-Dev-Agent v1.0`
 
 ---
@@ -128,3 +128,4 @@
 | `.agent/workflows/context-openspec.md proposal <change-id> [roadmap-doc]` | 生成变更提案（可显式指定提案大纲/路线图文件） |
 | `.agent/workflows/context-start.md` | 基于提案开始开发 |
 | `.agent/workflows/context-update.md` | 增量更新 context |
+| `.agent/workflows/context-interview.md` | 交互式访谈以补全源文档信息 |

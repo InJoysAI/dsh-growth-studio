@@ -3,7 +3,7 @@
 > **Metadata**
 > - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.3.0）
 > - **Generated At**: `2026-10-16 09:44`
-> - **Updated At**: `2026-10-16 11:05`
+> - **Updated At**: `2026-10-16 11:53`
 > - **Generator**: `Context-Agent v1.0`
 
 > ⚠️ 本文为源文档的**结构化总结**。若与 `.context/architecture/source/` 冲突，**以源文档为准**。
@@ -94,7 +94,7 @@ C4Context
 | 层 | 组件 | 职责 | 阶段 |
 |----|------|------|:----:|
 | **客户端视图层** | Settings 导航注入 + Megaphone 图标 | 在 `settings.section` 槽位（`id: 'ops'`, `order: 60`）挂载工作台 | Phase 0 |
-| | Ops Workbench（React 18） | 6 大 Tab：驾驶舱 / 排期日历 / 创作室 / AI工具中枢 / 舆情复盘 / 引擎配置 | Phase 0 |
+| | Ops Workbench（React 18） | 6 大 Tab：运营驾驶舱 / 排期日历流水 / 内容创作室 / AI工具中枢 / 舆情需求大盘 / 引擎策略配置 | Phase 0 |
 | | 多平台 Feed 模拟器 | 公众号 / 视频元数据 / 推文串 / Product Hunt 预览 | Phase 0 |
 | **RPC 网关层** | HTTP `POST /api/ops` + 信封序列化器 + 方法路由器 | 统一信封入出站、方法分发、**统一错误边界** | Phase 0 |
 | **业务领域服务层** | `WorkbenchAggregator` | 工作台总览聚合（指标 + 会话 + 排期 + 舆情） | Phase 0 |

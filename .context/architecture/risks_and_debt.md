@@ -3,7 +3,7 @@
 > **Metadata**
 > - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.3.0）
 > - **Generated At**: `2026-10-16 09:44`
-> - **Updated At**: `2026-10-16 11:05`
+> - **Updated At**: `2026-10-16 12:44`
 > - **Generator**: `Context-Agent v1.0`
 
 > ⚠️ **本文只记录源文档中有明确依据的风险与债务**。源文档未提供的字段标注 `N/A – 源文档未提供`，
@@ -267,6 +267,54 @@
 | **解决方案** | 严格按 **SSoT-first**：① 先补 `src/types.ts`（含 `windowStart` / `windowEnd` 与汇总字段，见 `data_architecture.md` 的 `PlatformMetrics` 注）；② 再补 `src/ops-rpc.ts` 的类型与方法契约；③ 在 `src/analytics/` 实现汇总判定（`measuredPlatforms == P` 才给数字，否则 `null`）；④ 补测试覆盖「部分缺失 → `null`」与「真实 0 参与求和」两条用例。 |
 | **估算工作量** | N/A – 源文档未提供 |
 
+### TD-008: 生成路径未授权写入 Injoys 文档（**越过内容写入边界**）
+
+| 属性 | 值 |
+|------|-----|
+| **类型** | 契约债务 / 实现债务 |
+| **严重性** | **高** |
+| **描述** | criterion §4「内容写入边界」与架构 §3.4 / §3.5.1 规定：生成只保存本地，写入 Injoys 文档必须由用户点击沉淀操作或明确要求（唯一授权入口为 `workbench.sinkToInjoysDoc`，尚未实现，见 TD-001）。但 `src/ops-rpc.ts` 的 `workbench.generateArticleDraft`、`src/tools/index.ts` 的 `ops_draft_article` / `ops_draft_video_meta`、`src/analytics/review-reporter.ts` 经 `InjoysClient.saveArticleDocument` / `saveVideoDocument` / `saveReviewDocument` 在**生成/复盘阶段无条件**调用 `document.create` 写入 Injoys，无任何「用户显式触发」前置判定。 |
+| **影响** | 在用户未授权时即把物料写入其 Injoys 空间，越过 criterion §4 的内容写入边界；`api_strategy.md` 的 MVP 裁决说明已标注「本轮未改代码，尚未核查运行时是否已对齐」，即契约已声明、实现尚未完成核查闭环。 |
+| **目标解决时间** | N/A – 源文档未提供（建议按 SSoT-first 提案优先处理） |
+| **解决方案** | 按 criterion §6 顺序：① 先补齐 `workbench.sinkToInjoysDoc` 契约与实现，作为**唯一**的用户显式沉淀入口；② 从生成 / 复盘路径移除无条件的 `document.create` 调用；③ 同步修正 `src/tools/index.ts` 中与契约相悖的工具描述文案；④ 补测试覆盖「未显式触发时不写远端」。 |
+| **估算工作量** | N/A – 源文档未提供 |
+
+### TD-009: `ops_generate_review` 以字面量 `doc_review` 冒充文档编号（**虚报成功**）
+
+| 属性 | 值 |
+|------|-----|
+| **类型** | 契约债务 / 实现债务 |
+| **严重性** | **高** |
+| **描述** | criterion §3.2「虚报成功（无客户端或执行失败时严禁返回成功）」与架构 §3.5.1「不得谎报成功，也不得静默写本地假 ID」。`src/injoys/client.ts` 的 `saveReviewDocument` 在失败 / 未配置时 `catch` 后返回 `null`；但 `src/tools/index.ts` 的 `ops_generate_review` 以 `report.injoysDocId ?? 'doc_review'` 回退为字面量假编号，并经 `output.schema` 将 `injoysDocId` 声明为 `required` 字符串，最终渲染进用户可见文案。 |
+| **影响** | 知识库未连通或写入失败时，向用户与 AI 会话播报一个不存在的文档编号，调用方无法区分「已沉淀」与「未沉淀」；`domain/testing_strategy.md` 模块 8 场景 3「知识库未连通时……不得显示『沉淀成功』」在实现侧必然失败。 |
+| **解决方案** | 按 criterion §6：① 将 `injoysDocId` 改为可空并取消 `required`；② 失败时如实返回未沉淀状态或抛错，不得回退占位编号；③ 补测试覆盖「知识库未连通时不得返回成功文档编号」。 |
+| **目标解决时间** | N/A – 源文档未提供 |
+| **估算工作量** | N/A – 源文档未提供 |
+
+### TD-010: `calendar/` 与 `metrics/` 持久化契约未落地
+
+| 属性 | 值 |
+|------|-----|
+| **类型** | 文档债务 / 实现债务 |
+| **严重性** | 中 |
+| **描述** | `data_architecture.md`、`system_design.md`、`tech_stack.md` 声明 `$DSH_HOME/growth-studio/calendar/{id}.json`（排期黄金主数据源）与 `metrics/{YYYY-MM-DD}.json`（指标历史快照，按 `(platform, capturedAt)` 追加）；criterion §4 亦以 `metrics/` 作为环比基准的权威口径。但当前实现只有 `src/storage/draft-store.ts` 与 `src/config-store.ts` 执行落盘，`src/` 下没有任何 `metrics` / `calendar` 目录的读写实现。 |
+| **影响** | 排期主数据与指标历史均无持久化，criterion §4「历史不足以覆盖完整对比窗口时 delta 必须为 null」因目录不存在而恒成立；读者据架构资产会误以为指标历史已落盘。 |
+| **目标解决时间** | N/A – 源文档未提供 |
+| **解决方案** | 按 criterion §6 先补契约 / 类型，再实现 `calendar` / `metrics` 存储服务；`data_architecture.md` 的「仍保留」措辞宜补实现状态提示，与同类处理保持一致。 |
+| **估算工作量** | N/A – 源文档未提供 |
+
+### TD-011: 错误码 `ops/not-found` 与 `ops/draft-not-found` 语义重复
+
+| 属性 | 值 |
+|------|-----|
+| **类型** | 契约债务 / 代码债务 |
+| **严重性** | 低 |
+| **描述** | 同一语义「草稿不存在」存在两个错误码：`src/ops-rpc.ts` 的 `drafts.get` 抛 `ops/not-found`（`Draft not found`），`workbench.prefillDraft` 抛 `ops/draft-not-found`（`草稿不存在`）。而 `api_strategy.md` §AI 引用指南明文要求「错误码必须使用上方清单中的既有值，**不得自造语义相近的新码**」。 |
+| **影响** | 调用方需同时处理两种「未找到」；清单内部自相冲突，削弱错误码目录的规范性。 |
+| **目标解决时间** | N/A – 源文档未提供 |
+| **解决方案** | 按 criterion §6 SSoT-first：在契约提案中统一为**单一「未找到」码**（建议保留 `ops/not-found`，将 `workbench.prefillDraft` 的 `ops/draft-not-found` 并入），并同步 `api_strategy.md` §2.3、`cross_cutting_concepts.md` 与调用方；**不在资产侧擅自改契约或删码**。 |
+| **估算工作量** | N/A – 源文档未提供 |
+
 > ⚠️ 本文档**只记录债务，不在架构资产内修改实现**。生成资产已忠实于源文档契约；
 > 修复须由实现侧按 criterion §6 的顺序完成。
 
@@ -295,6 +343,10 @@
 | TD-005 | 技术债 | `views` 兼容字段误用 | 中 | N/A | 监控中 | 2026-10-16 |
 | TD-006 | 技术债 | 排期无双向同步 | 低 | N/A | 计划 Phase 3 | 2026-10-16 |
 | TD-007 | 技术债 | `workbench.overview` 未实现部分缺失汇总语义（**违反铁律 3**） | **高** | N/A | **待处理（优先）** | 2026-10-16 |
+| TD-008 | 技术债 | 生成路径未授权写入 Injoys 文档（**越过内容写入边界**） | **高** | N/A | **待处理（优先）** | 2026-10-16 |
+| TD-009 | 技术债 | `ops_generate_review` 以字面量 `doc_review` 冒充文档编号（**虚报成功**） | **高** | N/A | **待处理（优先）** | 2026-10-16 |
+| TD-010 | 技术债 | `calendar/` 与 `metrics/` 持久化契约未落地 | 中 | N/A | 待处理 | 2026-10-16 |
+| TD-011 | 技术债 | 错误码 `ops/not-found` 与 `ops/draft-not-found` 语义重复 | 低 | N/A | 待处理 | 2026-10-16 |
 
 ---
 

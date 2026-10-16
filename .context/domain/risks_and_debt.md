@@ -3,7 +3,7 @@
 > **Metadata**
 > - **Source**: `.context/domain/source/product_requirements.md`（PRD v1.2.0）为主；`.context/domain/source/development_plan.md` 仅用于确认阶段范围与交付节奏
 > - **Generated At**: `2026-10-16 09:00`
-> - **Updated At**: `2026-10-16 11:05`
+> - **Updated At**: `2026-10-16 12:44`
 > - **Generator**: `Context-Agent v1.0`
 
 ---
@@ -187,6 +187,17 @@
 | **偿还计划** | Phase 1 交付真实评论抓取与需求提炼 |
 | **来源** | PRD §5.6、§七 Phase 1 |
 
+### PD-006: 工具全景中 3 个工具未实现且未按名登记
+
+| 属性 | 值 |
+|------|-----|
+| **类型** | 范围债务 / 实现债务 |
+| **严重性** | 中 |
+| **描述** | PRD §5.5.1「工具全景与生命周期分类」列出 `ops_keyword_research`（策划与选题）、`ops_generate_hooks`（创意与生成）、`ops_inspect_sessions`（系统与调度），但三者既未在 `src/tools/index.ts` 实现，也未在任何生成资产中**按名**登记（仅 BR-040 以「关键词研究 / 吸睛钩子 / 会话探活」描述性覆盖其能力）。 |
+| **影响** | BR-040 验收点「工具中枢按五类分组展示，**每组包含对应工具**」在「策划与选题 / 创意与生成 / 系统与调度」三类缺少对应工具；规划层无法从资产区分「遗漏」与「已裁决范围变更」。 |
+| **偿还计划** | N/A – PRD / 开发计划未标注三者交付阶段；需补阶段归属或显式标注移出范围 |
+| **来源** | PRD §5.5.1 |
+
 ---
 
 ## 📊 追踪看板
@@ -203,14 +214,15 @@
 | PD-003 | 项目债务 | Injoys 同步能力长期停留在单向 | 中 | 产品负责人 | 待处理（Phase 3） | 2026-10-16 |
 | PD-004 | 项目债务 | 图文草稿工作台界面交付滞后 | 高 | 产品负责人 | **进行中（Phase 0）** | 2026-10-16 |
 | PD-005 | 项目债务 | 舆情与需求提炼能力延后至 Phase 1 | 中 | 产品负责人 | 待处理（Phase 1） | 2026-10-16 |
+| PD-006 | 项目债务 | 工具全景中 3 个工具未实现且未按名登记 | 中 | 产品负责人 | 待处理（阶段待定） | 2026-10-16 |
 
 ---
 
 ## 🔗 相关文档
 
-- **技术风险/技术债务** → [architecture/risks_and_debt.md](../architecture/risks_and_debt.md)（**按需生成，当前不存在**）
-  - 说明：该文件**不在** `context-manifest.json#pending_generation` 中，属 `.context/architecture/README.md` 定义的"按需生成"资产（见其文件表），待运行 `.agent/workflows/context-openspec.md architecture` 时由 Phase 0 判定是否生成。
-  - 在生成之前，技术实现层面的风险与债务以 [criterion.md](../criterion.md) 为准。
+- **技术风险/技术债务** → [architecture/risks_and_debt.md](../architecture/risks_and_debt.md)（**已生成**，含 RISK-001 ~ RISK-012 与全部技术债 TD-*）
+  - 说明：该文件已登记在 `context-manifest.json#generated_files.architecture`；技术实现层面的风险与债务细节**以对方为准**，本文不重复维护。
+  - 约束层面仍以 [criterion.md](../criterion.md) 为准。
 - **测试与 Live 验收要求** → [testing_strategy.md](./testing_strategy.md)
 
 ---

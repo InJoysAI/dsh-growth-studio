@@ -3,7 +3,7 @@
 > **Metadata**
 > - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.3.0 §2.2、§3）
 > - **Generated At**: `2026-10-16 09:44`
-> - **Updated At**: `2026-10-16 11:05`
+> - **Updated At**: `2026-10-16 11:53`
 > - **Generator**: `Context-Agent v1.0`
 
 > ⚠️ 本文是源文档 §3 的**结构化总结**。契约的**权威定义在 `src/ops-rpc.ts` + `src/types.ts`**（criterion §7.1，手写 TS 契约）。
@@ -115,6 +115,16 @@ interface RpcEnvelopeResponse {
 | `config/invalid-drafts-dir` | `config.save` 前置目录准备/可写性校验失败 | `config.save` |
 | `calendar/invalid-transition` | 越级 / 回退 / 经本接口写 `published` | `calendar.updateStatus` |
 | `tools/disabled` | 工具在白名单中为 `enabled === false`（**宿主侧**强制） | `tools.executeSandbox` |
+| `ops/unknown-method` | 方法名未登记（网关方法路由兜底） | 全部 |
+| `ops/not-found` | 按 ID 未找到草稿 | `drafts.get` |
+| `ops/concurrency-conflict` | `expectedVersion` 与当前版本不一致（乐观锁冲突，附 `currentVersion`） | `drafts.save` |
+| `ops/draft-not-found` | 指定草稿不存在 | `workbench.prefillDraft` |
+| `ops/platform-unsupported` | 指定平台无适配器 | `workbench.prefillDraft` |
+| `ops/variant-not-found` | 草稿缺少该平台的 `channelVariants` | `workbench.prefillDraft` |
+| `ops/material-incomplete` | 变体缺少必要标题 / 正文（简介）物料 | `workbench.prefillDraft` |
+| `ops/prefill-failed` | 平台适配器预填执行失败（**如实返回，不虚报成功**） | `workbench.prefillDraft` |
+
+> **清单口径说明**：上表为**契约码全集**，含两类来源 —— ① 契约定义的错误码（含 `calendar/invalid-transition`、`tools/disabled` 等**尚未实现方法**的预留码，见 `risks_and_debt.md` TD-001）；② 当前实现基线（`src/ops-rpc.ts`，criterion §7.1 权威契约）已抛出的错误码。`ops/unknown-method`、`ops/not-found`、`ops/concurrency-conflict`、`ops/draft-not-found`、`ops/platform-unsupported`、`ops/variant-not-found`、`ops/material-incomplete`、`ops/prefill-failed` 属第 ② 类，此前本清单曾遗漏，现已补齐。
 
 ### 2.4 HTTP 状态码映射
 
