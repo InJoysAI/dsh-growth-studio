@@ -47,7 +47,7 @@
 | Scope | 关联资产 | 关联说明 |
 |-------|---------|----------|
 | criterion | `.context/criterion.md` | §6 SSoT-first、§3.5 落盘与目录固定、§3.1 硬编码色值等（UI 无关） |
-| architecture | `.context/architecture/risks_and_debt.md` | TD-010（calendar 部分）、RISK-009（两套状态枚举映射） |
+| architecture | `.context/architecture/risks_and_debt.md` | TD-010（calendar 部分）、TD-004（`draft_ready` vs `ready_for_review` 命名差异）、RISK-009（两套状态枚举映射） |
 | architecture | `.context/architecture/data_architecture.md` | `calendar/{id}.json` 布局与状态映射表 |
 | architecture | `.context/architecture/api_strategy.md` | §3.1 `generateCalendar` 的持久化职责 |
 | architecture | `.context/architecture/adr_004_local_primary_injoys_export.md` | 本地为主、单向导出裁决 |
@@ -70,7 +70,7 @@
 
 **依赖**:
 - 前置: 无
-- 被依赖: `feat-calendar-generate-list`、`feat-calendar-status-transitions`、`feat-calendar-injoys-export`
+- 被依赖: `feat-calendar-generate-list`、`feat-calendar-status-transitions`、`feat-calendar-injoys-export`、`feat-calendar-injoys-import`
 - 约束: 契约先行（criterion §6）；两侧枚举（`ItemStatus` vs `ContentDraft.status`）不可互换，须经映射表（RISK-009）
 
 ---

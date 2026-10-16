@@ -38,6 +38,7 @@
 |------|------|
 | ✅ In | 在 `src/types.ts` 补齐 `overviewMetrics` 的 `measuredPlatforms` / `unmeasuredPlatforms` / `totalEngagements` / `totalFavorites` / `comparison` / `weeklyPipeline` 及窗口字段契约 |
 | ✅ In | 在 `src/analytics/` 或 `workbench.overview` 实现「部分缺失 → 汇总为 `null`」与「真实 0 参与求和」的判定 |
+| ✅ In | 业务逻辑（含汇总）只消费可空的 `impressions`（曝光/阅读）与 `plays`（播放），**不得**用兼容字段 `views`（`impressions ?? plays ?? 0`）作为缺失指标的真实值 |
 | ✅ In | 移除 `src/ops-rpc.ts` 中 `workbench.overview` 硬编码的 `keyword: 'Agentic AI'` / `heatScore: 95` 等样例热点数据，改为来自真实来源或如实返回空 |
 | ✅ In | 补测试覆盖「部分缺失 → `null`」与「真实 0 参与求和」两条用例 |
 | ❌ Out | 指标历史快照的落盘实现（`feat-storage-metrics-snapshot`） |
@@ -51,10 +52,11 @@
 
 | Scope | 关联资产 | 关联说明 |
 |-------|---------|----------|
-| criterion | `.context/criterion.md` | §3.2 数据真实性、§4 指标口径、§6 SSoT-first |
-| architecture | `.context/architecture/risks_and_debt.md` | TD-007（高）、RISK-006、RISK-007 |
+| criterion | `.context/criterion.md` | §3.2 数据真实性、§4 指标口径、§5.5 `PlatformMetrics`（`impressions` / `plays` 独立且可空，`views` 仅兼容）、§6 SSoT-first |
+| architecture | `.context/architecture/risks_and_debt.md` | TD-007（高）、TD-005（`views` 兼容字段误用，中）、RISK-006、RISK-007 |
 | architecture | `.context/architecture/api_strategy.md` | §3.1 `workbench.overview` 契约与「部分缺失汇总规则」权威口径 |
 | architecture | `.context/architecture/data_architecture.md` | `PlatformMetrics` 注与窗口字段 |
+| domain | `.context/domain/business_rules.md` | BR-051（曝光/播放区分口径，MUST） |
 | domain | `.context/domain/testing_strategy.md` | 模块 5 场景 4 / 5 / 6（BR-050 / BR-051 / BR-052） |
 
 **关键任务**:
@@ -78,6 +80,7 @@
 | 部分缺失汇总为空 | 应采 2 平台仅 1 个成功采集时，汇总值为 `null` 且填充 `measuredPlatforms` / `unmeasuredPlatforms` | 单元测试 + `pnpm test` |
 | 真实零值参与求和 | 平台真实返回 `0` 时作为有效值计入求和，与 `null` 严格区分 | 单元测试 |
 | 互动总量口径 | `totalEngagements` 在点赞/评论/转发/收藏任一为 `null` 时为 `null` | 单元测试 |
+| 曝光/播放口径 | `impressions` / `plays` 独立且可空；业务逻辑不把 `views` 当作缺失指标的真实值 | 单元测试 + `grep`（`views` 仅保留兼容形状） |
 | 无伪造数据 | `workbench.overview` 响应不含硬编码样例热点数据 | 代码审查 + `grep` 校验 |
 
 **验收场景（按需，建议 BDD）**:

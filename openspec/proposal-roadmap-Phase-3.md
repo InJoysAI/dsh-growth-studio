@@ -42,13 +42,17 @@
 | ❌ Out | `config.get` 令牌返回策略变更（RISK-011 前置条件未触发，维持明文回填） |
 | ❌ Out | 新宿主配置字段 |
 
+> [!NOTE]
+> **令牌口径边界说明**：`criterion.md` §3.4 的 MUST NOT「将敏感策略 / 令牌下发到客户端」与 §4「前端支持显隐切换」存在**口径张力**，其例外边界见 `.context/architecture/security_policy.md`「令牌返回策略」：`config.get` 明文 `token` **仅在宿主内 RPC（本机进程内）**暴露、用于表单回填与显隐切换，**不作为对外网络端点**；前置条件为「若未来 RPC 可被非本机访问，必须先改为只回 `hasToken: boolean`，明文另走回填专用通道」。本提案**维持现状**（前置条件未触发），但若 RPC 暴露边界变化，须先改契约再改 UI。⛔ 本路线图不擅自修改 `criterion.md`；**该口径是否构成 §3.4 的例外仍待 criterion 侧澄清**（已登记于本 Phase「待决事项」），应经 `context-update` 并取得用户授权。
+
 **关联 Context 资产**:
 
 | Scope | 关联资产 | 关联说明 |
 |-------|---------|----------|
-| criterion | `.context/criterion.md` | §3.1 经 `callOpsRpc`、§3.3 禁止硬编码色值、§3.5 |
-| architecture | `.context/architecture/risks_and_debt.md` | TD-002、RISK-008、RISK-011 |
-| architecture | `.context/architecture/api_strategy.md` | §3.6 `config.*`、§3.7 `draftsDir` 变更语义 |
+| criterion | `.context/criterion.md` | §3.1 经 `callOpsRpc`、§3.3 禁止硬编码色值、§3.4 令牌下发边界、§3.5、§4 显隐切换 |
+| architecture | `.context/architecture/security_policy.md` | 「令牌返回策略」：明文 token 的暴露边界与「非本机可达」前置条件 |
+| architecture | `.context/architecture/risks_and_debt.md` | TD-002、RISK-008、RISK-011（令牌明文暴露面扩大） |
+| architecture | `.context/architecture/api_strategy.md` | §3.6 `config.*`（`config.get` 平铺契约与令牌返回策略）、§3.7 `draftsDir` 变更语义 |
 | domain | `.context/domain/testing_strategy.md` | 模块 6 场景 1 / 2 / 3 / 4 |
 
 **关键任务**:
@@ -457,3 +461,4 @@
 ## 待决事项（按需）
 
 - 热点雷达 Tab 的真实选题来源（PRD 未指定具体渠道）：本路线图不安排该 Tab 的选题生成，待来源明确后另行提案。
+- **令牌下发口径待澄清**（关联提案 1）：`criterion.md` §3.4（MUST NOT 下发令牌）与 §4（前端显隐切换）的口径张力尚未在 criterion 侧裁决；本例的例外边界现引自 `.context/architecture/security_policy.md`「令牌返回策略」。是否将该例外正式写入 `criterion.md` 需经 `context-update` 并取得用户授权，本次不改。

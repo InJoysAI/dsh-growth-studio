@@ -11,10 +11,26 @@
 > - **任务状态**: proposed
 
 > **规划口径说明**
-> - **阶段划分依据**: 本项目 PRD 的 Phase 1–3（舆情需求提炼 / 技能工坊与出海 / Injoys 双向同步）属**未到阶段**，`constraints.md` §组织约束明确「未到阶段的能力不提前实现」，故本路线图**只覆盖 Phase 0（双平台最小完整闭环）的达成**；PRD §七 Phase 1–3 的交付能力**不在本路线图范围**。
+> - **阶段划分依据**: 本项目 PRD 的 Phase 1–3（舆情需求提炼 / 技能工坊与出海 / Injoys 双向同步）属**未到阶段**，`.context/architecture/constraints.md`「阶段规划」明确「未到阶段的能力不提前实现」，故本路线图**只覆盖 Phase 0（双平台最小完整闭环）的达成**；PRD §七 Phase 1–3 的交付能力**不在本路线图范围**。
 > - **修复优先于新增**: 依 `.context/architecture/risks_and_debt.md` 的严重性标注，触碰 `criterion.md` 铁律 / 数据真实性 / 安全边界的缺口（TD-007 / TD-008 / TD-009 / TD-012）全部置于**最前的 Phase 0**；`fix-*` 表示「对现有实现的修复或对齐」，`feat-*` 表示「新增能力」。
 > - **预计时间为规划估算**: 源文档与 Context 资产对工作量一律标注 `N/A – 源文档未提供`（见 `risks_and_debt.md` 各 TD 条目），本路线图中的人日数为**规划估算**，不是源文档事实；提案创建时应重新评估。
 > - **数量已收窄**: 同一方法 / 同一模块内的缺陷合并为一个提案（如 `workbench.overview` 的汇总语义与硬编码热点数据），避免为同一文件产出互相冲突的并行提案。
+
+**被移出的能力（阶段边界与依据）**：以下能力**不在 Phase 0 范围**（未到阶段，或阶段未指定），本路线图不为它们排提案，以避免「范围变更」与「遗漏」不可区分。
+
+| 被移出的能力 | 所属后续阶段 | 依据（资产路径与章节） |
+|--------------|:-----------:|------------------------|
+| 视频号 / 抖音渠道与视频元数据模拟器、预填 | Phase 1 | `.context/domain/source/product_requirements.md` §四（分阶段交付）、§5.4.2、§七；`.context/architecture/constraints.md`「阶段规划」 |
+| `xiaohongshu` 渠道适配器 | 阶段未指定（源文档未提供） | `.context/criterion.md` §5.5 注（已列入 `PlatformId` 但尚未注册适配器）；`.context/architecture/container_component_view.md` 平台清单注 |
+| 跨平台真实评论抓取与需求聚类反哺（`IssueExtractor` → Injoys 需求池） | Phase 1 | `.context/domain/business_rules.md` BR-054；`.context/domain/risks_and_debt.md` PD-005；`.context/domain/source/product_requirements.md` §5.6 |
+| 基于真实数据的周 / 月增长复盘报告 | Phase 1 | `.context/domain/business_rules.md` BR-055；`.context/domain/source/product_requirements.md` §5.6、§5.5.1 |
+| 海外四大渠道（YouTube / X / Product Hunt / TikTok）模拟与预填 | Phase 2 | `.context/domain/source/product_requirements.md` §5.2.1、§5.4.2、§七；`.context/domain/risks_and_debt.md` RISK-B003 |
+| 官方内置 5 大场景技能包（白名单工具裁剪） | Phase 2 | `.context/domain/business_rules.md` BR-042；`.context/domain/risks_and_debt.md` PD-002；`.context/domain/source/product_requirements.md` §5.5.2 |
+| 自定义技能包可视化编辑器 + 第三方 MCP 热插拔挂载 | Phase 3 | `.context/domain/risks_and_debt.md` PD-002；`.context/domain/source/product_requirements.md` §5.5.2、§四 |
+| BrowserOS 交互式登录端点（`browser.login.startQr` / `pollQr` / `openHeadful` / `cancel`） | Phase 2（需 CDP PoC） | `.context/domain/risks_and_debt.md` PD-001；`.context/architecture/risks_and_debt.md` RISK-012；`.context/domain/source/product_requirements.md` §5.2.3 |
+| Injoys 复杂双向同步与冲突仲裁 | Phase 3 | `.context/domain/business_rules.md` BR-024；`.context/domain/risks_and_debt.md` PD-003；`.context/architecture/risks_and_debt.md` TD-006；`.context/domain/source/product_requirements.md` §5.3.2、§七 |
+| 架构组件 `FeedbackIntelligence`（评论爬取与需求提炼） | Phase 1 | `.context/architecture/system_design.md` 组件表；`.context/architecture/introduction_and_goals.md`「范围与阶段」 |
+| 架构组件 `SkillEngine` / `OverseasStrategyManager` | Phase 2 | `.context/architecture/system_design.md` 组件表；`.context/architecture/context_view.md`「Out-of-Scope（本系统不负责）」 |
 
 ---
 

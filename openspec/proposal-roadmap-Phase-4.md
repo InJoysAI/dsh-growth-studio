@@ -99,7 +99,7 @@
 | Scope | 关联资产 | 关联说明 |
 |-------|---------|----------|
 | criterion | `.context/criterion.md` | §7.2 契约同步方式、§3.5 测试隔离 |
-| architecture | `.context/architecture/risks_and_debt.md` | TD-014、RISK-010（测试隔离） |
+| architecture | `.context/architecture/risks_and_debt.md` | TD-014（客户端消费无测试覆盖）、TD-003（`params` vs `payload` 字段口径，低）、RISK-010（测试隔离） |
 | architecture | `.context/architecture/api_strategy.md` | §1.2 信封契约、§2.3 错误码 |
 | domain | `.context/domain/testing_strategy.md` | Definition of Done / 覆盖要求 |
 
