@@ -4,11 +4,13 @@
 >
 > | 属性 | 值 |
 > | :--- | :--- |
-> | **文档版本** | v1.4.0 |
+> | **文档版本** | v1.4.1 |
 > | **对应 PRD 基线** | `.context/domain/source/product_requirements.md` **v1.2.1**（MVP 简化裁决版 Approved Baseline） |
 > | **状态** | 评审整改版 |
 > | **初次编写** | 2026-10-13 |
-> | **本次修订** | 2026-10-16（用户裁决 A-1～A-3：生成只存本地、显式沉淀、MVP 单份草稿存储；本次追加 BrowserOS 能力管理方案） |
+> | **本次修订** | 2026-10-17（用户裁决 A-1～A-3：生成只存本地、显式沉淀、MVP 单份草稿存储；本次追加 BrowserOS 能力管理方案；补齐 PRD↔TAD 契约缺口） |
+>
+> **v1.4.1 的修订（2026-10-17，PRD↔TAD 双向追溯核对）**：补齐契约缺口——`injoys.test` 增 `documentCount`（§3.10.2）、新增 `browseros.capabilities` 能力清单读接口（§3.12.3）、`overview.statuses` 与 `browser.sessions.statuses` 增 `loginUrl`（§3.1/§3.7）、补 `UserFeedbackItem` 实体（§4.1）、标注接口枚举先定义按阶段开放（§3.4/§3.5）、标注「一键复制物料」为客户端本地操作（§3.5.1）。以上均为文档契约修订，实现状态见 §3.10.2「待实现/差异清单」，不宣称已实现。
 >
 > **v1.4.0 的 MVP 裁决（2026-10-16，用户已确认）**：新增「BrowserOS 浏览器引擎 → 能力管理」——将固定四动作限制调整为「复用现有 BrowserOS 工具清单、默认启用八项、全部实际能力可开关、宿主统一检查」。详见 §3.12 与 §6。本文本次只同步文档，不声明实现已对齐。
 >
@@ -208,6 +210,7 @@ DSH Desktop 客户端通过 Cordis `slots` 注入扩展机制工作：
       name: string
       kind: 'article' | 'video' | 'post'
       draftEditorUrl: string
+      loginUrl?: string               // 登录入口外链；needs_login 时供「去登录 ↗」（PRD §5.2.1 / §六.3）
       state: SessionState              // 'unknown' | 'needs_login' | 'authenticated' | 'no_publish_permission'
       isReady: boolean                 // 辅助计算字段: state === 'authenticated'
       accountName?: string
@@ -472,6 +475,7 @@ MVP 使用 `drafts.get` 读取当前内容、`drafts.save` 覆盖保存当前内
   ```typescript
   interface GenerateArticleRequest {
     topic: string
+    /** 目标平台。接口先定义全部平台枚举、能力按阶段开放；Phase 0 仅 wechat_mp 可执行预填（PRD §5.2.1 / §5.4.2）。 */
     targetPlatform: 'wechat_mp' | 'product_hunt'
     tone?: 'technical' | 'viral' | 'concise'
   }
@@ -499,6 +503,7 @@ MVP 使用 `drafts.get` 读取当前内容、`drafts.save` 覆盖保存当前内
   ```typescript
   interface GenerateVideoMetaRequest {
     topic: string
+    /** 目标平台。接口先定义全部平台枚举、能力按阶段开放；Phase 0 仅 bilibili 可执行预填（PRD §5.2.1 / §5.4.2）。 */
     platform: 'bilibili' | 'douyin' | 'youtube' | 'wechat_channels'
     /** 本地成片路径；B站预填需实际上传，故生成时即可关联（PRD §5.4.1） */
     mediaPath?: string
@@ -569,6 +574,9 @@ MVP 使用 `drafts.get` 读取当前内容、`drafts.save` 覆盖保存当前内
   * 重复沉淀同一草稿为**幂等**：已存在 `injoysDocId` 时默认**更新**该文档而非新建，
     避免产生多份重复知识文档。
 
+> **客户端本地操作（无需 RPC）**：PRD §5.4.3 的「📋 一键复制物料」为纯客户端剪贴板行为，
+> 由前端直接复制对应渠道变体文本，不经过 `POST /api/ops`，故本节不定义对应 RPC 方法。
+
 ---
 
 ### 3.6 `workbench.prefillDraft`（调用 BrowserOS 执行预填） `[Phase 0: 公号+B站]`
@@ -605,6 +613,7 @@ MVP 使用 `drafts.get` 读取当前内容、`drafts.save` 覆盖保存当前内
       state: SessionState      // 'unknown' | 'needs_login' | 'authenticated' | 'no_publish_permission'
       isReady: boolean
       accountName?: string
+      loginUrl?: string        // 登录入口外链；needs_login 时供「去登录 ↗」（PRD §5.2.1 / §六.3）
       lastCheckedAt: string
       message: string
     }>
@@ -716,14 +725,20 @@ interface OpsConfig {
   * 持久化后**实时热更新**运行中的 `InjoysClient`（`endpoint` / `token`），无需重启；
   * 保存 `injoys` 配置后须清理按目标隔离的缓存，避免跨服务状态污染；
   * 修改 `draftsDir` 后**立即生效**，无需重启（见 §3.10.4）。
-* `injoys.test` → `{ connected: boolean; latencyMs: number; message: string }`
-  * 执行 `knowledge.list` 探活并返回延迟与文档数；
+* `injoys.test` → `{ connected: boolean; latencyMs: number; documentCount: number | null; message: string }`
+  * 执行 `knowledge.list` 探活并返回延迟与文档数（`documentCount` 为文档数；未配置令牌或探活失败时为 `null`，不得按 0 伪造）；
   * **未配置令牌**时不得发出请求并谎报「认证失败」，须返回明确的「尚未配置令牌」提示。
 
 > **既有方法的待实现/差异清单**（不属于 §3 新增接口的范围，须按 criterion §6–§7 先落 TS 契约再实现）：
 > `config.get` 已按上表对齐（含 `tone` / `draftsDir`）；`workbench.generateVideoMeta` 已补齐
 > `id` / `draftSaved` / `partition`；`tools.*`、`calendar.*`、`workbench.sinkToInjoysDoc`
 > 等仍为**未实现**（仅在本文档定义）。
+>
+> **本轮（v1.4.1）新增契约的实现状态**（文档先行，均不宣称已实现）：
+> - `injoys.test` 的 `documentCount` 字段：`src/ops-rpc.ts` 当前仅返回 `{ connected; latencyMs; message }`，**未实现**；
+> - `browseros.capabilities`（§3.12.3）：`src/` 全仓无此方法，**未实现**；
+> - `overview.statuses` / `browser.sessions.statuses` 的 `loginUrl`：`src/types.ts` `PlatformSessionStatus` 无此字段，**未实现**；
+> - `UserFeedbackItem`（§4.1）：该实体**已在 `src/types.ts` 落地**（`category` 五值、`priority` 三值与本节一致），并被 `src/feedback/issue-extractor.ts`、`src/injoys/client.ts` 消费，本次为补文档而非新增实现。
 
 #### 3.10.3 产品切换语义（已裁决）
 
@@ -819,7 +834,7 @@ interface OpsConfig {
   `resolveBrowserOsClient` 解析出当前连接**实际暴露**的工具名称。不新增独立 MCP 连接、
   能力发现服务、后台轮询或常驻进程；也不为 MVP 建设额外的插件系统、权限引擎或复杂策略框架。
 * **工具名称以现有连接实际暴露为准**：未暴露的工具不伪造、不承诺支持。能力开关是
-  “是否允许调用”，与“该工具当前是否真的可执行”是两个独立判断（见 §3.12.3）。
+  “是否允许调用”，与“该工具当前是否真的可执行”是两个独立判断（见 §3.12.4）。
 * **默认八项（默认启用集，不是能力使用上限）**：`tabs` / `navigate` / `snapshot` / `act` /
   `read` / `grep` / `wait` / `upload`。默认规则适用于首次使用、以及旧配置缺少能力字段的情况。
 * **全部实际能力均可开关**：除默认八项外，连接暴露的其他工具默认关闭、可手动开启；
@@ -864,7 +879,39 @@ const DEFAULT_BROWSEROS_CAPABILITIES = new Set([
 * **配置读写路径**：客户端只经 `callOpsRpc` 读写，不直连 BrowserOS；宿主侧经
   `config-store` 持久化（与 `config.get` / `config.save` 现有信封一致）。
 
-#### 3.12.3 统一执行检查与错误语义
+#### 3.12.3 能力清单与可用状态读接口
+
+> 支撑 PRD §5.7.1 的「列出实际暴露工具名称、描述、启停开关、当前可用状态」与「不可用原因」展示。
+> 与 §3.9 `tools.catalog`（仅覆盖 `ops_*` 运营工具）**不同**：本节只读底层 BrowserOS 工具清单，不含入参 JSON Schema 与沙箱执行。
+
+```typescript
+interface BrowserOsCapabilityDescriptor {
+  /** 实际暴露的工具名，以现有连接为准（未暴露工具不列出、不承诺） */
+  name: string
+  /** 现有元数据能提供的描述；无描述时为空字符串，不伪造 */
+  description: string
+  /** 用户启停开关（含默认值解析，见 §3.12.2） */
+  enabled: boolean
+  /** 当前连接是否实际提供并可执行（与 enabled 独立；未连接/未暴露为 false） */
+  available: boolean
+  /** 不可用原因；available === true 时为 undefined */
+  unavailableReason?: string
+}
+
+/** `browseros.capabilities`（只读） → { capabilities: BrowserOsCapabilityDescriptor[]; connected: boolean } */
+```
+
+* `browseros.capabilities`（**只读**，Phase 0 首版）：返回当前 BrowserOS 连接实际暴露的工具清单，逐项给出
+  `name / description / enabled / available / unavailableReason`，以及顶层 `connected`（BrowserOS 是否已接入）。
+  `enabled` 与 `available` 是**两个独立字段**：`enabled` 来自用户开关（§3.12.2 默认值解析），
+  `available` 来自连接实时解析结果（工具是否真被提供）。
+* 已启用但当前连接未提供、或 BrowserOS 未连接的工具 → `available: false` 并填 `unavailableReason`，
+  前端据此**不显示为可执行**（PRD §5.7.1 L283）。
+* 启停写入仍走 `config.save`（§3.10.2），本接口**不**承接写操作；刷新工具清单复用现有连接解析或用户手动刷新，不增加后台轮询（§3.12.5 热更新与复合操作）。
+
+> **实现状态**：`browseros.capabilities` 为 v1.4.1 新增的**文档契约**，`src/` 当前无此方法，**未实现**（实现状态统一见 §3.10.2 待实现清单）。
+
+#### 3.12.4 统一执行检查与错误语义
 
 * **单一调用入口集中检查**：所有 BrowserOS 工具调用必须经过现有
   `BrowserOsMcpClient.callTool`（`browseros-bridge.ts` 解析出的桥接客户端）这一统一入口，
@@ -885,7 +932,7 @@ const DEFAULT_BROWSEROS_CAPABILITIES = new Set([
   * 执行期失败沿用既有失败返回语义，如实返回真实错误与信息。
   > 上述新码仅在实现时落 `src/types.ts` / `src/ops-rpc.ts` 契约，本文仅定义语义，不宣称已实现。
 
-#### 3.12.4 热更新与复合操作
+#### 3.12.5 热更新与复合操作
 
 * **保存即生效**：能力配置保存后，对**后续新发起**的 BrowserOS 工具调用生效，无需重启；
   已发出的单次调用不强行中断。
@@ -894,7 +941,7 @@ const DEFAULT_BROWSEROS_CAPABILITIES = new Set([
 * **不增加后台定时刷新**：如需刷新工具清单，复用现有连接解析（`resolveBrowserOsClient`）
   或用户手动刷新路径，不引入后台定时刷新或常驻轮询（与 §5.5 一致）。
 
-#### 3.12.5 与业务守卫的边界（不可混淆）
+#### 3.12.6 与业务守卫的边界（不可混淆）
 
 * **能力开关只决定“哪些 BrowserOS 工具可调用”**；业务流程与守卫决定“工具可以执行哪些行为”。
 * 启用 `act` 或脚本类工具**不等于**允许自动发布，也不等于可以外传 Cookie；
@@ -1014,6 +1061,21 @@ export interface PlatformMetrics {
   followerDelta?: number | null
   topPostTitle?: string
   views: number                // 兼容性字段: impressions ?? plays ?? 0（仅向后兼容，不得作为缺失指标的真实值）
+}
+
+/** 受众反馈条目（评论抓取后聚类提炼，PRD §5.6「用户声音与需求池」，§3.1 feedbackItems 引用） */
+export interface UserFeedbackItem {
+  id: string
+  platform: PlatformId
+  /** 分类：bug / feature_request / praise / complaint / question（PRD §5.6 Bug/Feature 聚类） */
+  category: 'bug' | 'feature_request' | 'praise' | 'complaint' | 'question'
+  /** 原始评论摘录，用于追溯 */
+  rawComment: string
+  /** 提炼后的需求摘要 */
+  summary: string
+  priority: 'low' | 'medium' | 'high'
+  /** 已在哪个版本处理（未处理时为 undefined） */
+  addressedInVersion?: string
 }
 ```
 
@@ -1168,7 +1230,7 @@ $DSH_HOME/growth-studio/drafts/
    * 本地草稿存储于用户目录 `$DSH_HOME/growth-studio/drafts/`，系统文件权限仅限当前操作系统用户。
 2. **会话数据零外发**：
    * BrowserOS 会话在本地沙箱运行，不向任何第三方服务上报 Cookie 数据。
-   * 本约束**不因**「启用 `act` / 脚本类 BrowserOS 工具」而解除：能力开关只决定哪些浏览器工具可调用，Cookie 零外发属于业务守卫，独立生效（§3.12.5）。
+   * 本约束**不因**「启用 `act` / 脚本类 BrowserOS 工具」而解除：能力开关只决定哪些浏览器工具可调用，Cookie 零外发属于业务守卫，独立生效（§3.12.6）。
 3. **分发防误触（Human Confirmation）**：
    * 自动发帖始终采取“预填至草稿箱（Draft Prefill）”策略，保留平台原生确认发布步骤，彻底杜绝误发布。
    * 同理，启用 `act` 等工具**不等于**允许自动确认发布；发布闭环守卫（§5.2）与能力开关（§3.12）是两层不同机制，缺一不可。

@@ -3,7 +3,7 @@
 > **Metadata**
 > - **Source**: `.context/domain/source/product_requirements.md`, `.context/domain/source/development_plan.md`, `.context/architecture/source/technical_architecture.md`
 > - **Generated At**: `2026-10-15 20:23`
-> - **Updated At**: `2026-10-16 16:46`
+> - **Updated At**: `2026-10-17 00:47`
 > - **Generator**: `Context-Dev-Agent v1.0`
 
 > **用途**: 定义 AI 代理必须遵守的工程约束和技术规范。
@@ -187,7 +187,7 @@ MUST NOT:
 - **认证方式**: Injoys MCP 使用 `Authorization: Bearer {token}`；平台登录态由 BrowserOS 实例自身的用户 Profile 承载
 - **密钥管理**: 禁止硬编码；令牌仅允许来自用户配置或环境变量回退（`INJOYS_MCP_ENDPOINT` / `INJOYS_MCP_TOKEN`）；前端支持显隐切换；日志必须脱敏
 - **网络要求**: HTTPS 强制；Injoys 调用须校验 HTTP 状态码与 `result.isError`
-- **最小权限**: BrowserOS 驱动仅允许 `tabs / navigate / snapshot / act` 白名单动作；禁用 shell/cmd；会话数据零外发
+- **最小权限（能力开关）**: BrowserOS 复用现有工具清单，默认启用 `tabs / navigate / snapshot / act / read / grep / wait / upload` 八项，其余实际暴露工具默认关闭、可手动开启（`shell`/`cmd` 若暴露同样由用户管理）；**禁止绕过**统一入口集中检查「工具存在 / 启用 / 连接可用」直接调用底层工具。能力开关只决定可调用工具，自动发布与会话数据零外发等业务守卫不受其影响。
 - **会话隔离**: BrowserOS 会话在本地沙箱运行，**禁止将会话数据（Cookie）向任何第三方服务上报**
 - **审计与风控**:
   - **铁律：始终仅预填草稿，严禁自动确认发布**。`ops_publish_now` 已从工具白名单、RPC 端点与文档中彻底移除，不得以任何形式重新引入
