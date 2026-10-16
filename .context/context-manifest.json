@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generated_at": "2026-10-16T09:44:00+08:00",
+  "generated_at": "2026-10-16T11:05:30+08:00",
   "generator": "Context-Agent v1.0",
   "generation_pipeline": {
     "root_assets": "Context-Dev-Agent v1.0",
@@ -16,21 +16,21 @@
       "path": "docs/product_requirements.md",
       "archived_to": ".context/domain/source/product_requirements.md",
       "type": "product_requirements",
-      "content_hash": "760eb853bf29975223a92d0d66b90b9efe13d1e1487b3c3314b0b8301d5d9472",
+      "content_hash": "3838802783ff2f90872874771fc0bcb538b3c31cde467f7f4350715dcfcfc2a8",
       "status": "archived"
     },
     "DEVELOPMENT_PLAN": {
       "path": "docs/development_plan.md",
       "archived_to": ".context/domain/source/development_plan.md",
       "type": "development_plan",
-      "content_hash": "8bb3be81c3a81b975cefa5334309f0805494b1e2b975dd74c7b29e101b753b05",
+      "content_hash": "8b199d5469cd4c015987adfd941a9b888c8cd30260d59ba3294832ee4a48c909",
       "status": "archived"
     },
     "ARCHITECTURE": {
       "path": "docs/technical_architecture.md",
       "archived_to": ".context/architecture/source/technical_architecture.md",
       "type": "system_architecture",
-      "content_hash": "dd5a36d7d44c3addb596e7117c36dfaf03e580b6304e3934df31f7a1dabec971",
+      "content_hash": "86e64f75470fc76903bb82fe3f96adade188647e90cc10dd08a83fdf58b180f7",
       "status": "archived"
     }
   },
@@ -93,15 +93,42 @@
     "ordering": "ascending_by_synced_at"
   },
   "last_context_sync": {
-    "source": "docs/technical_architecture.md §3.10.4",
-    "workflow": "context-update",
-    "authority": "第四轮复核 U1-U2 收口：测试隔离改为模块作用域赋值 + 外层哨兵 spec；图文生成首次落盘绑定固定目录",
+    "synced_at": "2026-10-16T11:05:30+08:00",
+    "source": "docs/product_requirements.md §5.4；docs/technical_architecture.md §3.2.6 / §3.5.1 / §3.10.4 / §4.4；docs/development_plan.md Phase 0",
+    "workflow": "context-update (user-authorized manual sync)",
+    "authority": "用户明确裁决并授权手工同步 A-1～A-3：本地生成、显式沉淀、MVP 单份草稿",
     "mode": "apply",
-    "synced_at": "2026-10-15T22:45:00+08:00",
     "updated_context_files": [
+      ".context/AGENTS.md",
+      ".context/README.md",
+      ".context/architecture/README.md",
+      ".context/architecture/adr_004_local_primary_injoys_export.md",
+      ".context/architecture/adr_008_version_snapshot_storage.md",
+      ".context/architecture/api_strategy.md",
+      ".context/architecture/constraints.md",
+      ".context/architecture/container_component_view.md",
+      ".context/architecture/context_view.md",
+      ".context/architecture/cross_cutting_concepts.md",
+      ".context/architecture/data_architecture.md",
+      ".context/architecture/introduction_and_goals.md",
+      ".context/architecture/risks_and_debt.md",
+      ".context/architecture/runtime_view.md",
+      ".context/architecture/security_policy.md",
       ".context/architecture/source/technical_architecture.md",
+      ".context/architecture/system_design.md",
+      ".context/architecture/tech_stack.md",
+      ".context/context-manifest.json",
       ".context/criterion.md",
-      ".context/context-manifest.json"
+      ".context/domain/README.md",
+      ".context/domain/business_rules.md",
+      ".context/domain/data_strategy.md",
+      ".context/domain/edge_cases.md",
+      ".context/domain/market_insights.md",
+      ".context/domain/risks_and_debt.md",
+      ".context/domain/source/development_plan.md",
+      ".context/domain/source/product_requirements.md",
+      ".context/domain/testing_strategy.md",
+      ".context/domain/user_journeys.md"
     ],
     "history_path": ".context/history/context-sync.jsonl"
   }

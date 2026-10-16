@@ -1,8 +1,9 @@
 # 运行时视图 (Runtime View)
 
 > **Metadata**
-> - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.2.0 §3、§4.2、§5）
+> - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.3.0 §3、§4.2、§5）
 > - **Generated At**: `2026-10-16 09:44`
+> - **Updated At**: `2026-10-16 11:05`
 > - **Generator**: `Context-Agent v1.0`
 
 ---
@@ -68,53 +69,49 @@ sequenceDiagram
 
 ---
 
-## 📊 场景 2: 内容创作落盘（跨 await，**两次写入须绑定同一目录**）
+## 📊 场景 2: 内容生成只存本地，用户明确触发后沉淀
 
-**对应接口**：`workbench.generateArticleDraft` / `workbench.generateVideoMeta`
+**对应接口**：`workbench.generateArticleDraft` / `workbench.generateVideoMeta`；独立的 `workbench.sinkToInjoysDoc`
 
 ```mermaid
 sequenceDiagram
     autonumber
+    participant U as 用户
     participant WB as 创作室 UI
     participant RPC as 宿主 RPC 网关
-    participant CS as ContentStudioEngine
-    participant Dir as 捕获的存储目录（请求开始时固定）
+    participant Store as 当前草稿库
     participant KB as Injoys 知识库
     participant Doc as Injoys Document
-
-    WB->>RPC: workbench.generateArticleDraft { topic, targetPlatform }
-    Note over RPC,Dir: ⚠️ 请求开始时捕获 draftsDir 并贯穿全程
-    RPC->>CS: 路由（携带已捕获目录）
-    CS->>Dir: ① 绑定目录
-    CS->>KB: knowledge.list 检索产品知识
-    KB-->>CS: 知识内容
-    CS->>CS: 生成标题 / 摘要 / 正文 Markdown
-    CS->>Dir: ② 首次写草稿 {id}.json（同一目录）
-    CS->>Doc: document.create 沉淀物料
-    alt 沉淀成功
-        Doc-->>CS: injoysDocId
-        CS->>Dir: ③ 回写 injoysDocId（仍是同一目录）
-        CS-->>RPC: { id, draftSaved:true, injoysDocId }
-    else 沉淀失败
-        Doc-->>CS: 错误
-        CS->>Dir: ③ 仍写回草稿（无 injoysDocId）
-        CS-->>RPC: { id, draftSaved:true, injoysDocId:undefined }
+    WB->>RPC: generateArticleDraft 或 generateVideoMeta
+    Note over RPC,Store: 请求开始时捕获目录 A
+    RPC->>KB: 只读检索产品知识
+    KB-->>RPC: 知识内容
+    RPC->>RPC: 生成物料
+    RPC->>Store: 在目录 A 保存当前草稿
+    RPC-->>WB: 生成结果（不创建或更新远端文档）
+    opt 用户点击沉淀或明确要求写入 Injoys
+        U->>WB: 明确要求沉淀
+        WB->>RPC: workbench.sinkToInjoysDoc { draftId }
+        Note over RPC,Store: 独立请求开始时捕获目录 B
+        RPC->>Store: 从目录 B 读取草稿
+        RPC->>Doc: 创建或更新文档
+        alt 远端成功
+            Doc-->>RPC: injoysDocId
+            RPC->>Store: 仍在目录 B 回写关联
+            RPC-->>WB: success:true（本地回写成功后）
+        else 远端失败
+            Doc-->>RPC: 真实错误
+            RPC-->>WB: success:false 与错误信息
+        end
     end
-    RPC-->>WB: 生成结果
 ```
 
 ### 关键决策点
 
-| 步骤 | 决策 | 失败处理 |
-|------|------|---------|
-| Note | **目录在请求开始时捕获** | 中途配置切换**不影响**本次请求（否则一次请求会在两个库各留一份同 ID 副本，且实际看到的那份还缺少远端文档关联） |
-| ② / ③ | **请求内每一次落盘**都必须绑定同一目录 | 违反则产生跨库副本 |
-| 6-7 | 自动存盘只写**本地草稿库** | 与「沉淀至 Injoys」是**两个独立动作** |
-| 9 | 沉淀失败不阻断存盘 | `draftSaved:true` 与 `injoysDocId:undefined` 并存，**不谎报** |
-
-> **视频元数据一致行为**：`workbench.generateVideoMeta` 同样返回 `id` 与 `draftSaved`；
-> 未成功落盘时 `draftSaved: false` 且 `id` **仍返回**（便于前端重试保存）。
-> `titleCandidates` **数量恒为 3**。
+- 生成、预览、本地保存和自动同步配置均不授权写入 Injoys 文档；知识库读取仍可用于生成。
+- 两个请求分别捕获自己的目录，配置切换可能使 A 与 B 不同；找不到目标草稿时如实失败，禁止跨库猜测或搜索后回写。
+- 沉淀请求贯穿读草稿、等待远端与回写。远端成功但本地回写失败时，统一返回 `drafts/storage-unavailable`，不得谎报沉淀闭环已完成；不因此改变本地生成的保存结果。
+- 视频元数据仍返回 `id` / `draftSaved`，`titleCandidates` 数量恒为 3；未成功落盘不得报已保存。
 
 ---
 
@@ -300,52 +297,40 @@ sequenceDiagram
 
 ---
 
-## 📊 场景 6: 草稿版本恢复（**非破坏性回滚**）
+## 📊 场景 6: 当前草稿的单文件原子保存
 
-**对应接口**：`drafts.save` / `drafts.listVersions` / `drafts.getVersion` / `drafts.restoreVersion`
+**对应接口**：`drafts.get` / `drafts.save` / `drafts.delete`
 
 ```mermaid
 sequenceDiagram
     autonumber
     participant WB as 创作室 UI
     participant RPC as 宿主 RPC 网关
-    participant DM as DraftManager
-    participant Store as 草稿库
-
-    WB->>RPC: drafts.save { draft }
-    RPC->>DM: 路由
-    DM->>Store: 写锁内：临时文件 + rename 当前版本
-    DM->>Store: 同时写 {id}.versions/v{n}.json
-    Note over DM,Store: 同一串行写锁内完成<br/>避免「版本号已增但快照缺失」
-    DM-->>RPC: { draft }
-
-    WB->>RPC: drafts.listVersions { id }
-    RPC->>Store: 扫描 {id}.versions/
-    alt 当前版本号 > 最大快照号（旧代码写入的历史数据）
-        Store-->>RPC: 如实返回已有快照 + 可用版本列表
-    else 一致
-        Store-->>RPC: 版本号集合
+    participant DM as DraftStore
+    participant File as 固定目录的 id.json
+    WB->>RPC: drafts.save（当前内容与并发版本信息）
+    Note over RPC,File: 请求开始时固定目录
+    RPC->>DM: 保存当前内容
+    DM->>DM: 按绝对文件路径加锁并读取当前版本
+    DM->>DM: 校验 expectedVersion 与发布守卫
+    DM->>DM: version 自增，写同目录临时文件
+    alt 替换前写入失败
+        DM-->>RPC: 存储错误
+        RPC-->>WB: drafts/storage-unavailable，不报成功
+    else 写入成功
+        DM->>File: rename 替换当前文件
+        DM-->>RPC: 当前草稿
+        RPC-->>WB: 保存成功
     end
-    RPC-->>WB: { versions }（含 wordCount，无需读全文）
-
-    WB->>RPC: drafts.restoreVersion { id, version }
-    RPC->>DM: 路由
-    DM->>Store: 读取目标版本全文
-    DM->>Store: 以该内容为基础**追加为新版本**（version 继续自增）
-    Note over DM,Store: ⛔ 不做破坏性回滚：历史版本一律保留<br/>因此恢复操作本身也可被再次恢复
-    DM-->>RPC: { draft }
 ```
 
 ### 关键决策点
 
-| 步骤 | 决策 | 失败处理 |
-|------|------|---------|
-| 5-6 | 当前版本与快照在**同一串行写锁内**完成 | 避免「版本号已增但快照缺失」 |
-| 6 | 快照同样「临时文件 + rename」 | 与当前版本文件保持一致的原子保证 |
-| 12 | 版本号与快照不一致时 | **如实返回已有快照**，**不得伪造缺失版本** |
-| 17 | **不做破坏性回滚** | 恢复 = 追加新版本；历史一律保留，恢复本身可再恢复 |
-| — | Phase 0 **保留全部版本** | **不自动淘汰**；若需上限须先在 PRD 定义 |
-| — | `drafts.delete` **级联删除** | `{id}.json` 与整个 `{id}.versions/` 目录一并清除 |
+- MVP 只保留 `{id}.json` 当前内容；无草稿历史目录、历史列表或恢复接口。
+- `version` / `expectedVersion` 是并发控制，不是历史留存；用户保存成功后无法通过产品回看旧内容。
+- 替换前写入失败不覆盖当前文件；仍保留固定目录、串行写锁和统一存储错误边界。
+- 不再引入当前草稿与历史快照的双文件提交。指标历史快照不受影响。
+- 删除只针对当前草稿；不自动清理用户可能已有的历史文件。
 
 ---
 
@@ -409,8 +394,8 @@ graph LR
 ```
 
 > **贯穿范围包括「请求内的每一次落盘」**。
-> 反例：`workbench.generateArticleDraft` 在等待知识库后才首次写草稿、再等远端文档后写 `injoysDocId`；
-> 若两次写入绑定不同目录，一次请求会在两个库里**各留一份同 ID 副本**（实际看到的那份还缺少远端文档关联）。
+> 反例：用户明确触发的 `workbench.sinkToInjoysDoc` 先读草稿，等待远端写入后再回写 `injoysDocId`；
+> 若回写前重新解析目录，会将关联写入另一个库的同 ID 草稿。生成接口本身仅保存本地，不含该远端写入步骤。
 
 ---
 
@@ -477,7 +462,7 @@ sequenceDiagram
 | **平台采集失败** | 页面结构变化 / 未登录 | 该平台指标为 `null`；汇总为 `null` 并填充 `unmeasuredPlatforms` |
 | **排期导入部分失败** | 远端行冲突 / 网络错误 | **不回滚已成功项**，如实返回已导入计数与 `conflicts`，**不谎报全量成功** |
 | **工具被禁用** | `enabled === false` | 宿主侧拒绝并返回 `tools/disabled`；**不得**依赖前端隐藏按钮 |
-| **版本快照缺失** | 历史数据由旧版本代码写入 | `listVersions` **如实返回已有快照**与可用版本列表，**不得伪造缺失版本** |
+| **草稿旧内容不可回看** | 当前内容已保存并覆盖 | MVP 不提供历史查看与恢复；不得把并发版本号当作历史可用的保证 |
 | **会话状态不确定** | 探测失败 | 返回 `unknown`（**不猜测**），UI 引导用户手工登录 |
 | **并发刷新** | 用户连点同一卡片 | in-flight 合并去重，避免会话探测与指标采集重复执行 |
 

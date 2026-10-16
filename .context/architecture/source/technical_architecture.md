@@ -4,13 +4,15 @@
 >
 > | 属性 | 值 |
 > | :--- | :--- |
-> | **文档版本** | v1.2.0 |
-> | **对应 PRD 基线** | `docs/product_requirements.md` **v1.1.0**（评审整改基线版 Approved Baseline） |
+> | **文档版本** | v1.3.0 |
+> | **对应 PRD 基线** | `docs/product_requirements.md` **v1.2.0**（MVP 简化裁决版 Approved Baseline） |
 > | **状态** | 评审整改版 |
 > | **初次编写** | 2026-10-13 |
-> | **本次修订** | 2026-10-15（PRD ↔ TAD 双向追溯评审整改：生命周期裁决、发布 URL 守卫、排期/版本/指标/物料契约补齐、配置与工具治理契约、文档元数据） |
+> | **本次修订** | 2026-10-16（用户裁决 A-1～A-3：生成只存本地、显式沉淀、MVP 单份草稿存储） |
 >
-> **本次修订相对 v1.1.0 的关键决策**：
+> **v1.3.0 的 MVP 裁决（2026-10-16，用户已确认）**：生成只保存本地；生成物料写入 Injoys 必须由用户明确触发。MVP 只保留当前草稿，不提供历史查看、恢复与版本快照；`version` / `expectedVersion` 保留用于并发控制。本文本次只同步文档，不声明实现已对齐。
+>
+> **v1.2.0 相对 v1.1.0 的既有关键决策**：
 > 1. `ItemStatus` 收敛为 PRD §5.3.1 的**五态**，移除未经 PRD 授权的 `approved` / `archived`（详见 §4.1）。
 > 2. `published` 状态**只能**在渠道全部回填发布 URL 后由回填操作推进，禁止经通用保存入口写入（详见 §3.2.3、§3.2.5）。
 > 3. 产品切换的语义边界明确为**仅切换生成上下文**，不做数据隔离（详见 §3.10）。
@@ -304,7 +306,7 @@ DSH Desktop 客户端通过 Cordis `slots` 注入扩展机制工作：
 #### 3.2.4 `drafts.delete`（删除草稿）
 * **请求参数**：`{ id: string }`
 * **响应数据**：`{ success: boolean }`
-* **级联语义**：删除草稿时**同时删除**其版本快照（§4.4）；`success: true` 表示草稿与快照均已清除。
+* **MVP 删除语义**：删除当前草稿 `{id}.json`；`success: true` 表示当前草稿已清除。MVP 不创建版本快照，也不承诺历史文件清理或远端文档联动删除（§4.4）。
 
 #### 3.2.5 `drafts.updatePublishUrl`（人工发布后回填 URL 闭环）
 
@@ -346,37 +348,11 @@ DSH Desktop 客户端通过 Cordis `slots` 注入扩展机制工作：
   6. 删除或替换渠道后，不再对应任何当前渠道的 URL 会被剪除（孤儿清理），
      因此移除渠道不会让草稿凭残留 URL 继续维持「已发布」假象。
 
-#### 3.2.6 `drafts.listVersions`（草稿版本历史列表） `[Phase 0 首版]`
+#### 3.2.6 草稿历史接口（MVP 不提供）
 
-> 对应 PRD §5.4.1「支持草稿历史查看、手动编辑正文、标题/标签微调与多版本存盘」。
-> `version` 自增**只表示当前版本号，不等于保存了历史内容**，因此需要独立的版本快照存储（见 §4.4）。
-
-* **请求参数**：`{ id: string }`
-* **响应数据**：
-  ```typescript
-  interface DraftVersionsResponse {
-    versions: Array<{
-      version: number
-      title: string
-      status: ContentDraft['status']
-      savedAt: string
-      wordCount: number        // 便于 UI 列表展示，无需读取全文
-    }>
-  }
-  ```
-
-#### 3.2.7 `drafts.getVersion`（读取指定历史版本全文）
-
-* **请求参数**：`{ id: string; version: number }`
-* **响应数据**：`{ draft: ContentDraft }`
-* **错误**：版本不存在返回 `{ ok: false, error: { code: 'drafts/version-not-found' } }`
-
-#### 3.2.8 `drafts.restoreVersion`（以历史版本为基础生成新版本）
-
-* **请求参数**：`{ id: string; version: number }`
-* **响应数据**：`{ draft: ContentDraft }`
-* **语义**：**不做破坏性回滚**。恢复操作把目标版本内容作为基础，**追加为新版本**（`version` 继续自增），
-  历史版本一律保留，因此恢复操作本身也可被再次恢复。
+`drafts.listVersions`、`drafts.getVersion`、`drafts.restoreVersion` 不在 MVP（Phase 0）接口范围内，撤下原先的请求、响应和错误码设计，不作为待补齐的首版功能。
+MVP 使用 `drafts.get` 读取当前内容、`drafts.save` 覆盖保存当前内容；`version` 自增与 `expectedVersion` 乐观锁仅用于防止并发覆盖。
+历史查看、恢复与发布凭据恢复规则如需引入，须另行提案，不沿用旧的恢复契约。
 
 ---
 
@@ -507,9 +483,11 @@ DSH Desktop 客户端通过 Cordis `slots` 注入扩展机制工作：
     contentMarkdown: string
     wordCount: number
     draftSaved: boolean
-    injoysDocId?: string
+    injoysDocId?: string // 兼容可选字段；本地生成不创建远端文档，不因生成而填充
   }
   ```
+
+* **写入边界**：只保存本地草稿，不调用 Injoys 文档写入；仅用户明确触发 §3.5.1 后才沉淀。
 
 ---
 
@@ -546,6 +524,7 @@ DSH Desktop 客户端通过 Cordis `slots` 注入扩展机制工作：
     injoysDocId?: string
   }
   ```
+* **写入边界**：视频生成同样只保存本地；不得自动创建或更新 Injoys 文档。响应中的可选 `injoysDocId` 不构成自动沉淀授权。
 * **草稿关联规则**：视频生成与图文生成**行为一致** —— 响应必须返回 `id` 与 `draftSaved`，
   表明物料已自动落盘为 `ContentDraft`（`channelVariants[platform].kind === 'video'`）。
   未成功落盘时 `draftSaved: false`，且 `id` 仍返回（便于前端重试保存），**不得**谎报已保存。
@@ -559,6 +538,7 @@ DSH Desktop 客户端通过 Cordis `slots` 注入扩展机制工作：
 
 > 对应 PRD §5.4.3 的「💾 沉淀至 Injoys 知识文档」操作条。
 > 该动作**独立于自动存盘**：自动存盘只写本地草稿库，本接口才写入 Injoys。
+> **触发条件**：用户点击沉淀操作或明确要求写入 Injoys；生成、预览、本地保存以及自动同步配置均不能替代这次明确要求。读取产品知识库仍可用于生成。
 > 链路：宿主 → `InjoysClient` → `document.create`（架构图 §1.1 的 DocAdapter）。
 
 * **请求参数**：
@@ -738,7 +718,7 @@ interface OpsConfig {
 
 > **既有方法的待实现/差异清单**（不属于 §3 新增接口的范围，须按 criterion §6–§7 先落 TS 契约再实现）：
 > `config.get` 已按上表对齐（含 `tone` / `draftsDir`）；`workbench.generateVideoMeta` 已补齐
-> `id` / `draftSaved` / `partition`；`tools.*`、`calendar.*`、`drafts.*Versions`、`workbench.sinkToInjoysDoc`
+> `id` / `draftSaved` / `partition`；`tools.*`、`calendar.*`、`workbench.sinkToInjoysDoc`
 > 等仍为**未实现**（仅在本文档定义）。
 
 #### 3.10.3 产品切换语义（已裁决）
@@ -776,9 +756,9 @@ interface OpsConfig {
   **跨 `await` 的复合请求同样适用**：例如 `workbench.prefillDraft` 会「读草稿 → 调用平台 Adapter →
   回写预填结果」，中间可能等待很久；这类 RPC 必须在**请求开始时**捕获存储目录并贯穿全程，
   否则外部调用期间的配置切换会把结果写进另一个库的同 ID 草稿。客户端不得自行指定任意路径。
-  ⚠️ **贯穿范围包括「请求内的每一次落盘」**：`workbench.generateArticleDraft` 在等待知识库后
-  才首次写草稿、再等远端文档后写 `injoysDocId`；两次写入都必须绑定同一个已捕获目录，
-  否则一次请求会在两个库里各留一份同 ID 副本（实际看到的那份还缺少远端文档关联）；
+  ⚠️ **贯穿范围包括「请求内的每一次落盘」**：生成接口在请求开始时捕获目录，等待知识库后仅写本地草稿；
+  用户明确触发的 `workbench.sinkToInjoysDoc` 则须在其请求开始时捕获目录，并贯穿读草稿、等待远端写入、回写 `injoysDocId`。
+  两者是独立请求，各自使用开始时的目录，禁止自动把生成链路延伸为远端写入；
 * **这是确定行为，不是异常**（已裁决）：在途操作写入原目录属于预期语义，
   **不引入** `dirChangedDuringSave` 之类的告警标记，也不在响应中把它当错误上报；
 * **配置页切换提示文案**（实现时照此展示，须同时覆盖三件事实）：
@@ -970,37 +950,21 @@ stateDiagram-v2
 > ⚠️ `draft_ready` 与 `ready_for_review` 语义等价但**命名不同**，属于两套枚举的历史差异。
 > 二者**不得**在代码或接口中直接互换赋值，必须经本表映射；新增状态时必须同时更新本表。
 
-### 4.4 草稿版本快照存储设计 (Version Snapshot Storage)
+### 4.4 MVP 单份草稿存储设计
 
-对应 PRD §5.4.1「多版本存盘」与接口 §3.2.6–3.2.8。
-
-**存储布局**（与 `{id}.json` 当前版本并列）：
+对应 PRD §5.4.1 的 MVP 简化范围（用户裁决 A-2、A-3）。
 
 ```text
 $DSH_HOME/growth-studio/drafts/
-├── {id}.json                    # 当前版本（含 version 字段，读路径不变）
-└── {id}.versions/
-    ├── v1.json                  # 版本 1 的完整内容快照
-    ├── v2.json                  # 版本 2 的完整内容快照
-    └── ...
+└── {id}.json                    # 只保存当前 ContentDraft，含并发控制用 version
 ```
 
-**设计要点**：
-
-1. **写入时机**：`drafts.save` 每次成功写入新版本时，**同时**将该版本的完整 `ContentDraft` 写入
-   `{id}.versions/v{version}.json`。当前版本文件与快照在同一串行写锁内完成，避免出现「版本号已增但快照缺失」。
-2. **原子性**：快照同样采用「临时文件 + rename」写入（§3.5 约束），与当前版本文件保持一致的原子保证。
-3. **保留策略**：Phase 0 **保留全部版本**（个人开发者场景单草稿版本量有限），不自动淘汰。
-   若后续需要上限，应在关闭前先在 PRD 定义保留条数与用户可见的淘汰提示，再引入。
-4. **读取路径**：`drafts.get` 语义不变（返回当前版本），历史读取走 `drafts.getVersion`，二者互不影响，
-   因此本设计对既有接口**向后兼容**。
-5. **删除语义**：`drafts.delete` 级联删除 `{id}.json` 与整个 `{id}.versions/` 目录。
-6. **一致性校验**：`drafts.listVersions` 的版本号集合应等于 `v{n}.json` 文件集合；
-   若发现当前版本号高于最大快照号（说明历史数据由旧版本代码写入），应**如实返回已有快照**
-   并给出可用版本列表，不得伪造缺失版本。
-
-> 注：`{id}.versions/` 为目录，不参与 `drafts.list` 的 `.json` 收集（`list` 只扫描目录下的文件，
-> 实现时须避免把版本子目录误当作草稿项）。
+1. **范围**：MVP 不创建 `{id}.versions/` 或历史数组，不提供历史查看和恢复。保存成功后覆盖当前内容，不承诺可回溯旧内容。
+2. **写入**：在固定目录、按绝对文件路径归属的串行写锁内，读取当前草稿、校验 `expectedVersion`、递增 `version`，写同目录临时文件后 `rename` 替换 `{id}.json`。临时文件仅供本次原子写入，不是历史快照。
+3. **失败**：替换前写入失败时不覆盖当前文件、不返回成功；所有草稿写入失败仍在统一 RPC 边界返回 `drafts/storage-unavailable`。不增加双文件提交、历史补偿或恢复协议；也不把单文件原子替换夸大为跨文件事务或断电持久性保证。
+4. **读取与删除**：`drafts.get` 读取当前文件；`drafts.delete` 删除当前文件。MVP 不创建或管理草稿历史目录，也不自动清理用户可能已有的历史文件。
+5. **发布守卫**：编辑保存仍维护服务端治理字段与全渠道不变量，不能借简化历史功能绕过 URL 回填守卫。
+6. **保留边界**：运营指标的历史快照仍按 §3.1 保存，用于环比；此次取消的仅为草稿版本快照。未来若需历史功能，先定义需求与契约再实现。
 
 ---
 
@@ -1055,9 +1019,7 @@ $DSH_HOME/growth-studio/drafts/
    ```text
    $DSH_HOME/growth-studio/
    ├── drafts/
-   │   ├── {draftId}.json              # ContentDraft 当前版本
-   │   └── {draftId}.versions/         # 版本快照（§4.4）
-   │       └── v{n}.json
+   │   └── {draftId}.json              # ContentDraft 当前内容；MVP 不写版本快照（§4.4）
    ├── calendar/
    │   └── {itemId}.json               # CalendarItem 排期项（§4.1）
    └── metrics/

@@ -1,8 +1,9 @@
 # 测试策略 (Testing Strategy)
 
 > **Metadata**
-> - **Source**: `.context/domain/source/product_requirements.md`（PRD v1.1.0）、`.context/domain/source/development_plan.md`（验收条件）
+> - **Source**: `.context/domain/source/product_requirements.md`（PRD v1.2.0）、`.context/domain/source/development_plan.md`（验收条件）
 > - **Generated At**: `2026-10-16 09:00`
+> - **Updated At**: `2026-10-16 11:05`
 > - **Generator**: `Context-Agent v1.0`
 
 ---
@@ -180,14 +181,15 @@ When 用户触发 AI 生成物料
 Then 应生成结合产品知识库的多渠道物料
   And 物料应自动保存至本地草稿库
   And 重启工作台后该草稿仍可查看
+  And 未经用户明确要求不得创建或更新 Injoys 文档
 ```
 
-#### 场景 2: 草稿多版本编辑
+#### 场景 2: 当前草稿编辑与覆盖保存
 ```gherkin
 Given 本地草稿库中存在一份草稿
 When 用户手动编辑正文与标题并再次存盘
-Then 应生成新版本
-  And 历史版本仍可回溯查看
+Then 应覆盖保存当前草稿内容
+  And MVP 不创建历史快照或提供历史查看与恢复
 ```
 
 #### 场景 3: 微信公众号图文卡片模拟器

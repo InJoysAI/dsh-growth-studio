@@ -3,7 +3,7 @@
 > **Metadata**
 > - **Source**: `design/context-dev/templates/context-agents.md.template`
 > - **Generated At**: `2026-10-15 20:23`
-> - **Updated At**: `2026-10-16 09:44`
+> - **Updated At**: `2026-10-16 11:05`
 > - **Generator**: `Context-Dev-Agent v1.0`
 
 ---
@@ -100,6 +100,10 @@
 | `domain/data_strategy.md` | 数据策略 — ✅ 已生成 |
 | `domain/edge_cases.md` | 异常与边缘情况 — ✅ 已生成 |
 | `openspec/integration.md` | OpenSpec 集成说明与资产索引 — ✅ 已生成 |
+
+## 最新 MVP 裁决
+
+2026-10-16：生成只保存本地，物料沉淀须用户明确触发；草稿只保留当前内容，不提供历史查看、恢复或版本快照。并发控制与指标历史保留。详见 `criterion.md` §3.5 / §4 和 `architecture/adr_008_version_snapshot_storage.md`；本轮只同步文档，不代表实现已对齐。
 
 ## 更新规则
 

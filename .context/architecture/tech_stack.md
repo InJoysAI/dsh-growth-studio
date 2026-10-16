@@ -1,8 +1,9 @@
 # 技术栈约束 (Tech Stack)
 
 > **Metadata**
-> - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.2.0）
+> - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.3.0）
 > - **Generated At**: `2026-10-16 09:44`
+> - **Updated At**: `2026-10-16 11:05`
 > - **Generator**: `Context-Agent v1.0`
 
 > ⚠️ 版本号取自 `package.json`（实际依赖，2026-10-16 核对）。若与源文档冲突，**以源文档为准**；
@@ -110,7 +111,7 @@
 | 数据层 | **未启用** | 架构文档 §5.3：本地 `$DSH_HOME/growth-studio/` 为黄金主数据源；无 SQL / Schema / 迁移 / ORM |
 | 缓存 | 未启用 | — |
 | 消息队列 | 未启用 | — |
-| 持久化方式 | **本地 JSON 文件** | `drafts/{id}.json`(+`.versions/`)、`calendar/{id}.json`、`metrics/{YYYY-MM-DD}.json`、`ops-manager/config.json` |
+| 持久化方式 | **本地 JSON 文件** | `drafts/{id}.json`（仅当前内容）、`calendar/{id}.json`、`metrics/{YYYY-MM-DD}.json`、`ops-manager/config.json` |
 
 **持久化 MUST**
 
@@ -233,7 +234,7 @@
 | `ItemStatus` | 收敛为五态，移除 `approved` / `archived` | `adr_005_five_state_lifecycle.md` |
 | 产品切换 | 仅切换生成上下文，不做数据隔离 | `adr_006_product_switch_context_only.md` |
 | 刷新策略 | 手动触发 + 局部替换 + in-flight 去重，无持久连接 | `adr_007_manual_refresh_no_persistent_connection.md` |
-| 草稿版本 | 独立版本快照存储，非破坏性恢复 | `adr_008_version_snapshot_storage.md` |
+| 草稿版本 | MVP 只保留当前内容，版本号仅用于并发控制 | `adr_008_version_snapshot_storage.md` |
 
 ---
 

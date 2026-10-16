@@ -3,6 +3,7 @@
 > **Metadata**
 > - **Source**: `docs/product_requirements.md`, `docs/development_plan.md`, `docs/technical_architecture.md`
 > - **Generated At**: `2026-10-15 20:23`
+> - **Updated At**: `2026-10-16 11:05`
 > - **Generator**: `Context-Dev-Agent v1.0`
 
 > **用途**: 为 AI 代理提供 `dsh-growth-studio`（Growth Studio）项目的结构化上下文资产。
@@ -39,3 +40,8 @@
 | 源文档变更后同步 | `.agent/workflows/context-update.md` |
 | 生成分域总结 + OpenSpec 集成 | `.agent/workflows/context-openspec.md` |
 | 全量重生成 | 删除 `context-manifest.json` 后重新运行 `.agent/workflows/context-init.md` |
+
+
+## 最新 MVP 裁决（2026-10-16）
+
+内容生成只保存本地，写入 Injoys 文档须用户明确触发。MVP 只保留当前草稿，不提供历史查看、恢复或草稿版本快照；并发版本号和指标历史保留。详见 `criterion.md` §3.5 / §4、`architecture/adr_008_version_snapshot_storage.md`。此次只同步文档，实现须另行核查。

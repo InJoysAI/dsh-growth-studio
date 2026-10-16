@@ -1,8 +1,9 @@
 # .context/architecture/ — 架构上下文
 
 > **Metadata**
-> - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.2.0）
+> - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.3.0）
 > - **Generated At**: `2026-10-16 09:44`
+> - **Updated At**: `2026-10-16 11:05`
 > - **Generator**: `Context-Agent v1.0`
 
 ---
@@ -11,7 +12,7 @@
 
 | 文件 | 内容概要 |
 |------|---------|
-| `source/technical_architecture.md` | 技术架构设计说明书 v1.2.0：5 层架构（客户端视图层 / 宿主 RPC 网关层 / 业务领域服务层 / 外部 MCP 集成层 / 本地持久化基础设施层）、`POST /api/ops` RPC 信封契约、领域实体与状态机、统一 BrowserOS 实例方案、仅预填的人机协同发布闭环、Injoys 分阶段同步策略、设计令牌约束与安全治理 |
+| `source/technical_architecture.md` | 技术架构设计说明书 v1.3.0：5 层架构（客户端视图层 / 宿主 RPC 网关层 / 业务领域服务层 / 外部 MCP 集成层 / 本地持久化基础设施层）、`POST /api/ops` RPC 信封契约、领域实体与状态机、统一 BrowserOS 实例方案、仅预填的人机协同发布闭环、Injoys 分阶段同步策略、设计令牌约束与安全治理 |
 
 > 本项目 `docs/` 下**没有** `docs/architecture.md`；上述文件为唯一权威架构输入。
 > ⚠️ **若下方总结与 `source/` 冲突，以 `source/` 目录中的源文档为准。**
@@ -34,8 +35,8 @@
 |------|------|
 | `container_component_view.md` | **C4 L2/L3** —— 容器清单（Workbench / RPC 网关 / 领域服务 / 适配器 / Injoys / BrowserOS / 存储）、组件级视图（网关、DraftManager、适配器层）、分层依赖规则 |
 | `context_view.md` | **上下文与边界** —— C4 L1 业务上下文、参与者、外部系统、In-Scope / Out-of-Scope、技术上下文与"不采用"清单、数据流向与隐私边界 |
-| `runtime_view.md` | **运行时视图** —— 8 个架构显著性场景的序列图与决策点（排期导出、创作落盘、草稿预填、URL 回填闭环、指标采集、版本恢复、目录切换、会话探测）+ 异常与恢复表 |
-| `data_architecture.md` | **数据架构** —— 实体模型（`CalendarItem` / `ContentDraft` / `PlatformMetrics` / 枚举）、双状态机与映射表、本地文件布局、版本快照设计、一致性模型、数据字典、数据治理 |
+| `runtime_view.md` | **运行时视图** —— 8 个架构显著性场景的序列图与决策点（排期导出、创作落盘、草稿预填、URL 回填闭环、指标采集、当前草稿单文件保存、目录切换、会话探测）+ 异常与恢复表 |
+| `data_architecture.md` | **数据架构** —— 实体模型（`CalendarItem` / `ContentDraft` / `PlatformMetrics` / 枚举）、双状态机与映射表、本地文件布局、MVP 单份草稿设计、一致性模型、数据字典、数据治理 |
 
 ### 接口与安全
 
@@ -64,7 +65,7 @@
 | `adr_005_five_state_lifecycle.md` | `ItemStatus` 收敛为五态（**移除** `approved` / `archived`） |
 | `adr_006_product_switch_context_only.md` | 产品切换仅切换生成上下文，**不做数据隔离** |
 | `adr_007_manual_refresh_no_persistent_connection.md` | 手动刷新 + 局部替换 + in-flight 去重，**无持久连接** |
-| `adr_008_version_snapshot_storage.md` | 草稿版本独立快照存储 + **非破坏性**恢复 |
+| `adr_008_version_snapshot_storage.md` | MVP 只保留当前草稿；不提供历史版本与快照（原文件名保留追溯） |
 
 ---
 

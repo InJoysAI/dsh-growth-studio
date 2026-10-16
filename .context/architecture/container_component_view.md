@@ -1,8 +1,9 @@
 # 容器与组件视图 (Container and Component View)
 
 > **Metadata**
-> - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.2.0 §1.1、§2、§3）
+> - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.3.0 §1.1、§2、§3）
 > - **Generated At**: `2026-10-16 09:44`
+> - **Updated At**: `2026-10-16 11:05`
 > - **Generator**: `Context-Agent v1.0`
 
 > ⚠️ 本项目的「容器」不是 Docker 容器，而是 **C4 语义下的运行时单元**（客户端 / 宿主进程 / 外部服务 / 本地存储）。
@@ -25,7 +26,7 @@ C4Container
         Container(injoys, "InjoysClient", "TypeScript", "JSON-RPC 2.0 客户端代理 + 热更新 + 按目标隔离缓存")
         Container(bos, "BrowserOSClient", "TypeScript", "浏览器控制驱动（动作白名单）")
         ContainerDb(cfg, "ConfigStore", "本地 JSON", "ops-manager/config.json")
-        ContainerDb(store, "DraftStore", "本地 JSON", "growth-studio/drafts/ (+ .versions/)")
+        ContainerDb(store, "DraftStore", "本地 JSON", "growth-studio/drafts/（仅当前草稿）")
     }
 
     System_Ext(dsh, "DSH Desktop 宿主", "槽位系统 / 连接能力 / 自动化任务中心")
@@ -60,7 +61,7 @@ C4Container
 | **InjoysClient** | TypeScript | JSON-RPC 2.0 / HTTP；热更新（`updateConfig`）；按目标隔离缓存 | `src/injoys/` |
 | **BrowserOSClient** | TypeScript | 会话哨兵与浏览器驱动；动作白名单 | `src/browser/` |
 | **ConfigStore** | 本地 JSON | 配置读写；`resolveDshHome` 路径解析 | `src/config-store.ts` |
-| **DraftStore** | 本地 JSON | 草稿持久化；原子写 + 串行写锁 + 版本快照 | `src/storage/draft-store.ts` |
+| **DraftStore** | 本地 JSON | 草稿持久化；原子写 + 串行写锁 + 乐观锁 | `src/storage/draft-store.ts` |
 
 > **端口**：本插件**不监听任何网络端口**。`POST /api/ops` 由 DSH 宿主提供。
 
@@ -114,17 +115,17 @@ C4Component
         Component(lockmgr, "写锁管理器", "TypeScript", "串行写锁，按【绝对文件路径】归属")
         Component(dirresolver, "目录解析器", "TypeScript", "resolveDshHome + 请求开始时捕获并贯穿")
         Component(atomicwriter, "原子写入器", "TypeScript", "临时文件 + rename")
-        Component(versionmgr, "版本管理器", "TypeScript", "version 自增 + expectedVersion 乐观锁 + 快照")
+        Component(versionmgr, "版本管理器", "TypeScript", "version 自增 + expectedVersion 乐观锁")
         Component(pubguard, "发布守卫", "TypeScript", "URL 解析器校验 + 渠道成员 + 全渠道不变量")
     }
 
-    ContainerDb(store, "DraftStore", "本地 JSON", "drafts/{id}.json + {id}.versions/")
+    ContainerDb(store, "DraftStore", "本地 JSON", "drafts/{id}.json（仅当前内容）")
     Component(errboundary, "统一错误边界", "TypeScript", "存储错误码映射")
 
     Rel(dirresolver, store, "解析目标路径")
     Rel(lockmgr, store, "加锁后写入")
     Rel(atomicwriter, store, "原子落盘")
-    Rel(versionmgr, store, "写当前版本 + 快照")
+    Rel(versionmgr, store, "原子替换当前文件")
     Rel(pubguard, store, "写锁内维护全渠道不变量")
     Rel(atomicwriter, errboundary, "写失败")
     Rel(pubguard, errboundary, "校验失败")
@@ -135,7 +136,7 @@ C4Component
 | **写锁管理器** | 并发控制 | 锁按**绝对文件路径**归属 → 不同库同 ID 草稿互不阻塞、互不覆盖 |
 | **目录解析器** | 路径解析与固定 | 请求开始时捕获，**贯穿每一次落盘**（含跨 `await` 复合 RPC） |
 | **原子写入器** | 可靠落盘 | 临时文件 + `rename`；写前**准备并验证可写** |
-| **版本管理器** | 版本与快照 | 当前版本与快照在**同一串行写锁内**完成 |
+| **版本管理器** | 并发版本控制 | 写锁内校验 expectedVersion 并递增 version；MVP 不存历史 |
 | **发布守卫** | 状态真实性 | URL 解析器校验；渠道成员校验；**全渠道不变量在同一写锁内维持** |
 
 ---

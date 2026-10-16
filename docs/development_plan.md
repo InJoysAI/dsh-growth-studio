@@ -1,5 +1,7 @@
 # 个人产品增长推广工坊（Growth Studio / dsh-growth-studio）开发与落地计划
 
+> **2026-10-16 MVP 范围裁决**：内容生成只保存本地；生成物料写入 Injoys 须由用户明确触发。草稿只保留当前内容，不提供历史查看、恢复或版本快照；保留版本自增与乐观锁。此项为文档决策，不表示现有实现已完成对齐。
+
 ## 一、 项目背景与架构定位
 
 本项目旨在为独立开发者与个人产品打造一套**闭环运营增长引擎**，作为 **DeepSeek Harness (DSH)** 的原生 Cordis 插件运行在 `packages/experimental/ops-manager`（产品代号：`dsh-growth-studio` / Growth Studio）。
@@ -82,7 +84,7 @@ graph TD
      * 规范四态生命周期：`unknown` (未知) ➔ `needs_login` (需登录) ➔ `authenticated` (已认证) ➔ `no_publish_permission` (无权限)。
   3. **内容持久化引擎 (`ContentDraftStore`)**：
      * 新增 `src/storage/draft-store.ts`，管理本地 JSON 文件存储路径 `$DSH_HOME/growth-studio/drafts/`；
-     * 实现草稿增删改查、版本自增、乐观锁并发控制、多平台变体统一持久化。
+     * 实现草稿增删改查、版本自增、乐观锁并发控制、多平台变体统一持久化；MVP 每个草稿只写 `{id}.json`，不写版本快照、不提供历史查看和恢复。生成只保存本地；用户明确要求沉淀时才调用 Injoys 并回写关联。
   4. **BrowserDriver 真实对接 BrowserOS**：
      * 实现真实的 BrowserOS MCP 驱动：`tabs` ➔ `navigate` ➔ `snapshot` ➔ `act`；
      * 对微信公众号实现创建新图文并预填标题、作者、正文；

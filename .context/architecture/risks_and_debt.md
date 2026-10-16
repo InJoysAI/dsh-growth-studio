@@ -1,8 +1,9 @@
 # 风险与技术债务 (Risks and Technical Debt)
 
 > **Metadata**
-> - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.2.0）
+> - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.3.0）
 > - **Generated At**: `2026-10-16 09:44`
+> - **Updated At**: `2026-10-16 11:05`
 > - **Generator**: `Context-Agent v1.0`
 
 > ⚠️ **本文只记录源文档中有明确依据的风险与债务**。源文档未提供的字段标注 `N/A – 源文档未提供`，
@@ -71,7 +72,7 @@
 | **风险等级** | **高风险** |
 | **负责人** | N/A – 源文档未提供 |
 | **描述** | 复合 RPC 执行中途用户切换 `draftsDir`，若在 await 之后重新解析目录，会出现「**从 A 库读取、写入 B 库**」并**覆盖 B 库同 ID 草稿**。`workbench.prefillDraft` 会「读草稿 → 调平台 Adapter → 回写」，中间等待可能很久，风险最高。 |
-| **缓解措施** | ① 目录在**单次操作内固定**，配置热切换只对**新发起**的操作生效；② 跨 `await` 的复合 RPC 必须在**请求开始时**捕获目录并贯穿全程；③ 贯穿范围包括**请求内每一次落盘**（如 `generateArticleDraft` 的首次写草稿与回写 `injoysDocId` 两次写入）；④ **写锁按绝对文件路径归属**，使不同库同 ID 草稿互不阻塞、互不覆盖。 |
+| **缓解措施** | ① 目录在**单次操作内固定**，配置热切换只对**新发起**的操作生效；② 跨 `await` 的复合 RPC 必须在**请求开始时**捕获目录并贯穿全程；③ 贯穿范围包括**请求内每一次落盘**（如 用户明确触发的 `sinkToInjoysDoc` 读草稿与回写 `injoysDocId`；生成本身只写本地）；④ **写锁按绝对文件路径归属**，使不同库同 ID 草稿互不阻塞、互不覆盖。 |
 | **应急预案** | 该行为是**确定语义、非异常**：不引入 `dirChangedDuringSave` 告警标记，配置页明确提示「在途保存仍写入原目录」。 |
 
 #### RISK-005: 存储不可用被误报为成功或错误码不一致
@@ -188,8 +189,8 @@
 |------|-----|
 | **类型** | 文档债务 / 实现债务 |
 | **严重性** | 中 |
-| **描述** | 架构文档 §3 已定义契约、但**仍未实现**的方法：`workbench.generateCalendar`、`calendar.list`、`calendar.updateStatus`、`workbench.exportCalendar`、`workbench.importCalendar`、`drafts.listVersions`、`drafts.getVersion`、`drafts.restoreVersion`、`workbench.sinkToInjoysDoc`、`tools.catalog`、`tools.toggle`、`tools.executeSandbox`、`tools.telemetry`。 |
-| **影响** | 排期、草稿版本历史、AI 工具中枢尚未可用；文档与实现存在落差，易被误读为「已实现」。 |
+| **描述** | 架构文档 §3 已定义契约、但**仍未实现**的方法：`workbench.generateCalendar`、`calendar.list`、`calendar.updateStatus`、`workbench.exportCalendar`、`workbench.importCalendar`、`workbench.sinkToInjoysDoc`、`tools.catalog`、`tools.toggle`、`tools.executeSandbox`、`tools.telemetry`。 |
+| **影响** | 排期、显式物料沉淀、AI 工具中枢尚未可用；草稿版本历史已由 MVP 裁决移出范围；文档与实现存在落差，易被误读为「已实现」。 |
 | **目标解决时间** | N/A – 源文档未提供（见 `docs/development_plan.md` 阶段划分） |
 | **解决方案** | 按 criterion §6 的 **SSoT-first** 顺序：先补 `src/types.ts` 契约 → 再补 `src/ops-rpc.ts` 方法契约 → 再实现 Adapter / 领域服务 → 最后接客户端 UI 与测试。 |
 | **估算工作量** | N/A – 源文档未提供 |

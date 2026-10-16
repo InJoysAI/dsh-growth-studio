@@ -1,8 +1,9 @@
 # 架构约束 (Constraints)
 
 > **Metadata**
-> - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.2.0）
+> - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.3.0）
 > - **Generated At**: `2026-10-16 09:44`
+> - **Updated At**: `2026-10-16 11:05`
 > - **Generator**: `Context-Agent v1.0`
 
 > ⚠️ **约束的权威来源是 `.context/criterion.md`**。本文为其结构化摘录与背景说明。
@@ -73,7 +74,7 @@
 | **本地优先** | 草稿 / 排期 / 指标 / 配置全部落本机 | 架构 §5.3 |
 | **日志脱敏** | 日志与遥测不得记录令牌、Cookie、完整正文 | criterion §4 |
 | **用户知情** | 目录切换提示须覆盖三件事实 | 架构 §3.10.4 |
-| **数据可删除** | `drafts.delete` 级联删除草稿与全部版本快照 | 架构 §4.4 |
+| **数据可删除** | `drafts.delete` 删除当前草稿；MVP 不创建或管理历史快照 | 架构 §4.4 |
 
 ---
 

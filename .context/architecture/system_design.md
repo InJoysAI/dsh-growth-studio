@@ -1,8 +1,9 @@
 # 系统设计总览 (System Design)
 
 > **Metadata**
-> - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.2.0）
+> - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.3.0）
 > - **Generated At**: `2026-10-16 09:44`
+> - **Updated At**: `2026-10-16 11:05`
 > - **Generator**: `Context-Agent v1.0`
 
 > ⚠️ 本文为源文档的**结构化总结**。若与 `.context/architecture/source/` 冲突，**以源文档为准**。
@@ -97,7 +98,7 @@ C4Context
 | | 多平台 Feed 模拟器 | 公众号 / 视频元数据 / 推文串 / Product Hunt 预览 | Phase 0 |
 | **RPC 网关层** | HTTP `POST /api/ops` + 信封序列化器 + 方法路由器 | 统一信封入出站、方法分发、**统一错误边界** | Phase 0 |
 | **业务领域服务层** | `WorkbenchAggregator` | 工作台总览聚合（指标 + 会话 + 排期 + 舆情） | Phase 0 |
-| | `DraftManager` | 本地草稿治理：CRUD、版本快照、原子写、发布 URL 回填守卫 | Phase 0 |
+| | `DraftManager` | 本地草稿治理：CRUD、当前内容原子写、发布 URL 回填守卫 | Phase 0 |
 | | `SessionGuard` | 统一 BrowserOS 实例会话探测（四态） | Phase 0 |
 | | `BrowserDriver` | 浏览器任务编排（公号 + B站） | Phase 0 |
 | | `ToolHubManager` | AI 工具治理与沙箱（白名单宿主侧强制） | Phase 0 |
@@ -111,7 +112,7 @@ C4Context
 | | `KBAdapter` / `SheetAdapter` / `DocAdapter` | `knowledge.list` / `spreadsheet.read|applyOperations` / `document.create` | Phase 0 |
 | | `BrowserOSClient` | 浏览器控制驱动（CDP/Playwright），动作白名单 | Phase 0 |
 | **持久化基础设施层** | `ConfigStore` | `$DSH_HOME/ops-manager/config.json` | Phase 0 |
-| | `DraftStore` | `$DSH_HOME/growth-studio/drafts/` + 版本快照 | Phase 0 |
+| | `DraftStore` | `$DSH_HOME/growth-studio/drafts/`（只保留当前内容） | Phase 0 |
 
 > 组件细节视图见 `container_component_view.md`；接口契约见 `api_strategy.md`。
 
@@ -121,7 +122,7 @@ C4Context
 
 | 存储 | 用途 | 技术选型 | 一致性模型 |
 |------|------|---------|-----------|
-| **草稿库** | `ContentDraft` 当前版本 + 版本快照 | 本地 JSON：`growth-studio/drafts/{id}.json`、`{id}.versions/v{n}.json` | 单机强一致（临时文件 + `rename` 原子写 + 串行写锁） |
+| **草稿库** | `ContentDraft` 当前内容 | 本地 JSON：`growth-studio/drafts/{id}.json` | 单机强一致（临时文件 + `rename` 原子写 + 串行写锁） |
 | **排期库** | `CalendarItem`（排期黄金主数据源） | 本地 JSON：`growth-studio/calendar/{id}.json` | 单机强一致 |
 | **指标历史** | 环比计算基准 | 本地 JSON：`growth-studio/metrics/{YYYY-MM-DD}.json` | 追加写（`platform, capturedAt`） |
 | **配置** | `OpsConfig` | `$DSH_HOME/ops-manager/config.json` | 单机强一致；`config.save` 后**热更新** |
@@ -199,7 +200,7 @@ graph TB
 
         subgraph Home ["$DSH_HOME（本地持久化）"]
             Cfg["ops-manager/config.json"]
-            Drafts["growth-studio/drafts/ (+ .versions/)"]
+            Drafts["growth-studio/drafts/（仅当前草稿）"]
             Cal["growth-studio/calendar/"]
             Met["growth-studio/metrics/"]
         end
@@ -233,7 +234,7 @@ graph TB
 | RS-3 | **草稿预填（跨 await 复合）** | 读草稿 → 平台 Adapter → 回写预填结果，目录须全程固定 | `runtime_view.md` §场景 3 |
 | RS-4 | **人工发布回填闭环** | 用户发布后回填 URL，全部渠道齐全才推进 `published` | `runtime_view.md` §场景 4 |
 | RS-5 | **指标采集与环比** | 采集失败→`null`；部分缺失→汇总 `null`；历史不足→delta `null` | `runtime_view.md` §场景 5 |
-| RS-6 | **草稿版本恢复** | 非破坏性回滚：以历史版本为基础追加新版本 | `runtime_view.md` §场景 6 |
+| RS-6 | **当前草稿单文件保存** | 保留并发控制，只原子替换当前内容；无历史恢复 | `runtime_view.md` §场景 6 |
 | RS-7 | **`draftsDir` 切换与在途操作** | 在途写原目录（预期语义），新操作才用新目录 | `runtime_view.md` §场景 7 |
 | RS-8 | **统一 BrowserOS 实例会话探测** | 四态如实返回，严禁退化为 boolean | `runtime_view.md` §场景 8 |
 

@@ -1,8 +1,9 @@
 # 介绍与目标 (Introduction and Goals)
 
 > **Metadata**
-> - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.2.0）+ PRD 基线 v1.1.0
+> - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.3.0）+ PRD 基线 v1.2.0
 > - **Generated At**: `2026-10-16 09:44`
+> - **Updated At**: `2026-10-16 11:05`
 > - **Generator**: `Context-Agent v1.0`
 
 ---

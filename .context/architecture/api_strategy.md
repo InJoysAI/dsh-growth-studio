@@ -1,14 +1,17 @@
 # API 策略与接口契约 (API Strategy)
 
 > **Metadata**
-> - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.2.0 §2.2、§3）
+> - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.3.0 §2.2、§3）
 > - **Generated At**: `2026-10-16 09:44`
+> - **Updated At**: `2026-10-16 11:05`
 > - **Generator**: `Context-Agent v1.0`
 
 > ⚠️ 本文是源文档 §3 的**结构化总结**。契约的**权威定义在 `src/ops-rpc.ts` + `src/types.ts`**（criterion §7.1，手写 TS 契约）。
 > 若本文与源文档或 `../criterion.md` 冲突，**以它们为准**。
 
 ---
+
+> **MVP 裁决说明（2026-10-16）**：生成只保存本地、显式沉淀与取消草稿历史是本轮目标契约；本轮未改代码，尚未核查运行时是否已对齐。既有方法实现基线不能代替此项核查。
 
 ## 1. 传输与协议
 
@@ -109,7 +112,6 @@ interface RpcEnvelopeResponse {
 | `drafts/invalid-published-url` | 回填 URL 不是合法 `http(s)`（须用 **URL 解析器**校验） | `drafts.updatePublishUrl` |
 | `drafts/unknown-channel` | 回填 `platform` 不属于该草稿的 `channelVariants`（**不写盘、不递增版本**） | `drafts.updatePublishUrl` |
 | `drafts/storage-unavailable` | 目录不可写或创建失败（**统一 RPC 错误边界**映射，覆盖**所有**写入口） | 全部写入口 |
-| `drafts/version-not-found` | 请求的版本不存在 | `drafts.getVersion` |
 | `config/invalid-drafts-dir` | `config.save` 前置目录准备/可写性校验失败 | `config.save` |
 | `calendar/invalid-transition` | 越级 / 回退 / 经本接口写 `published` | `calendar.updateStatus` |
 | `tools/disabled` | 工具在白名单中为 `enabled === false`（**宿主侧**强制） | `tools.executeSandbox` |
@@ -267,8 +269,7 @@ interface GenerateArticleResponse {
 }
 ```
 
-> ⚠️ **落盘目录约束**：该请求在等待知识库后才**首次写草稿**、再等远端文档后写 `injoysDocId`；
-> **两次写入都必须绑定同一个已捕获目录**，否则一次请求会在两个库里各留一份同 ID 副本。
+> **MVP 写入边界**：本请求只保存本地，不创建或更新 Injoys 文档；知识库可读取。请求开始时捕获草稿目录，等待知识库后仍写入该目录。可选 `injoysDocId` 仅保留兼容形状，不因生成而创建或填充。
 
 ---
 
@@ -296,6 +297,7 @@ interface GenerateVideoMetaResponse {
 
 **关键约束**
 
+- **生成只保存本地**；不自动创建或更新 Injoys 文档，可选 `injoysDocId` 不构成写入授权。
 - **`titleCandidates` 数量恒为 3** —— UI 依赖此固定数量，**不得返回其他个数**；
 - **草稿关联规则**：视频生成与图文生成**行为一致** —— 响应必须返回 `id` 与 `draftSaved`，表明物料已自动落盘为 `ContentDraft`（`channelVariants[platform].kind === 'video'`）；
 - 未成功落盘时 `draftSaved: false`，且 `id` **仍返回**（便于前端重试保存），**不得谎报已保存**；
@@ -307,6 +309,7 @@ interface GenerateVideoMetaResponse {
 
 > 对应 PRD §5.4.3 的「💾 沉淀至 Injoys 知识文档」操作条。
 > 该动作**独立于自动存盘**：自动存盘只写本地草稿库，本接口才写入 Injoys。
+> **必须由用户点击沉淀操作或明确要求写入 Injoys 才触发**；生成、预览、本地保存与自动同步配置均不能替代这次要求。该请求从开始时捕获目录，贯穿读取、远端调用和 `injoysDocId` 回写。
 > 链路：宿主 → `InjoysClient` → `document.create`。
 
 ```typescript
@@ -423,8 +426,7 @@ interface SaveDraftRequest {
 // → { success: boolean }
 ```
 
-> **级联语义**：删除草稿时**同时删除**其版本快照（`{id}.versions/`）。
-> `success: true` 表示草稿与快照**均已清除**。
+> **MVP 删除语义**：删除当前 `{id}.json`，`success:true` 表示当前草稿已清除；不创建或管理历史快照，不承诺旧历史文件清理或远端联动删除。
 
 ---
 
@@ -463,27 +465,11 @@ interface UpdatePublishUrlResponse {
 
 ---
 
-#### `drafts.listVersions` / `drafts.getVersion` / `drafts.restoreVersion`
+#### 草稿历史接口（MVP 不提供）
 
-```typescript
-interface DraftVersionsResponse {
-  versions: Array<{
-    version: number
-    title: string
-    status: ContentDraft['status']
-    savedAt: string
-    wordCount: number        // 便于 UI 列表展示，无需读取全文
-  }>
-}
-```
-
-| 方法 | 请求 | 响应 | 说明 |
-|------|------|------|------|
-| `drafts.listVersions` | `{ id }` | `{ versions }` | 版本历史列表 |
-| `drafts.getVersion` | `{ id, version }` | `{ draft }` | 读取指定历史版本全文；不存在返回 `drafts/version-not-found` |
-| `drafts.restoreVersion` | `{ id, version }` | `{ draft }` | **不做破坏性回滚**：把目标版本内容作为基础，**追加为新版本**（`version` 继续自增），历史版本一律保留，因此恢复操作本身**也可被再次恢复** |
-
-> `version` 自增**只表示当前版本号，不等于保存了历史内容**，因此需要独立的版本快照存储（见 `data_architecture.md` §版本快照）。
+`drafts.listVersions`、`drafts.getVersion`、`drafts.restoreVersion` 不在 MVP 范围内，原请求、响应及 `drafts/version-not-found` 不作为首版契约。
+MVP 通过 `drafts.get` / `drafts.save` 查看与覆盖当前内容，`version` / `expectedVersion` 仅用于并发控制。
+历史功能如需引入须另行提案。存储规则见 `data_architecture.md` §MVP 单份草稿存储设计。
 
 ---
 
@@ -646,7 +632,7 @@ interface ConfigGetValue extends OpsConfig {
 - **保存前必须准备并校验目标目录**（见 `config.save`）。仅检查「目录存在」是**不够**的：**已存在但只读的目录**会让 `mkdir` 成功却在首次写入时失败；
 - **目录必须在单次操作内固定，且覆盖复合 RPC**：一次草稿操作（加锁 → 读取 → 版本校验 → 临时文件 → rename）必须始终针对**同一个**目录。若中途发生配置切换，本次操作**继续使用原目录**，切换只对**新发起**的操作生效（否则会出现「从 A 库读取、写入 B 库」并覆盖 B 库同 ID 草稿）；
 - **写锁按绝对文件路径**而不是 ID 归属，使不同库中的同 ID 草稿互不阻塞、互不覆盖；
-- **跨 `await` 的复合请求同样适用**（如 `workbench.prefillDraft`）。**贯穿范围包括「请求内的每一次落盘」**（如 `workbench.generateArticleDraft` 的两次写入）；
+- **跨 `await` 的复合请求同样适用**（如 `workbench.prefillDraft`）。**贯穿范围包括「请求内的每一次落盘」**（如用户明确触发的 `workbench.sinkToInjoysDoc` 读取后回写；生成本身只写本地）；
 - **这是确定行为，不是异常**（已裁决）：在途操作写入原目录属于**预期语义**，**不引入** `dirChangedDuringSave` 之类的告警标记，也不在响应中把它当错误上报；
 - **配置页切换提示文案**（实现时照此展示，须同时覆盖三件事实）：
   > 新目录对后续操作生效；正在进行的保存仍写入原目录。旧草稿不会自动迁移。
@@ -700,7 +686,6 @@ interface SetupScheduleParams {
 ### 已定义但**尚未实现**（新增须先补契约再实现）
 
 - `workbench.generateCalendar`、`calendar.list`、`calendar.updateStatus`、`workbench.exportCalendar`、`workbench.importCalendar`
-- `drafts.listVersions`、`drafts.getVersion`、`drafts.restoreVersion`
 - `workbench.sinkToInjoysDoc`
 - `tools.catalog`、`tools.toggle`、`tools.executeSandbox`、`tools.telemetry`
 - `browser.login.startQr` / `pollQr` / `openHeadful` / `cancel`（Phase 2 愿景，**需 BrowserOS CDP PoC 验证**）

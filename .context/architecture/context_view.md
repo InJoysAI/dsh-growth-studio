@@ -1,8 +1,9 @@
 # 上下文视图 (Context View)
 
 > **Metadata**
-> - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.2.0 §1.1、§5.1、§5.3）
+> - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.3.0 §1.1、§5.1、§5.3）
 > - **Generated At**: `2026-10-16 09:44`
+> - **Updated At**: `2026-10-16 11:05`
 > - **Generator**: `Context-Agent v1.0`
 
 ---
@@ -75,7 +76,7 @@ C4Context
 
 - **排期规划**：生成周/月排期，本地为黄金主数据源；单向导出/导入 Injoys Spreadsheet
 - **内容创作**：公众号图文（标题/摘要/正文 Markdown）；视频元数据（3 套标题候选、简介、标签、分区、封面建议）
-- **草稿治理**：本地 CRUD、版本快照与恢复、发布 URL 回填闭环
+- **草稿治理**：本地 CRUD（只保留当前内容）、发布 URL 回填闭环
 - **草稿预填**：经 BrowserOS 将草稿填入平台草稿箱（公号 + B站），回传直达链接
 - **会话探测**：统一 BrowserOS 实例的会话四态判定
 - **指标聚合**：跨平台采集、可空语义汇总、环比走势

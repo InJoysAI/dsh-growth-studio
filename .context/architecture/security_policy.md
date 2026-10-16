@@ -1,8 +1,9 @@
 # 安全策略 (Security Policy)
 
 > **Metadata**
-> - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.2.0 §5.2、§5.3、§六）
+> - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.3.0 §5.2、§5.3、§六）
 > - **Generated At**: `2026-10-16 09:44`
+> - **Updated At**: `2026-10-16 11:05`
 > - **Generator**: `Context-Agent v1.0`
 
 > **NFR/Security 权威说明**：架构文档为安全策略的**权威来源**。PRD 中若含安全 / NFR 内容，仅作为补充引用，**不覆盖**架构决策。
@@ -243,7 +244,7 @@
 | **数据最小化** | 会话探测**只做存在性 / 状态判定**，不导出 Cookie 内容 |
 | **本地优先** | 草稿、排期、指标、配置**全部落本地** `$DSH_HOME`；远端仅按用户显式动作同步 |
 | **零外发** | 会话数据不出本地沙箱 |
-| **数据可删除** | `drafts.delete` 级联删除草稿与全部版本快照；旧目录草稿由用户自行处置（不做自动迁移） |
+| **数据可删除** | `drafts.delete` 删除当前草稿；MVP 不创建或管理历史快照；旧目录草稿由用户自行处置（不做自动迁移） |
 | **用户知情** | 目录切换时展示三件事实提示（新目录对后续生效；在途保存写原目录；旧草稿不自动迁移） |
 
 ---

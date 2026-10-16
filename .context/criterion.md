@@ -3,6 +3,7 @@
 > **Metadata**
 > - **Source**: `docs/product_requirements.md`, `docs/development_plan.md`, `docs/technical_architecture.md`
 > - **Generated At**: `2026-10-15 20:23`
+> - **Updated At**: `2026-10-16 11:05`
 > - **Generator**: `Context-Dev-Agent v1.0`
 
 > **用途**: 定义 AI 代理必须遵守的工程约束和技术规范。
@@ -159,12 +160,12 @@ Structure: ContentDraft / PlatformMetrics / CalendarItem（见 §5.5 与架构�
 
 MUST:
   - 原子写入（临时文件 + rename）+ 串行写锁保护内部回写
-  - 版本自增（`version`）与 `expectedVersion` 乐观锁并发控制
+  - 版本自增（`version`）与 `expectedVersion` 乐观锁并发控制；MVP 只保留当前草稿 `{id}.json`，不创建版本快照、不提供历史查看或恢复（架构 §4.4）
   - 系统文件权限仅限当前操作系统用户
   - 文件路径统一经 `resolveDshHome` 解析（`profileContext.home` → `DSH_HOME` → `~/.dsh` 回退）
   - **目录在单次操作内固定**：一次草稿操作（加锁 → 读取 → 版本校验 → 写临时文件 → rename）必须始终针对同一目录；配置热切换只对**新发起**的操作生效，在途操作继续使用原目录
   - **跨 `await` 的复合 RPC 同样须固定目录**：如 `workbench.prefillDraft`（读草稿 → 调 Adapter → 回写）必须在请求开始时捕获目录并贯穿，禁止在 await 之后重新解析；客户端不得指定任意路径
-  - **贯穿范围含请求内每一次落盘**：如 `workbench.generateArticleDraft` 的「首次写草稿」与「回写 `injoysDocId`」两次写入都必须绑定同一已捕获目录，否则一次请求会在两个库各留一份同 ID 副本
+  - **贯穿范围含请求内每一次落盘**：生成接口在等待知识库后只写本地草稿；用户明确触发的 `workbench.sinkToInjoysDoc` 须在其请求开始时捕获目录，贯穿读取、远端写入和回写 `injoysDocId`；两个请求各自固定目录，生成不得自动延伸为远端写入
   - **该语义为确定行为，不得当作异常**：不引入 `dirChangedDuringSave` 之类的告警标记
   - **配置页切换提示文案**（实现时照此展示）：新目录对后续操作生效；正在进行的保存仍写入原目录。旧草稿不会自动迁移
   - **写入前准备并校验目录**：目标目录不存在则创建，且必须**验证确实可写**（创建并删除唯一命名的探测文件）；仅检查存在性不足——已存在但只读的目录会让 `mkdir` 成功却在首次写入失败。不可用须如实抛错（`DraftStorageError`）
@@ -196,6 +197,7 @@ MUST NOT:
   - **渠道成员校验**：回填的 `platform` 必须属于该草稿的 `channelVariants`，否则返回 `drafts/unknown-channel`，且不写盘、不递增版本
   - 预填止步于平台原生「保存为草稿」：微信公众号填标题 / 作者 / 正文并触发平台原生保存草稿按键；B站创作者中心填标题 / 简介 / 标签 / 分区并保存草稿
   - 预填完成后返回草稿直达链接，由人工在平台后台完成最终发布
+- **内容写入边界**：生成只保存本地，写入 Injoys 文档必须由用户点击沉淀操作或明确要求；生成、预览、本地保存和自动同步配置均不构成该授权。知识库读取不受此限制。
 - **指标真实性**: 采集失败或平台不支持的指标必须为 `null`，不得按 0 或估算值伪造填充
   - **汇总口径**：应采平台未全部成功时，汇总值为 `null`，不得只汇总已成功平台冒充全网总量；须填充 `measuredPlatforms` / `unmeasuredPlatforms` 标注覆盖范围
   - **零值语义**：平台真实返回 `0` 为有效值参与求和，与「采集失败」的 `null` 严格区分
@@ -260,10 +262,11 @@ interface RpcEnvelopeRequest {
 **架构文档 §3 已定义但尚未实现的方法**（新增须先补契约再实现）：
 
 - `workbench.generateCalendar`、`calendar.list`、`calendar.updateStatus`、`workbench.exportCalendar`、`workbench.importCalendar`（排期生成 / 读取 / 状态推进 / 导出 / 导入）
-- `drafts.listVersions`、`drafts.getVersion`、`drafts.restoreVersion`（草稿版本历史）
 - `workbench.sinkToInjoysDoc`（主动沉淀物料至 Injoys 知识文档）
 - `tools.catalog`、`tools.toggle`、`tools.executeSandbox`、`tools.telemetry`（AI 工具中枢与沙箱）
 - `browser.login.startQr` / `pollQr` / `openHeadful` / `cancel`（Phase 2 愿景，需 BrowserOS CDP PoC 验证）
+
+> **MVP 草稿边界**：不提供 `drafts.listVersions` / `drafts.getVersion` / `drafts.restoreVersion`，不列为首版待实现方法；`version` 仅用于并发控制。生成只保存本地，沉淀须用户明确触发，详见架构 §3.5.1、§4.4。此次为文档裁决，实现需另行核查与提案，不宣称已完成。
 
 > 客户端当前仅接入 `config.get`、`config.save`、`injoys.test`、`browser.sessions`；
 > 工作台 / 草稿类方法待客户端 UI 接入（与开发计划「客户端草稿工作台 UI 待实现」一致）。

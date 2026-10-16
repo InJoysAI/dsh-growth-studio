@@ -1,8 +1,9 @@
 # 跨切面概念 (Cross-cutting Concepts)
 
 > **Metadata**
-> - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.2.0 §3.9、§5.5、§六）
+> - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.3.0 §3.9、§5.5、§六）
 > - **Generated At**: `2026-10-16 09:44`
+> - **Updated At**: `2026-10-16 11:05`
 > - **Generator**: `Context-Agent v1.0`
 
 > 源文档未定义完整的可观测性体系（无 Prometheus / Jaeger / 日志级别规范）。
@@ -36,7 +37,6 @@ interface RpcEnvelopeResponse<T = unknown> {
 | `drafts/invalid-published-url` | URL 非法 | 发布守卫 |
 | `drafts/unknown-channel` | 渠道不属于该草稿 | 发布守卫 |
 | `drafts/storage-unavailable` | 目录不可写 / 创建失败 | **统一 RPC 错误边界** |
-| `drafts/version-not-found` | 版本不存在 | 版本管理器 |
 | `config/invalid-drafts-dir` | 前置目录校验失败 | 配置服务（**单独使用**） |
 | `calendar/invalid-transition` | 越级 / 回退 / 写 `published` | 排期服务 |
 | `tools/disabled` | 工具被白名单禁用 | 工具沙箱 |

@@ -1,8 +1,9 @@
 # 数据架构 (Data Architecture)
 
 > **Metadata**
-> - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.2.0 §4、§5.3）
+> - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.3.0 §4、§5.3）
 > - **Generated At**: `2026-10-16 09:44`
+> - **Updated At**: `2026-10-16 11:05`
 > - **Generator**: `Context-Agent v1.0`
 
 > ⚠️ **权威定义在 `src/types.ts`**（criterion §5.5）。若本文与源文档冲突，**以源文档为准**。
@@ -19,7 +20,6 @@
 ```mermaid
 erDiagram
     CALENDAR_ITEM ||--o| CONTENT_DRAFT : "documentId 关联"
-    CONTENT_DRAFT ||--o{ DRAFT_VERSION : "版本快照"
     CONTENT_DRAFT ||--o{ PREFILL_RESULT : "按渠道预填结果"
     CONTENT_DRAFT ||--o{ PUBLISHED_URL : "按渠道回填URL"
     CONTENT_DRAFT }o--o| INJOYS_DOC : "injoysDocId 沉淀"
@@ -33,7 +33,7 @@ erDiagram
 | 实体 | 描述 | 关系 |
 |------|------|------|
 | **`CalendarItem`** | 排期项（本地持久化单一排期行） | `documentId` → `ContentDraft`（可空）；`externalRowId` ↔ Injoys 表格行 |
-| **`ContentDraft`** | 本地持久化草稿实体 | 1:N 版本快照；按渠道持有 `prefillResults` / `publishedUrls` |
+| **`ContentDraft`** | 本地持久化草稿实体 | MVP 只保留当前内容；按渠道持有 `prefillResults` / `publishedUrls` |
 | **`PlatformMetrics`** | 跨平台真实指标（**可空语义**） | 属于平台账号，**全局共享**（不随产品切换） |
 | **`OpsConfig`** | 插件配置 | 独立于业务实体 |
 
@@ -106,7 +106,7 @@ export interface ContentDraft {
 | 字段 | 约束 | 描述 |
 |------|------|------|
 | `status` | 四态 | **与 `ItemStatus` 是两套不同枚举**，须经映射表转换 |
-| `version` | 自增 | **只表示当前版本号，不等于保存了历史内容**（历史需独立快照） |
+| `version` | 自增 | **仅用于并发控制**；MVP 不保存历史内容 |
 | `injoysDocId` | 回写 | 经 `workbench.sinkToInjoysDoc` 成功后写入 |
 | `prefillResults` | 按渠道 | 预填成功后写入（`draftUrl` 用于回传直达链接） |
 | `publishedUrls` | **服务端治理** | 通用保存入口（`drafts.save`）必须**忽略**调用方传入的该字段 |
@@ -221,41 +221,31 @@ stateDiagram-v2
 ```text
 $DSH_HOME/
 ├── ops-manager/
-│   └── config.json                    # OpsConfig（§3.10）
+│   └── config.json
 └── growth-studio/
     ├── drafts/
-    │   ├── {draftId}.json             # ContentDraft 当前版本
-    │   └── {draftId}.versions/        # 版本快照
-    │       ├── v1.json
-    │       ├── v2.json
-    │       └── ...
+    │   └── {draftId}.json             # MVP 当前草稿；无草稿版本快照
     ├── calendar/
-    │   └── {itemId}.json              # CalendarItem 排期项
+    │   └── {itemId}.json
     └── metrics/
-        └── {YYYY-MM-DD}.json          # 指标历史快照（供环比计算）
+        └── {YYYY-MM-DD}.json          # 指标历史快照仍保留
 ```
 
 | 路径 | 实体 | 说明 |
 |------|------|------|
-| `ops-manager/config.json` | `OpsConfig` | 配置；`draftsDir` 可被用户改写 |
-| `growth-studio/drafts/{id}.json` | `ContentDraft` | 当前版本（含 `version` 字段，读路径不变） |
-| `growth-studio/drafts/{id}.versions/v{n}.json` | 版本快照 | 完整 `ContentDraft` 快照 |
-| `growth-studio/calendar/{id}.json` | `CalendarItem` | **排期黄金主数据源** |
-| `growth-studio/metrics/{YYYY-MM-DD}.json` | `PlatformMetrics[]` | 按 `(platform, capturedAt)` 追加 |
+| `ops-manager/config.json` | `OpsConfig` | 配置；`draftsDir` 可由用户修改 |
+| `growth-studio/drafts/{id}.json` | `ContentDraft` | 只保留当前内容，`version` 用于并发控制 |
+| `growth-studio/calendar/{id}.json` | `CalendarItem` | 排期黄金主数据源 |
+| `growth-studio/metrics/{YYYY-MM-DD}.json` | `PlatformMetrics[]` | 按 `(platform, capturedAt)` 追加，供环比 |
 
-> ⚠️ `{id}.versions/` 为**目录**，不参与 `drafts.list` 的 `.json` 收集
-> （`list` 只扫描目录下的**文件**，实现时须避免把版本子目录误当作草稿项）。
+### MVP 单份草稿存储设计
 
-### 版本快照存储设计 (Version Snapshot Storage)
-
-| 设计要点 | 规则 |
-|---------|------|
-| **写入时机** | `drafts.save` 每次成功写入新版本时，**同时**将该版本完整 `ContentDraft` 写入 `{id}.versions/v{version}.json`。当前版本文件与快照在**同一串行写锁内**完成，避免「版本号已增但快照缺失」 |
-| **原子性** | 快照同样采用「**临时文件 + rename**」写入，与当前版本文件保持一致的原子保证 |
-| **保留策略** | Phase 0 **保留全部版本**（个人开发者场景单草稿版本量有限），**不自动淘汰**。若后续需要上限，应先在 PRD 定义保留条数与用户可见的淘汰提示 |
-| **读取路径** | `drafts.get` 语义不变（返回当前版本），历史读取走 `drafts.getVersion`，二者互不影响 → 本设计**向后兼容** |
-| **删除语义** | `drafts.delete` **级联删除** `{id}.json` 与整个 `{id}.versions/` 目录 |
-| **一致性校验** | `drafts.listVersions` 的版本号集合应等于 `v{n}.json` 文件集合；若当前版本号高于最大快照号（历史数据由旧版本代码写入），应**如实返回已有快照**并给出可用版本列表，**不得伪造缺失版本** |
+- 每个草稿只保存一个 `{id}.json`；不创建历史数组或 `{id}.versions/`，不提供历史查看和恢复。
+- 在固定目录、同一文件写锁内读取当前内容、校验 `expectedVersion`、维护发布守卫、递增 `version`，写同目录临时文件后 `rename` 替换。
+- 临时文件不是版本快照；替换前写入失败时当前文件不变，不报成功，统一映射为 `drafts/storage-unavailable`。
+- `drafts.get` 返回当前草稿；`drafts.delete` 删除当前文件。MVP 不管理用户可能已有的历史文件，也不承诺远端联动删除。
+- 用户明确触发 `workbench.sinkToInjoysDoc` 后才写远端并回写关联；生成本身只写本地。
+- 取消草稿快照不影响指标历史。未来需要历史功能时须先定义需求与恢复契约。
 
 ### 索引设计
 
@@ -264,7 +254,6 @@ $DSH_HOME/
 | 查找需求 | 定位方式 |
 |---------|---------|
 | 按草稿 ID | 直接文件名 `{id}.json` |
-| 版本快照 | 子目录 `{id}.versions/v{n}.json` |
 | 排期按日期 / 平台 / 状态 | **扫描 + 过滤**（`calendar.list` 的参数过滤），无索引 |
 | 指标按日 | 文件名 `{YYYY-MM-DD}.json` |
 
@@ -273,7 +262,7 @@ $DSH_HOME/
 | 数据 | 分区方式 | 保留期 |
 |------|---------|--------|
 | 指标快照 | **按日分文件** | N/A – 源文档未提供淘汰策略 |
-| 草稿版本 | 按 ID 分子目录 | Phase 0 **全部保留** |
+| 草稿 | 每个 ID 一个当前文件 | MVP 只保留当前内容 |
 
 ---
 
@@ -330,9 +319,9 @@ $DSH_HOME/
 | 策略 | 描述 |
 |------|------|
 | **所有权** | 单一开发者；数据全部落本机 `$DSH_HOME` |
-| **保留策略** | 草稿版本 **Phase 0 全部保留**；指标快照保留期 N/A – 源文档未提供 |
+| **保留策略** | MVP 只保留当前草稿；指标快照保留期 N/A – 源文档未提供 |
 | **归档策略** | N/A – 源文档未提供（Phase 0 无归档态） |
-| **删除权** | `drafts.delete` 级联删除草稿与**全部版本快照**；旧目录草稿**不做自动迁移**，由用户自行处置 |
+| **删除权** | `drafts.delete` 删除当前草稿；MVP 不创建或管理历史快照；旧目录草稿**不做自动迁移**，由用户自行处置 |
 | **产品切换** | `defaultProduct` **仅切换生成上下文**，**不做数据隔离**；`ContentDraft` / `CalendarItem` **不新增 `productId`** |
 | **数据源归属** | 本地为**黄金主数据源**；Injoys Spreadsheet / Document 为**导出目标**（单向） |
 | **文件权限** | 系统文件权限**仅限当前操作系统用户** |
@@ -365,7 +354,7 @@ $DSH_HOME/
 | `adr_004_local_primary_injoys_export.md` | 本地主数据决策 |
 | `adr_005_five_state_lifecycle.md` | 五态收敛决策 |
 | `adr_006_product_switch_context_only.md` | 产品切换语义决策 |
-| `adr_008_version_snapshot_storage.md` | 版本快照决策 |
+| `adr_008_version_snapshot_storage.md` | MVP 单份草稿决策（保留原文件名用于追溯） |
 | `../criterion.md` §5.5、§7.3 | **权威定义** |
 
 ---
@@ -378,4 +367,4 @@ $DSH_HOME/
 3. 指标缺失必须为 `null`；**不得消费 `views`** 作为真实缺失指标的值
 4. `publishedUrls` 是**服务端治理字段**，通用保存入口必须忽略调用方传入值
 5. 涉及写盘必须：原子写 + 串行写锁 + **目录在操作内固定** + 写前验证可写
-6. `drafts.delete` 须级联删除版本快照目录
+6. MVP 只写当前草稿，`version` 只用于并发控制；不提供历史查看、恢复或快照
