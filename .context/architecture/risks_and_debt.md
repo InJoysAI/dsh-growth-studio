@@ -191,7 +191,7 @@
 | **严重性** | 中 |
 | **描述** | 架构文档 §3 已定义契约、但**仍未实现**的方法：`workbench.generateCalendar`、`calendar.list`、`calendar.updateStatus`、`workbench.exportCalendar`、`workbench.importCalendar`、`workbench.sinkToInjoysDoc`、`tools.catalog`、`tools.toggle`、`tools.executeSandbox`、`tools.telemetry`。 |
 | **影响** | 排期、显式物料沉淀、AI 工具中枢尚未可用；草稿版本历史已由 MVP 裁决移出范围；文档与实现存在落差，易被误读为「已实现」。 |
-| **目标解决时间** | N/A – 源文档未提供（见 `docs/development_plan.md` 阶段划分） |
+| **目标解决时间** | N/A – 源文档未提供（见 `.context/domain/source/development_plan.md` 阶段划分） |
 | **解决方案** | 按 criterion §6 的 **SSoT-first** 顺序：先补 `src/types.ts` 契约 → 再补 `src/ops-rpc.ts` 方法契约 → 再实现 Adapter / 领域服务 → 最后接客户端 UI 与测试。 |
 | **估算工作量** | N/A – 源文档未提供 |
 

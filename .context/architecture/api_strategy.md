@@ -426,7 +426,7 @@ interface SaveDraftRequest {
 - 调用方应据 `details.currentVersion` 重新拉取草稿、合并后再以新版本重试，**不得覆盖式盲写**；
 - 字段位置、可选性与冲突载荷的**权威形状**以 criterion §7.1 的 TS 契约（`src/ops-rpc.ts` + `src/types.ts`）为准。
 
-> **来源说明（需同步源文档）**：源文档 TAD §3.2.3 的 `SaveDraftRequest` 片段**未包含** `expectedVersion`（本资产此前忠实复制，故同样遗漏）。此处依 criterion §3.5 的「`version` / `expectedVersion` 乐观锁」MUST 与 §7.1 权威实现补齐。源文档 `docs/technical_architecture.md` 亦应经 `context-update` 同步该字段与冲突响应；否则后续重生成**存在再次遗漏该字段的风险**。
+> **来源说明（需同步源文档）**：源文档 TAD §3.2.3 的 `SaveDraftRequest` 片段**未包含** `expectedVersion`（本资产此前忠实复制，故同样遗漏）。此处依 criterion §3.5 的「`version` / `expectedVersion` 乐观锁」MUST 与 §7.1 权威实现补齐。源文档 `.context/architecture/source/technical_architecture.md` 亦应经 `context-update` 同步该字段与冲突响应；否则后续重生成**存在再次遗漏该字段的风险**。
 
 **`published` 守卫（服务端强制）**
 

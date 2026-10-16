@@ -62,8 +62,8 @@ graph TD
 | **CommentsCrawler** 评论抓取 | `src/feedback/comments-crawler.ts` | 真实抓取多平台评论数据 | 生成固定 mock 评论数组 | 🔴 占位待实现 | **Phase 1** |
 | **IssueExtractor** 需求提炼 | `src/feedback/issue-extractor.ts` | 真实聚类 Bug / Feature | 简单的静态正则匹配与假数据聚类 | 🔴 占位待实现 | **Phase 1** |
 | **ReviewReporter** 复盘报告 | `src/analytics/review-reporter.ts` | 基于真实指标计算爆款率与总结 | 算法可用，依赖 live MetricsCollector 数据流 | 🟡 待连通真实数据 | **Phase 1** |
-| **BrowserOS 独立认证窗/Profile** | `docs/technical_architecture.md` | CDP 截取二维码与指定独立 profile 启动小窗 | 未进行任何实际 BrowserOS 环境 PoC 验证 | 🔬 需 PoC 验证 | **Phase 2** |
-| **Injoys 双向冲突仲裁** | `docs/technical_architecture.md` | 复杂分布式双向同步 | 未实现，存在数据覆盖风险 | 🔨 规划中 | **Phase 3** |
+| **BrowserOS 独立认证窗/Profile** | `.context/architecture/source/technical_architecture.md` | CDP 截取二维码与指定独立 profile 启动小窗 | 未进行任何实际 BrowserOS 环境 PoC 验证 | 🔬 需 PoC 验证 | **Phase 2** |
+| **Injoys 双向冲突仲裁** | `.context/architecture/source/technical_architecture.md` | 复杂分布式双向同步 | 未实现，存在数据覆盖风险 | 🔨 规划中 | **Phase 3** |
 
 ---
 

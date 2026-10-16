@@ -13,21 +13,21 @@
   },
   "sources": {
     "PRD": {
-      "path": "docs/product_requirements.md",
+      "path": ".context/domain/source/product_requirements.md",
       "archived_to": ".context/domain/source/product_requirements.md",
       "type": "product_requirements",
       "content_hash": "3838802783ff2f90872874771fc0bcb538b3c31cde467f7f4350715dcfcfc2a8",
       "status": "archived"
     },
     "DEVELOPMENT_PLAN": {
-      "path": "docs/development_plan.md",
+      "path": ".context/domain/source/development_plan.md",
       "archived_to": ".context/domain/source/development_plan.md",
       "type": "development_plan",
       "content_hash": "8b199d5469cd4c015987adfd941a9b888c8cd30260d59ba3294832ee4a48c909",
       "status": "archived"
     },
     "ARCHITECTURE": {
-      "path": "docs/technical_architecture.md",
+      "path": ".context/architecture/source/technical_architecture.md",
       "archived_to": ".context/architecture/source/technical_architecture.md",
       "type": "system_architecture",
       "content_hash": "86e64f75470fc76903bb82fe3f96adade188647e90cc10dd08a83fdf58b180f7",

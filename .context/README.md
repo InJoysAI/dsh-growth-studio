@@ -1,7 +1,7 @@
 # .context/ — 项目长期记忆目录
 
 > **Metadata**
-> - **Source**: `docs/product_requirements.md`, `docs/development_plan.md`, `docs/technical_architecture.md`
+> - **Source**: `.context/domain/source/product_requirements.md`, `.context/domain/source/development_plan.md`, `.context/architecture/source/technical_architecture.md`
 > - **Generated At**: `2026-10-15 20:23`
 > - **Updated At**: `2026-10-16 16:41`
 > - **Generator**: `Context-Dev-Agent v1.0`

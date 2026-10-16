@@ -1,7 +1,7 @@
 # 项目准则 (Project Criterion)
 
 > **Metadata**
-> - **Source**: `docs/product_requirements.md`, `docs/development_plan.md`, `docs/technical_architecture.md`
+> - **Source**: `.context/domain/source/product_requirements.md`, `.context/domain/source/development_plan.md`, `.context/architecture/source/technical_architecture.md`
 > - **Generated At**: `2026-10-15 20:23`
 > - **Updated At**: `2026-10-16 16:46`
 > - **Generator**: `Context-Dev-Agent v1.0`
@@ -41,7 +41,7 @@ dsh-growth-studio/
 ├── tests/                       # vitest 测试
 ├── scripts/                     # 校验脚本（check-patch.mts / verify-live-metrics.mts）
 ├── design/context-dev/          # Context 工程化工具链（本文件所在体系）
-├── docs/                        # 需求/架构/计划文档（源文档只读）
+├── docs/                        # 报告等其他文档（PRD/架构/计划源文档已归档至 .context/）
 ├── openspec/                    # 变更提案与规范（config.yaml / proposal-roadmap.md 待生成）
 └── .context/                    # AI 代理长期记忆目录
 ```
