@@ -4,11 +4,13 @@
 >
 > | 属性 | 值 |
 > | :--- | :--- |
-> | **文档版本** | v1.3.0 |
-> | **对应 PRD 基线** | `.context/domain/source/product_requirements.md` **v1.2.0**（MVP 简化裁决版 Approved Baseline） |
+> | **文档版本** | v1.4.0 |
+> | **对应 PRD 基线** | `.context/domain/source/product_requirements.md` **v1.2.1**（MVP 简化裁决版 Approved Baseline） |
 > | **状态** | 评审整改版 |
 > | **初次编写** | 2026-10-13 |
-> | **本次修订** | 2026-10-16（用户裁决 A-1～A-3：生成只存本地、显式沉淀、MVP 单份草稿存储） |
+> | **本次修订** | 2026-10-16（用户裁决 A-1～A-3：生成只存本地、显式沉淀、MVP 单份草稿存储；本次追加 BrowserOS 能力管理方案） |
+>
+> **v1.4.0 的 MVP 裁决（2026-10-16，用户已确认）**：新增「BrowserOS 浏览器引擎 → 能力管理」——将固定四动作限制调整为「复用现有 BrowserOS 工具清单、默认启用八项、全部实际能力可开关、宿主统一检查」。详见 §3.12 与 §6。本文本次只同步文档，不声明实现已对齐。
 >
 > **v1.3.0 的 MVP 裁决（2026-10-16，用户已确认）**：生成只保存本地；生成物料写入 Injoys 必须由用户明确触发。MVP 只保留当前草稿，不提供历史查看、恢复与版本快照；`version` / `expectedVersion` 保留用于并发控制。本文本次只同步文档，不声明实现已对齐。
 >
@@ -684,6 +686,8 @@ interface OpsConfig {
   reuseHostBrowserProfile: boolean
   /** 是否自动将排期与复盘同步至 Injoys */
   autoSyncToInjoys: boolean
+  /** BrowserOS 工具能力开关（可选）。契约与默认值解析见 §3.12.2。 */
+  browserosCapabilities?: Partial<Record<string, boolean>>
 }
 ```
 
@@ -798,6 +802,105 @@ interface OpsConfig {
   * 该能力与「Phase 0 禁止后台定时轮询」（§5.5）**不冲突**：前者是 DSH 宿主的任务调度（到点唤起会话），
     后者禁止的是工作台为刷新大盘而自建常驻连接或轮询。二者不可混为一谈；
   * 巡检任务自身的执行仍受「仅预填、不自动发布」铁律（§5.2）约束。
+
+---
+
+### 3.12 BrowserOS 能力管理（Capability Management） `[Phase 0 首版]`
+
+> 对应 PRD §5.7.1「BrowserOS 浏览器引擎 → 能力管理」。本节将历史方案中
+> “BrowserOS 驱动仅允许 `tabs / navigate / snapshot / act` 四动作、禁用 `shell`/`cmd`”
+> 的固定限制，**替换为**“复用现有 BrowserOS 工具清单、默认启用八项、全部实际能力可开关、宿主统一检查”。
+> 旧的四动作白名单与 `shell`/`cmd` 永久禁用表述**已被本节替代**，不再作为当前架构口径。
+
+#### 3.12.1 能力来源与接入方式
+
+* **复用现有集成，不新增连接**：沿用宿主工具注册表（`ctx.tools`）中已有的
+  `mcp__browseros__*` 工具清单，经现有 `src/browser/browseros-bridge.ts` 的
+  `resolveBrowserOsClient` 解析出当前连接**实际暴露**的工具名称。不新增独立 MCP 连接、
+  能力发现服务、后台轮询或常驻进程；也不为 MVP 建设额外的插件系统、权限引擎或复杂策略框架。
+* **工具名称以现有连接实际暴露为准**：未暴露的工具不伪造、不承诺支持。能力开关是
+  “是否允许调用”，与“该工具当前是否真的可执行”是两个独立判断（见 §3.12.3）。
+* **默认八项（默认启用集，不是能力使用上限）**：`tabs` / `navigate` / `snapshot` / `act` /
+  `read` / `grep` / `wait` / `upload`。默认规则适用于首次使用、以及旧配置缺少能力字段的情况。
+* **全部实际能力均可开关**：除默认八项外，连接暴露的其他工具默认关闭、可手动开启；
+  不存在永久禁止、无法通过开关启用的 BrowserOS 工具。若 `shell` / `cmd` 实际暴露，
+  同样由用户管理，不再作为不可解除的禁用项。未暴露的工具不伪造、不承诺支持。
+
+#### 3.12.2 最小配置契约
+
+> 沿用现有 `config-store`（`$DSH_HOME/ops-manager/config.json`，criterion §3.5），
+> 在 `OpsConfig`（§3.10.1）上新增一个字段承载能力开关，**不建立第二套配置体系**。
+> 字段为**可选**，缺失时按默认八项解析（与旧配置向后兼容）。
+
+```typescript
+// 在 §3.10.1 的 OpsConfig 上新增（片段，非独立接口）：
+interface OpsConfig {
+  // …既有字段（defaultProduct / tone / injoys / draftsDir / reuseHostBrowserProfile / autoSyncToInjoys）…
+  /**
+   * BrowserOS 工具能力开关（可选；缺失时按 DEFAULT_BROWSEROS_CAPABILITIES 解析）。
+   * 仅存用户显式保存的显式选择；未出现的工具按默认规则（默认八项开启、其余关闭）解析。
+   */
+  browserosCapabilities?: Partial<Record<string, boolean>>
+}
+
+/** 默认八项，常量集合，不随旧配置缺字段而失效。 */
+const DEFAULT_BROWSEROS_CAPABILITIES = new Set([
+  'tabs', 'navigate', 'snapshot', 'act',
+  'read', 'grep', 'wait', 'upload',
+])
+```
+
+* **默认值解析（明确规则）**：
+  1. 先做空值前置判断，再判断配置**自身**是否拥有该键且值为 boolean：
+     `browserosCapabilities != null && Object.prototype.hasOwnProperty.call(browserosCapabilities, name) && typeof browserosCapabilities[name] === 'boolean'`
+     三者同时成立才采用该用户值；
+  2. 否则按默认集合判断：`DEFAULT_BROWSEROS_CAPABILITIES.has(name)`（默认八项返回 `true`、其余返回 `false`）。
+  该规则保证旧配置缺字段（`browserosCapabilities` 为 `undefined` 或 `null`）时，第一步的
+  `browserosCapabilities != null` 先短路，`hasOwnProperty.call` 不会收到 `undefined`，故不抛
+  `TypeError`；且用户值与默认值判断均不命中原型属性——自有属性用 `hasOwnProperty`，
+  默认集合用 `Set.has`，两者都不走 `in` 或普通原型链读取。
+* **用户显式保存优先**：用户在能力管理中保存的启停选择写入 `browserosCapabilities` 后，
+  优先于默认值；重启不得重置。
+* **配置读写路径**：客户端只经 `callOpsRpc` 读写，不直连 BrowserOS；宿主侧经
+  `config-store` 持久化（与 `config.get` / `config.save` 现有信封一致）。
+
+#### 3.12.3 统一执行检查与错误语义
+
+* **单一调用入口集中检查**：所有 BrowserOS 工具调用必须经过现有
+  `BrowserOsMcpClient.callTool`（`browseros-bridge.ts` 解析出的桥接客户端）这一统一入口，
+  调用前集中检查「工具是否存在」「是否启用」「连接是否可用」。会话探测、预填、
+  指标采集及其他 BrowserOS 调用均受此检查。
+* **两层开关同时满足**：经 `ops_*` 工具调用 BrowserOS 时，运营工具（AI 工具中枢开关）与
+  所调用的 BrowserOS 能力（引擎能力开关）**必须同时启用**；任一关闭均拒绝执行，二者不是互相替代关系。
+  BrowserOS 开关管理底层浏览器工具，`ops_*` 开关管理运营工具，一条调用路径涉及两者时须同时过两道检查。
+* **禁止绕过**：Adapter 或任何内部调用路径**不得**绕过该入口直连 BrowserOS；不得伪造“可执行”。
+  禁用、工具不存在、连接不可用、执行失败，均须如实返回，不得虚报成功。
+* **能力开关 ≠ 实际可用**：已启用但当前连接未提供该工具、或 BrowserOS 未连接时，
+  不显示为可执行，按「工具不存在 / 连接不可用」如实返回。
+* **错误码（沿用统一 RPC 信封 §2.2，不新建语义重复码）**：在既有错误码基础上新增
+  BrowserOS 专用码，与 `tools/disabled`（AI 工具中枢的 `ops_*` 开关）区分：
+  * `browser/capability-disabled`：工具存在、但能力开关为关闭；
+  * `browser/tool-unavailable`：工具未暴露（连接未提供该工具）；
+  * `browser/not-connected`：BrowserOS 未连接 / 未接入。
+  * 执行期失败沿用既有失败返回语义，如实返回真实错误与信息。
+  > 上述新码仅在实现时落 `src/types.ts` / `src/ops-rpc.ts` 契约，本文仅定义语义，不宣称已实现。
+
+#### 3.12.4 热更新与复合操作
+
+* **保存即生效**：能力配置保存后，对**后续新发起**的 BrowserOS 工具调用生效，无需重启；
+  已发出的单次调用不强行中断。
+* **复合操作按最新配置检查**：复合操作（如预填流程内的多步 `navigate`/`snapshot`/`act`/`upload`）中，
+  尚未发出的后续工具调用按**最新配置**检查；已发出的调用不回溯。
+* **不增加后台定时刷新**：如需刷新工具清单，复用现有连接解析（`resolveBrowserOsClient`）
+  或用户手动刷新路径，不引入后台定时刷新或常驻轮询（与 §5.5 一致）。
+
+#### 3.12.5 与业务守卫的边界（不可混淆）
+
+* **能力开关只决定“哪些 BrowserOS 工具可调用”**；业务流程与守卫决定“工具可以执行哪些行为”。
+* 启用 `act` 或脚本类工具**不等于**允许自动发布，也不等于可以外传 Cookie；
+  自动发布禁止、Cookie 零外发、不虚报成功/不伪造指标等约束**不受能力开关影响**，仍由 §5.2 与 §6 的守卫承担。
+* 不要宣称「仅靠工具启停检查就能保证不会自动发布或外传 Cookie」：细粒度行为拦截能力（如区分“保存草稿”与“确认发布”按钮）
+  目前**尚未确定**，属业务守卫的范围与风险边界，如实记录，不伪造 BrowserOS 已具备该拦截能力。保障机制未确定前保持 MVP 范围。
 
 ---
 
@@ -1065,5 +1168,7 @@ $DSH_HOME/growth-studio/drafts/
    * 本地草稿存储于用户目录 `$DSH_HOME/growth-studio/drafts/`，系统文件权限仅限当前操作系统用户。
 2. **会话数据零外发**：
    * BrowserOS 会话在本地沙箱运行，不向任何第三方服务上报 Cookie 数据。
+   * 本约束**不因**「启用 `act` / 脚本类 BrowserOS 工具」而解除：能力开关只决定哪些浏览器工具可调用，Cookie 零外发属于业务守卫，独立生效（§3.12.5）。
 3. **分发防误触（Human Confirmation）**：
    * 自动发帖始终采取“预填至草稿箱（Draft Prefill）”策略，保留平台原生确认发布步骤，彻底杜绝误发布。
+   * 同理，启用 `act` 等工具**不等于**允许自动确认发布；发布闭环守卫（§5.2）与能力开关（§3.12）是两层不同机制，缺一不可。
