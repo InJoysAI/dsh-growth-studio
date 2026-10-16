@@ -3,7 +3,7 @@
 > **Metadata**
 > - **Source**: `.context/domain/source/product_requirements.md`（PRD v1.2.0）、`.context/domain/source/development_plan.md`（验收条件）
 > - **Generated At**: `2026-10-16 09:00`
-> - **Updated At**: `2026-10-16 12:44`
+> - **Updated At**: `2026-10-16 13:56`
 > - **Generator**: `Context-Agent v1.0`
 
 ---
@@ -477,10 +477,10 @@ Then 界面应明确提示该能力不可用
 | RISK-008 `draftsDir` 变更后旧草稿认知 | 模块 6 场景 4 | 部分覆盖 |
 | RISK-009 两套状态枚举误用 | 模块 2 场景 1「内容状态五态流转」 | 已覆盖 |
 | RISK-010 测试污染真实 `$DSH_HOME` | —（工程层，隔离见 `tests/setup-isolation.ts`） | **缺口**（非 BDD） |
-| RISK-011 令牌明文暴露面扩大 | 模块 6 场景 2「凭证显隐切换」 | 已覆盖 |
+| RISK-011 令牌明文暴露面扩大 | —（工程安全检查：RPC 暴露边界是否仅本机可达 + `config.get` 的 `hasToken` 返回策略；模块 6 场景 2 仅验证 BR-071 的界面掩码，不能证明响应体与可达范围安全） | **缺口**（非 BDD） |
 | RISK-012 Phase 2 CDP 能力未验证 | —（Phase 2 PoC） | **缺口**（非 Phase 0） |
 | TD-007 `workbench.overview` 缺失汇总语义 | 模块 5 场景 5（当前实现未通过） | **缺口（待实现）** |
-| TD-008 生成路径未授权写入 Injoys 文档 | 模块 8 场景 2 / 3（BR-033 / BR-073） | **缺口（待实现）** |
+| TD-008 生成路径未授权写入 Injoys 文档 | 模块 3 场景 1「未经用户明确要求不得创建或更新 Injoys 文档」（直接约束）；模块 8 场景 2 / 3（BR-033 / BR-073） | **缺口（待实现）** |
 | TD-009 `ops_generate_review` 假文档编号 | 模块 8 场景 3「知识库未连通时沉淀不可用」 | **缺口（待实现）** |
 | TD-010 `calendar/` 与 `metrics/` 持久化契约未落地 | 模块 5 场景 6「历史不足时环比为空」（BR-052） | **缺口（待实现）** |
 | TD-011 错误码 `ops/not-found` 与 `ops/draft-not-found` 语义重复 | —（错误码契约层，无对应 BDD 场景） | **缺口**（非 BDD） |

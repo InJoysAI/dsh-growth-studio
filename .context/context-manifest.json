@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generated_at": "2026-10-16T12:44:00+08:00",
+  "generated_at": "2026-10-16T14:04:00+08:00",
   "generator": "Context-Agent v1.0",
   "generation_pipeline": {
     "root_assets": "Context-Dev-Agent v1.0",
@@ -93,17 +93,14 @@
     "ordering": "ascending_by_synced_at"
   },
   "last_context_sync": {
-    "synced_at": "2026-10-16T12:44:00+08:00",
-    "source": "复核追加项 N-1（摘要统计范围限定）、N-2（重复错误码登记）；未改源文档与实现代码",
-    "workflow": "context-update (user-authorized residual fix)",
-    "authority": "用户裁决：N-1 补范围限定、N-2 追加轻量登记 TD-011；不改 *.source/*、openspec/config.yaml、design/context-dev 与实现代码",
+    "synced_at": "2026-10-16T14:04:00+08:00",
+    "source": "评审措辞修正：api_strategy.md 来源说明由「重生成必然回退」改为「存在再次遗漏风险」",
+    "workflow": "context-update (user-authorized wording fix)",
+    "authority": "用户裁定：重生成不必然回退，措辞过强；仅改资产文案，不改源文档与实现代码",
     "mode": "apply",
     "updated_context_files": [
-      ".context/architecture/README.md",
-      ".context/architecture/risks_and_debt.md",
-      ".context/context-manifest.json",
-      ".context/domain/risks_and_debt.md",
-      ".context/domain/testing_strategy.md"
+      ".context/architecture/api_strategy.md",
+      ".context/context-manifest.json"
     ],
     "history_path": ".context/history/context-sync.jsonl"
   }

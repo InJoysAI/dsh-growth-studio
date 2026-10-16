@@ -3,7 +3,7 @@
 > **Metadata**
 > - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.3.0 §1.1、§5.1、§5.3）
 > - **Generated At**: `2026-10-16 09:44`
-> - **Updated At**: `2026-10-16 11:05`
+> - **Updated At**: `2026-10-16 13:56`
 > - **Generator**: `Context-Agent v1.0`
 
 ---
@@ -91,7 +91,7 @@ C4Context
 | **最终发布动作** | 平台后台人工执行 —— **架构铁律**；`ops_publish_now` 已彻底移除，**不得以任何形式重新引入** |
 | 用户账号体系 / 登录 | DSH 宿主与平台自身承载；本插件无注册/登录/OAuth/JWT |
 | 数据库 / Schema / 迁移 | 本地 JSON 持久化即契约（criterion §7.3 判定数据层未启用） |
-| 多产品**数据隔离** | 已裁决：产品切换**仅切换生成上下文**（`system_design.md` §产品切换语义） |
+| 多产品**数据隔离** | 已裁决：产品切换**仅切换生成上下文**（详见 `data_architecture.md` §「产品切换语义（已裁决）」；权威摘要见 criterion §5.5） |
 | 实时双向同步 | Phase 0 为本地主数据 + 单向导出；双向演进属 **Phase 3** |
 | 实时推送大盘 | Phase 0 **禁止** WebSocket / SSE / 后台定时轮询 |
 | Cookie 探取日用 Chrome | **已被否决**（实例不一致 / WAL 不完整 / 隐私落差） |

@@ -3,7 +3,7 @@
 > **Metadata**
 > - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.3.0 §2.2、§3）
 > - **Generated At**: `2026-10-16 09:44`
-> - **Updated At**: `2026-10-16 11:53`
+> - **Updated At**: `2026-10-16 14:04`
 > - **Generator**: `Context-Agent v1.0`
 
 > ⚠️ 本文是源文档 §3 的**结构化总结**。契约的**权威定义在 `src/ops-rpc.ts` + `src/types.ts`**（criterion §7.1，手写 TS 契约）。
@@ -407,10 +407,26 @@ interface SaveDraftRequest {
     status?: 'draft' | 'ready_for_review' | 'prefilled'
     // ⛔ 本入口不接受 'published'
     injoysDocId?: string
+    // 注意：`version` 为服务端治理字段（新建置 1、更新自增 1），请求方可传但会被忽略
   }
+  /**
+   * 乐观锁期望版本（**顶层字段，与 `draft` 同级**，不是 `draft.version`）。
+   * - 可省略：省略时不校验版本，直接写入并自增 `version`；
+   * - 传入时必须等于磁盘当前 `version`（草稿不存在时视为 `0`），否则拒绝。
+   */
+  expectedVersion?: number
 }
-// → { draft: ContentDraft }
+// → { draft: ContentDraft }   // 成功时返回自增后的 `version`
 ```
+
+**版本冲突响应（服务端强制）**
+
+- `expectedVersion` 与当前版本不一致（或草稿不存在而 `expectedVersion !== 0`）时，返回
+  `{ ok: false, error: { code: 'ops/concurrency-conflict', message, details: { currentVersion, expectedVersion } } }`；
+- 调用方应据 `details.currentVersion` 重新拉取草稿、合并后再以新版本重试，**不得覆盖式盲写**；
+- 字段位置、可选性与冲突载荷的**权威形状**以 criterion §7.1 的 TS 契约（`src/ops-rpc.ts` + `src/types.ts`）为准。
+
+> **来源说明（需同步源文档）**：源文档 TAD §3.2.3 的 `SaveDraftRequest` 片段**未包含** `expectedVersion`（本资产此前忠实复制，故同样遗漏）。此处依 criterion §3.5 的「`version` / `expectedVersion` 乐观锁」MUST 与 §7.1 权威实现补齐。源文档 `docs/technical_architecture.md` 亦应经 `context-update` 同步该字段与冲突响应；否则后续重生成**存在再次遗漏该字段的风险**。
 
 **`published` 守卫（服务端强制）**
 

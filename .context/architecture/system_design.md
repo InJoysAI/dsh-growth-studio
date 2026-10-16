@@ -3,7 +3,7 @@
 > **Metadata**
 > - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.3.0）
 > - **Generated At**: `2026-10-16 09:44`
-> - **Updated At**: `2026-10-16 11:53`
+> - **Updated At**: `2026-10-16 13:56`
 > - **Generator**: `Context-Agent v1.0`
 
 > ⚠️ 本文为源文档的**结构化总结**。若与 `.context/architecture/source/` 冲突，**以源文档为准**。
@@ -95,7 +95,10 @@ C4Context
 |----|------|------|:----:|
 | **客户端视图层** | Settings 导航注入 + Megaphone 图标 | 在 `settings.section` 槽位（`id: 'ops'`, `order: 60`）挂载工作台 | Phase 0 |
 | | Ops Workbench（React 18） | 6 大 Tab：运营驾驶舱 / 排期日历流水 / 内容创作室 / AI工具中枢 / 舆情需求大盘 / 引擎策略配置 | Phase 0 |
-| | 多平台 Feed 模拟器 | 公众号 / 视频元数据 / 推文串 / Product Hunt 预览 | Phase 0 |
+| | 多平台 Feed 模拟器 — 公众号 | 朋友圈分享卡片 / 文章详情预览、Markdown 代码高亮 | Phase 0 |
+| | 多平台 Feed 模拟器 — 哔哩哔哩 | 3 套候选标题、结构化简介、标签词云、分区选择 | Phase 0 |
+| | 多平台 Feed 模拟器 — 视频号 / 抖音 | 对应卡片模拟器 | Phase 1 |
+| | 多平台 Feed 模拟器 — X / Product Hunt | 推文串与 Launch Kit 模拟器 | Phase 2 |
 | **RPC 网关层** | HTTP `POST /api/ops` + 信封序列化器 + 方法路由器 | 统一信封入出站、方法分发、**统一错误边界** | Phase 0 |
 | **业务领域服务层** | `WorkbenchAggregator` | 工作台总览聚合（指标 + 会话 + 排期 + 舆情） | Phase 0 |
 | | `DraftManager` | 本地草稿治理：CRUD、当前内容原子写、发布 URL 回填守卫 | Phase 0 |
@@ -115,6 +118,7 @@ C4Context
 | | `DraftStore` | `$DSH_HOME/growth-studio/drafts/`（只保留当前内容） | Phase 0 |
 
 > 组件细节视图见 `container_component_view.md`；接口契约见 `api_strategy.md`。
+> 多平台 Feed 模拟器的**分平台阶段**取自领域规则 BR-032（PRD §5.4.2 与阶段路线图「[Phase 2] X 推文串 / Product Hunt Launch Kit 模拟器」）：公众号 / B站为 Phase 0，视频号 / 抖音为 Phase 1，X / Product Hunt 为 Phase 2；源文档 §1.1 的组件图未标注该模拟器的逐平台阶段。
 
 ---
 
