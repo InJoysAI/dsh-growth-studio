@@ -125,7 +125,7 @@
 
 ## 相关文档
 
-- `../security_policy.md` §会话数据零外发
-- `../runtime_view.md` §场景 8
-- `../risks_and_debt.md` RISK-003、RISK-012
+- `security_policy.md` §会话数据零外发
+- `runtime_view.md` §场景 8
+- `risks_and_debt.md` RISK-003、RISK-012
 - 源文档 §5.1.1、§5.1.2、§六.2

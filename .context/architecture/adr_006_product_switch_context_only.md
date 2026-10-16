@@ -132,7 +132,7 @@ PRD §5.1.1 要求"显示当前正在运营的个人产品名，支持快速切�
 
 ## 相关文档
 
-- `../data_architecture.md` §数据治理、§产品切换语义
-- `../system_design.md` §核心领域类型
-- `../../criterion.md` §5.5（产品切换语义）
+- `data_architecture.md` §数据治理、§产品切换语义
+- `system_design.md` §核心领域类型
+- `../criterion.md` §5.5（产品切换语义）
 - 源文档 §3.10.3

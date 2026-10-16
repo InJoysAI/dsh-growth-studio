@@ -149,8 +149,8 @@ $DSH_HOME/growth-studio/drafts/
 
 ## 相关文档
 
-- `../data_architecture.md` §版本快照存储设计
-- `../api_strategy.md` §`drafts.listVersions` / `getVersion` / `restoreVersion`
-- `../runtime_view.md` §场景 6
-- `../container_component_view.md` §3.2 DraftManager
+- `data_architecture.md` §版本快照存储设计
+- `api_strategy.md` §`drafts.listVersions` / `getVersion` / `restoreVersion`
+- `runtime_view.md` §场景 6
+- `container_component_view.md` §3.2 DraftManager
 - 源文档 §4.4、§3.2.6–3.2.8

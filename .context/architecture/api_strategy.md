@@ -404,6 +404,8 @@ interface SaveDraftRequest {
 - 传入 `status: 'published'` 时，服务端**必须拒绝**并返回 `{ ok: false, error: { code: 'drafts/published-requires-url' } }`；
 - **唯一可写入 `published` 的入口是 `drafts.updatePublishUrl`**；
 - **理由**：`published` 代表「已在平台真实发布」，其**唯一可信证据**是用户回填的真实 URL。若允许通用保存入口直接写 `published`，则发布闭环可被绕过，**状态会失去真实性**；
+  > ⚠️ **保证边界**：该证据来自**用户声明**；契约可校验 **URL 格式 / 渠道归属 / 全渠道完整性**，
+  > 但**不能**证明发布确已发生 —— ⛔ 不得把"格式合法"当作"已核实发布"。
 - 该守卫是**服务端**职责，**不得**仅依赖客户端不传该值。
 
 **其他服务端治理规则**

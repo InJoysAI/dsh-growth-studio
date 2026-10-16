@@ -134,8 +134,8 @@
 
 ## 相关文档
 
-- `../data_architecture.md` §物理数据模型、§一致性模型
-- `../api_strategy.md` §`workbench.exportCalendar` / §`workbench.importCalendar`
-- `../runtime_view.md` §场景 1
-- `../risks_and_debt.md` TD-006
+- `data_architecture.md` §物理数据模型、§一致性模型
+- `api_strategy.md` §`workbench.exportCalendar` / §`workbench.importCalendar`
+- `runtime_view.md` §场景 1
+- `risks_and_debt.md` TD-006
 - 源文档 §5.3

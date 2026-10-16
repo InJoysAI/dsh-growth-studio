@@ -235,7 +235,10 @@ graph TB
 | RS-5 | **指标采集与环比** | 采集失败→`null`；部分缺失→汇总 `null`；历史不足→delta `null` | `runtime_view.md` §场景 5 |
 | RS-6 | **草稿版本恢复** | 非破坏性回滚：以历史版本为基础追加新版本 | `runtime_view.md` §场景 6 |
 | RS-7 | **`draftsDir` 切换与在途操作** | 在途写原目录（预期语义），新操作才用新目录 | `runtime_view.md` §场景 7 |
-| RS-8 | **全渠道不变量重算** | 渠道集合变化后重算状态，孤儿 URL 剪除 | `runtime_view.md` §场景 8 |
+| RS-8 | **统一 BrowserOS 实例会话探测** | 四态如实返回，严禁退化为 boolean | `runtime_view.md` §场景 8 |
+
+> 📌 **全渠道不变量重算**（渠道集合变化后重算状态、孤儿 URL 剪除）不是独立场景，
+> 它是 **RS-4 发布回填闭环**的核心规则，展开见 `runtime_view.md` §场景 4 与 `data_architecture.md` §状态判定优先级。
 
 ---
 

@@ -137,8 +137,8 @@ PRD §六 要求"数据卡片支持即时刷新，无需强制重载页面"。�
 
 ## 相关文档
 
-- `../cross_cutting_concepts.md` §并发与刷新策略、§定时任务与调度
-- `../api_strategy.md` §3.8 `ops_setup_schedule`
-- `../runtime_view.md` §场景 5（指标采集流程）
-- `../../criterion.md` §3.4
+- `cross_cutting_concepts.md` §并发与刷新策略、§定时任务与调度
+- `api_strategy.md` §3.8 `ops_setup_schedule`
+- `runtime_view.md` §场景 5（指标采集流程）
+- `../criterion.md` §3.4
 - 源文档 §5.5、§3.11

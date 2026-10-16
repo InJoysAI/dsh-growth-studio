@@ -127,9 +127,9 @@
 
 ## 相关文档
 
-- `../api_strategy.md` §传输与协议、§错误码清单
-- `../container_component_view.md` §3.1 宿主 RPC 网关
-- `../tech_stack.md` §SSoT 与 Codegen 约束
-- `../risks_and_debt.md` TD-003
-- `../../criterion.md` §5.2 / §5.3 / §5.4 / §6 / §7
+- `api_strategy.md` §传输与协议、§错误码清单
+- `container_component_view.md` §3.1 宿主 RPC 网关
+- `tech_stack.md` §SSoT 与 Codegen 约束
+- `risks_and_debt.md` TD-003
+- `../criterion.md` §5.2 / §5.3 / §5.4 / §6 / §7
 - 源文档 §2.2、§3

@@ -97,7 +97,7 @@ export type ItemStatus =
 ### 正面影响
 
 - **PRD ↔ TAD 严格一一对应**，消除未授权状态
-- 状态机（见 `../runtime_view.md`）与映射表简洁
+- 状态机（见 `runtime_view.md`）与映射表简洁
 - `calendar.updateStatus` 的前向推进校验（`planned` → `drafting` → `draft_ready` → `prefilled` → `published`）规则明确
 - 发布真实性集中由 URL 回填守卫保证，避免"双关口"语义重叠
 
@@ -112,7 +112,7 @@ export type ItemStatus =
 |------|---------|
 | 历史数据或旧代码仍在写入这两个值 | 已确认**实现中从未被赋值**；若发现历史残留，按五态映射处理 |
 | 后续开发者"顺手"重新引入 | criterion §5.5 明确："`approved` / `archived` 已于 2026-10-15 裁决移除，**不得重新引入**" |
-| 两套枚举混淆 | 严格经 `../data_architecture.md` 的映射表转换；新增状态须同时更新映射表 |
+| 两套枚举混淆 | 严格经 `data_architecture.md` 的映射表转换；新增状态须同时更新映射表 |
 
 ---
 
@@ -131,9 +131,9 @@ export type ItemStatus =
 
 ## 相关文档
 
-- `../data_architecture.md` §枚举类型、§状态机与映射、§已移除枚举值
-- `../runtime_view.md` §场景 4（全渠道不变量状态机）
+- `data_architecture.md` §枚举类型、§状态机与映射、§已移除枚举值
+- `runtime_view.md` §场景 4（全渠道不变量状态机）
 - `adr_002_prefill_only_human_in_the_loop.md`
-- `../risks_and_debt.md` RISK-009
-- `../../criterion.md` §5.5
+- `risks_and_debt.md` RISK-009
+- `../criterion.md` §5.5
 - 源文档 §4.1（裁决记录）、§4.2、§3.3.2
