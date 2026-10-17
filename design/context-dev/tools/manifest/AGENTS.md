@@ -69,12 +69,11 @@
 ### Phase 1: 读取或创建 Manifest
 
 > **登记规则**：
-> - 只为用户实际提供了源文档的类别在 `generated_files` / `pending_generation` 中建立条目；没有 DB / UI / 遗留文档的类别不登记——**省略整个键，不写空数组占位**（键不存在 = 没有该类文档；`db: []` 会与"提供了文档、资产尚未生成"混淆）。
-> - `generated_files` 的固定键为 `root`、`architecture`、`domain`、`openspec`（PRD 与架构文档是必需输入；`openspec` 供提案流程判断项目级集成是否已生成）；`db` / `ui` / `legacy` 是条件键，仅在有对应源文档时创建。
+> - 只为用户实际提供了源文档的类别在 `generated_files` / `pending_generation` 中建立条目；没有 DB / UI / 遗留文档的类别不登记。
 > - `project.path` 记录相对路径 `.`，**不要写本机绝对路径**（Manifest 会被提交，绝对路径对其他人和 CI 无意义且暴露本机用户名）。
 > - SSoT 的选型/跳过决策不记录在 Manifest，见 `.context/criterion.md` §7.3。
 
-若不存在则创建初始结构：
+若不存在则创建初始结构（`generated_files` 只含 `root` / `architecture` / `domain` / `openspec`；`db` / `ui` / `legacy` **不预置空键**，由对应模块首次生成并登记时再创建，见上方登记规则）：
 
 ```json
 {
@@ -106,8 +105,6 @@
   "last_context_sync": null
 }
 ```
-
-> 上例是**只有 PRD + 架构文档**（最小必需输入）时的初始结构。`db` / `ui` / `legacy` 是条件键：仅当用户提供了对应源文档时才加入 `generated_files`（以及 `pending_generation`），没有对应文档时省略整个键，不写空数组占位。
 
 ---
 
@@ -183,7 +180,7 @@
 
 - 键为类别，值为**该类别下“必须生成”的基础文件**（architecture：`system_design.md`、`tech_stack.md`；domain：`business_rules.md`；db：`schema_design.md`、`performance_tuning.md`、`migrations_and_ssot.md`；ui：`design_system.md`）。路径中带 `.context/` 前缀的相对项目根，`openspec` 下的两项是项目根目录的 `openspec/` 文件。
 - **不登记按需生成的文件**（如 `security_policy.md`、`user_journeys.md`、`testing_strategy.md`）：是否生成由各生成模块的 Phase 0 动态决定。
-- **只写已创建的类别**：没有 DB / UI 文档就没有 `db` / `ui` 键；`openspec` 键始终存在（提案流程据此判断项目级集成是否已生成）。
+- **只写已创建的类别**：没有 DB / UI / 遗留文档就没有 `db` / `ui` / `legacy` 键（不写空数组）；读取方（integration 索引、`plan` 的棕地检测、check）一律把“键不存在”视同“空”；`openspec` 键始终存在（提案流程据此判断项目级集成是否已生成）。
 - 某个文件被生成并登记进 `generated_files` 后，必须从 `pending_generation` 中移除；整个类别清空后删除该键，`openspec` 两项都生成后可置为 `{}` 或移除该键。
 
 #### `generated_files.openspec` 的登记口径（唯一定义，其他规范以此为准）
@@ -238,9 +235,7 @@
 }
 ```
 
-> **注意**：
-> - 每个 scope 的数组包含该 scope 下生成的所有文件路径
-> - 上例是**全量输入**（DB / UI / 遗留文档都提供了）时的形态；`db` / `ui` / `legacy` 为条件键，没有对应源文档时整个键省略，不写空数组。各模块只登记自己的 scope，不得覆盖或删除其他模块已登记的条目。
+> **注意**：每个 scope 的数组包含该 scope 下生成的所有文件路径
 
 #### 同步状态与审计历史
 
