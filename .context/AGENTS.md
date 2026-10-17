@@ -3,7 +3,7 @@
 > **Metadata**
 > - **Source**: `design/context-dev/templates/context-agents.md.template`
 > - **Generated At**: `2026-10-15 20:23`
-> - **Updated At**: `2026-10-17 12:54`
+> - **Updated At**: `2026-10-17 15:07`
 > - **Generator**: `Context-Dev-Agent v1.0`
 
 ---
@@ -79,32 +79,17 @@
 ```
 <!-- CONTEXT-TREE:END -->
 
-本目录树按 `context-manifest.json#generated_files`、实际 `source/` 文件及 `context_sync_history.path` 生成；审计日志不属于生成资产，精确机器清单仍以 Manifest 为准。
-
-> 尚未创建的类别（`db/`、`ui/`、`legacy/`）说明项目未提供对应源文档，补充后由 `.agent/workflows/context-update.md` 创建。
-> 分域总结文件 `domain/**`（8 个）、`architecture/**`（22 个，含 `system_design.md` 与 `tech_stack.md`）与 `.context/openspec/integration.md` 均已生成；项目根目录 `openspec/config.yaml` 已由 `.agent/workflows/context-openspec.md project` 生成（`.context/` 权威资产的只读派生快照，指纹见 Manifest `last_openspec_project`），`pending_generation` 现为 `{}`（已全部生成）。
+本目录树按 `context-manifest.json#generated_files`、实际 `source/` 文件及 `context_sync_history.path` 生成；审计日志不属于生成资产，精确机器清单与生成状态以 Manifest 为准。
 
 ## 核心文件
 
 | 文件 | 用途 |
 |------|------|
-| `criterion.md` | 项目准则 — AI 必须遵守的工程约束（MUST / MUST NOT、SSoT 工具链与 Codegen） |
+| `criterion.md` | 项目准则 — AI 必须遵守的工程约束 |
 | `context-manifest.json` | 元数据清单 — 追踪源文件 hash 和生成时间 |
-| `history/context-sync.jsonl` | 扁平同步/决策审计日志；默认不作为生成资产加载（已创建，持续追加） |
-| `architecture/tech_stack.md` | 技术栈约束 (MUST/SHOULD) — ✅ 已生成 |
-| `architecture/system_design.md` | 系统设计总结 — ✅ 已生成 |
-| `domain/business_rules.md` | 业务逻辑规则 — ✅ 已生成 |
-| `domain/user_journeys.md` | 用户旅程 — ✅ 已生成 |
-| `domain/market_insights.md` | 市场洞察 — ✅ 已生成 |
-| `domain/testing_strategy.md` | 验收测试策略 — ✅ 已生成 |
-| `domain/risks_and_debt.md` | 业务风险与项目债务 — ✅ 已生成 |
-| `domain/data_strategy.md` | 数据策略 — ✅ 已生成 |
-| `domain/edge_cases.md` | 异常与边缘情况 — ✅ 已生成 |
-| `openspec/integration.md` | OpenSpec 集成说明与资产索引 — ✅ 已生成 |
-
-## 最新 MVP 裁决
-
-2026-10-16：生成只保存本地，物料沉淀须用户明确触发；草稿只保留当前内容，不提供历史查看、恢复或版本快照。并发控制与指标历史保留。详见 `criterion.md` §3.5 / §4 和 `architecture/adr_008_version_snapshot_storage.md`；本轮只同步文档，不代表实现已对齐。
+| `history/context-sync.jsonl` | 扁平同步/决策审计日志；默认不作为生成资产加载 |
+| `architecture/tech_stack.md` | 技术栈约束 (MUST/SHOULD) |
+| `domain/business_rules.md` | 业务逻辑规则 |
 
 ## 更新规则
 
