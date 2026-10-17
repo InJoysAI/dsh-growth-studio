@@ -69,7 +69,8 @@
 ### Phase 1: 读取或创建 Manifest
 
 > **登记规则**：
-> - 只为用户实际提供了源文档的类别在 `generated_files` / `pending_generation` 中建立条目；没有 DB / UI / 遗留文档的类别不登记。
+> - 只为用户实际提供了源文档的类别在 `generated_files` / `pending_generation` 中建立条目；没有 DB / UI / 遗留文档的类别不登记——**省略整个键，不写空数组占位**（键不存在 = 没有该类文档；`db: []` 会与"提供了文档、资产尚未生成"混淆）。
+> - `generated_files` 的固定键为 `root`、`architecture`、`domain`、`openspec`（PRD 与架构文档是必需输入；`openspec` 供提案流程判断项目级集成是否已生成）；`db` / `ui` / `legacy` 是条件键，仅在有对应源文档时创建。
 > - `project.path` 记录相对路径 `.`，**不要写本机绝对路径**（Manifest 会被提交，绝对路径对其他人和 CI 无意义且暴露本机用户名）。
 > - SSoT 的选型/跳过决策不记录在 Manifest，见 `.context/criterion.md` §7.3。
 
@@ -94,9 +95,6 @@
     "root": [],
     "architecture": [],
     "domain": [],
-    "db": [],
-    "ui": [],
-    "legacy": [],
     "openspec": []
   },
   "pending_generation": {},
@@ -108,6 +106,8 @@
   "last_context_sync": null
 }
 ```
+
+> 上例是**只有 PRD + 架构文档**（最小必需输入）时的初始结构。`db` / `ui` / `legacy` 是条件键：仅当用户提供了对应源文档时才加入 `generated_files`（以及 `pending_generation`），没有对应文档时省略整个键，不写空数组占位。
 
 ---
 
@@ -238,7 +238,9 @@
 }
 ```
 
-> **注意**：每个 scope 的数组包含该 scope 下生成的所有文件路径
+> **注意**：
+> - 每个 scope 的数组包含该 scope 下生成的所有文件路径
+> - 上例是**全量输入**（DB / UI / 遗留文档都提供了）时的形态；`db` / `ui` / `legacy` 为条件键，没有对应源文档时整个键省略，不写空数组。各模块只登记自己的 scope，不得覆盖或删除其他模块已登记的条目。
 
 #### 同步状态与审计历史
 
