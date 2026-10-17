@@ -3,7 +3,7 @@
 > **Metadata**
 > - **Source**: `.context/domain/source/product_requirements.md`（PRD 基线 v1.2.2）、`.context/domain/source/development_plan.md`（验收条件）
 > - **Generated At**: `2026-10-16 09:00`
-> - **Updated At**: `2026-10-17 12:54`
+> - **Updated At**: `2026-10-17 13:41`
 > - **Generator**: `Context-Agent v1.0`
 
 ---
@@ -159,8 +159,9 @@ Then 状态才应变为"已发布"
 ```gherkin
 Given 一个草稿状态为"已发布"，且其全部渠道均已回填
 When 用户为该草稿新增 1 个尚未回填的渠道
-Then 状态应回退为"已推草稿箱"
+Then 该草稿的 ContentDraft.status 应回退为"已推草稿箱"
   And 不得维持"已发布"
+  And 关联排期项 ItemStatus 保持不变（回退不跨枚举）
 ```
 
 #### 场景 10: 删除渠道后不得残留假已发布（BR-021）
@@ -527,10 +528,10 @@ Then 界面应明确提示该能力不可用
 | TD-009 `ops_generate_review` 假文档编号 | 模块 8 场景 3「知识库未连通时沉淀不可用」 | **缺口（待实现）** |
 | TD-010 `calendar/` 与 `metrics/` 持久化契约未落地 | 模块 5 场景 6「历史不足时环比为空」（BR-052） | **缺口（待实现）** |
 | TD-011 错误码 `ops/not-found` 与 `ops/draft-not-found` 语义重复 | —（错误码契约层，无对应 BDD 场景） | **缺口**（非 BDD） |
-| TD-012 BrowserOS 能力开关与统一执行检查契约（原「动作白名单」口径已由 PRD §5.7.1 / criterion §4 取代） | —（执行检查：能力存在 / 启用 / 连接可用集中校验；对应 BR-074 场景 5/6/7） | **缺口**（待实现；关联架构债务 TD-012 需联动重定稿） |
+| TD-012 BrowserOS 能力开关与统一执行检查契约（原「动作白名单」口径已由 PRD §5.7.1 / criterion §4 取代） | —（执行检查：能力存在 / 启用 / 连接可用集中校验；对应 BR-074 场景 5–8，含双开关同时开启的正常执行） | **缺口**（契约已同步、实现待补） |
 | TD-013 criterion 文件权限约束无实现落点 | —（工程检查：落盘文件 `0o600` / 目录 `0o700` 权限位；无对应 BDD 场景） | **缺口**（非 BDD / 待实现） |
 | TD-014 客户端 RPC 消费无测试覆盖 | —（客户端消费（`callOpsRpc` / `unwrapRpcResult`）单元测试与宿主响应 ↔ 客户端解包契约用例；无对应 BDD 场景） | **缺口**（非 BDD / 待补） |
-| PD-006 3 个工具未实现且未按名登记 | 模块 7 场景 1（BR-040） | **缺口（待实现）** |
+| PD-006 3 个工具未实现（资产已按名登记于 `api_strategy.md` §3.10） | 模块 7 场景 1（BR-040） | **缺口（待实现）** |
 
 ---
 

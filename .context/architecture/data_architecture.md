@@ -3,7 +3,7 @@
 > **Metadata**
 > - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.4.5 §4、§5.3）
 > - **Generated At**: `2026-10-16 09:44`
-> - **Updated At**: `2026-10-17 12:54`
+> - **Updated At**: `2026-10-17 13:53`
 > - **Generator**: `Context-Agent v1.0`
 
 > ⚠️ **权威定义在 `src/types.ts`**（criterion §5.5）。若本文与源文档冲突，**以源文档为准**。
@@ -207,6 +207,11 @@ stateDiagram-v2
 
 > ⚠️ `draft_ready` 与 `ready_for_review` **语义等价但命名不同**，属两套枚举的历史差异。
 > 二者**不得**在代码或接口中**直接互换赋值**，必须经本表映射。**新增状态时必须同时更新本表。**
+>
+> ⛔ **回退不跨枚举**：`ContentDraft.status` 因「新增未回填渠道」回退为 `prefilled` 时，
+> 关联 `CalendarItem.status` **保持不变**（排期只前向推进，`calendar.updateStatus` 禁止回退且不可写 `published`）。
+> 本表已有的**前向**关联（生成 → 预填 → 回填驱动排期推进）不受影响；**若需将草稿回退同步到排期**，
+> 才属新增联动契约，须先改源文档并另行提案。
 
 | `CalendarItem.status` | 触发来源 | 对应 `ContentDraft.status` |
 | :--- | :--- | :--- |

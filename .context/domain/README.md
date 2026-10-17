@@ -3,7 +3,7 @@
 > **Metadata**
 > - **Source**: `.context/domain/source/product_requirements.md`（PRD 基线 v1.2.2）、`.context/domain/source/development_plan.md`
 > - **Generated At**: `2026-10-16 09:00`
-> - **Updated At**: `2026-10-17 12:54`
+> - **Updated At**: `2026-10-17 13:42`
 > - **Generator**: `Context-Agent v1.0`
 
 ---
@@ -81,7 +81,7 @@
 | PD-003 | Injoys 同步能力长期停留在单向 | 中 |
 | PD-004 | 图文草稿工作台界面交付滞后 | 高（Phase 0 进行中） |
 | PD-005 | 舆情与需求提炼能力延后至 Phase 1 | 中 |
-| PD-006 | 工具全景中 3 个工具未实现且未按名登记 | 中 |
+| PD-006 | 工具全景中 3 个工具未实现（资产已按名登记） | 中 |
 
 ---
 

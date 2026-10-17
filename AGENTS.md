@@ -20,7 +20,7 @@
 3. 禁止硬编码 Injoys Token、BrowserOS 凭证或任何敏感配置。（criterion §3.1、§4）
 4. 宿主侧禁止内置全局通用 Master Key 或任何形式的通用凭据。（criterion §3.2）
 5. 禁止绕过 BrowserOS 能力开关与统一执行检查，直接调用底层浏览器工具。（criterion §4）
-6. 禁止将敏感策略 / 令牌下发到客户端。（criterion §3.4）
+6. 禁止将敏感策略 / 令牌下发到本机 DSH 客户端之外的调用方。（criterion §3.4）
 7. 客户端禁止绕过 `callOpsRpc` 直连 Injoys / BrowserOS MCP 或任何外部服务。（criterion §3.1）
 8. 禁止虚报成功（无客户端或执行失败时严禁返回成功）。（criterion §3.2）
 9. 禁止伪造 / 硬编码指标数据（无法获取的字段必须为 `null`）。（criterion §3.2）

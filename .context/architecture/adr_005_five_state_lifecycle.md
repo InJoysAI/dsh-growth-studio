@@ -123,7 +123,7 @@ export type ItemStatus =
 - `ItemStatus` **必须**严格为五态，与 PRD §5.3.1 **一一对应**
 - ⛔ **禁止**重新引入 `approved` / `archived`
 - ⛔ **禁止**引入 `partially_published` 等 PRD 未授权的中间态（渠道进度由 `publishedUrls` 体现）
-- 排期状态**必须**只允许**前向**推进，⛔ **禁止**回退
+- 排期状态（`ItemStatus`）**必须**只允许**前向**推进，⛔ **禁止**回退；草稿侧「新增未回填渠道回退为 `prefilled`」只作用于 `ContentDraft.status`，**不联动**排期状态
 - `published` **不得**经 `calendar.updateStatus` 写入（只能由 URL 回填闭环推进）
 - 若未来确需归档，**必须**先在 PRD §5.3 定义触发条件、保留策略与 UI 展示，再同步枚举与状态机
 

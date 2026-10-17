@@ -3,7 +3,7 @@
 > **Metadata**
 > - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.4.5 §2.2、§3）
 > - **Generated At**: `2026-10-16 09:44`
-> - **Updated At**: `2026-10-17 12:54`
+> - **Updated At**: `2026-10-17 13:53`
 > - **Generator**: `Context-Agent v1.0`
 
 > ⚠️ 本文是源文档 §3 的**结构化总结**。契约的**权威定义在 `src/ops-rpc.ts` + `src/types.ts`**（criterion §7.1，手写 TS 契约）。
@@ -632,7 +632,7 @@ interface ConfigGetValue extends OpsConfig {
 
 - 早期草案曾写作 `{ config: OpsConfig; ... }` 的**嵌套形态，从未实现**；因其会破坏既有客户端读取，现统一以**平铺为正式契约**；
 - 若未来要改为嵌套，属**破坏性变更**，须走**版本化迁移方案**（新旧字段并存至少一个版本）并同步更新客户端后，方可移除旧字段；
-- **令牌返回策略**：当前返回明文 `token`（用于表单回填与显隐切换）。该接口**仅在宿主内 RPC** 暴露，不作为对外网络端点。若未来 RPC 可被非本机访问，**必须先**改为「只回 `hasToken: boolean`，明文另走回填专用通道」；
+- **令牌返回策略**：当前返回明文 `token`（用于表单回填与显隐切换）。该接口**仅面向本机受信任的 DSH 客户端**（客户端运行在渲染进程，与宿主非同进程），不作为对外网络端点；该例外由 `criterion §3.4`「令牌返回边界」授权，**并同样覆盖本节的 `config.save` 响应体**（其返回完整 `OpsConfig`，含 `token`）。若未来 RPC 可被非本机访问，**必须先**改为「只回 `hasToken: boolean`，明文另走回填专用通道」；
 - 草稿库的「当前生效目录」由本接口返回，UI 据此展示实际存储位置。
 
 #### `config.save`
@@ -643,6 +643,7 @@ interface ConfigGetValue extends OpsConfig {
 ```
 
 - 持久化后**实时热更新**运行中的 `InjoysClient`（`endpoint` / `token`），**无需重启**；
+- **响应体含明文 `token`**：`config` 为完整 `OpsConfig`，适用 `criterion §3.4`「令牌返回边界」的本机回填例外（与 `config.get` 同一授权），**不得**向本机 DSH 客户端之外回传；
 - 保存 `injoys` 配置后须清理**按目标隔离的缓存**，避免跨服务状态污染；
 - 修改 `draftsDir` 后**立即生效**，无需重启（详见 §3.7）；
 - **改目录前必须校验**：先创建目标目录**并验证其确实可写**（创建并删除唯一命名的探测文件），失败时**拒绝保存并返回 `config/invalid-drafts-dir`**。**不得**先返回成功、再让后续 `drafts.save` 以 `ENOENT` 失败。

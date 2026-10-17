@@ -3,7 +3,7 @@
 > **Metadata**
 > - **Source**: `.context/domain/source/product_requirements.md`, `.context/domain/source/development_plan.md`, `.context/architecture/source/technical_architecture.md`
 > - **Generated At**: `2026-10-15 20:23`
-> - **Updated At**: `2026-10-17 12:41`
+> - **Updated At**: `2026-10-17 13:53`
 > - **Generator**: `Context-Dev-Agent v1.0`
 
 > **用途**: 定义 AI 代理必须遵守的工程约束和技术规范。
@@ -146,8 +146,18 @@ MUST:
 
 MUST NOT:
   - 引入外部常驻服务端或额外网络监听端口
-  - 将敏感策略 / 令牌下发到客户端
+  - 将敏感策略 / 令牌下发到**本机 DSH 客户端之外**的调用方（**本机回填例外见下方「令牌返回边界」**）
   - 在 Phase 0 引入 WebSocket / SSE 持久连接或后台定时轮询（须先在架构文档补齐连接生命周期、断线重连与令牌校验方案）
+
+> **令牌返回边界（本机回填例外，唯一授权口径）**：`config.get` 允许向**本机受信任的 DSH 客户端**返回明文 `token`，
+> 仅用于配置表单回填与显隐切换（对应 §4「前端支持显隐切换」与源文档 TAD §3.10.2）；该例外**不构成**对外下发授权。
+>
+> - **覆盖范围**：客户端工作台运行在 DSH Desktop **渲染进程**（见 `architecture/adr_003_custom_rpc_envelope.md`），
+>   与宿主不是同一进程；因此例外按「**本机同一 DSH 实例内的受信任客户端**」界定，**不按进程**界定。
+> - **同时覆盖 `config.save`**：其响应体含完整 `OpsConfig`（含 `token`），与 `config.get` 同属本机回填链路，
+>   适用同一例外；**不得**因此向本机之外回传该响应体。
+> - **前置条件**：一旦该 RPC 可被非本机访问，**必须先**改为「只回 `hasToken: boolean`，明文另走回填专用通道」，
+>   在此之前不得将其暴露到本机之外。日志与遥测仍**必须**脱敏（RISK-011）。
 
 ### 3.5 数据持久化
 
@@ -185,7 +195,7 @@ MUST NOT:
 ## 4. 安全约束
 
 - **认证方式**: Injoys MCP 使用 `Authorization: Bearer {token}`；平台登录态由 BrowserOS 实例自身的用户 Profile 承载
-- **密钥管理**: 禁止硬编码；令牌仅允许来自用户配置或环境变量回退（`INJOYS_MCP_ENDPOINT` / `INJOYS_MCP_TOKEN`）；前端支持显隐切换；日志必须脱敏
+- **密钥管理**: 禁止硬编码；令牌仅允许来自用户配置或环境变量回退（`INJOYS_MCP_ENDPOINT` / `INJOYS_MCP_TOKEN`）；前端支持显隐切换（明文回填边界见 §3.4「令牌返回边界」）；日志必须脱敏
 - **网络要求**: HTTPS 强制；Injoys 调用须校验 HTTP 状态码与 `result.isError`
 - **最小权限（能力开关）**: BrowserOS 复用现有工具清单，默认启用 `tabs / navigate / snapshot / act / read / grep / wait / upload` 八项，其余实际暴露工具默认关闭、可手动开启（`shell`/`cmd` 若暴露同样由用户管理）；**禁止绕过**统一入口集中检查「工具存在 / 启用 / 连接可用」直接调用底层工具。能力开关只决定可调用工具，自动发布与会话数据零外发等业务守卫不受其影响。
 - **会话隔离**: BrowserOS 会话在本地沙箱运行，**禁止将会话数据（Cookie）向任何第三方服务上报**
