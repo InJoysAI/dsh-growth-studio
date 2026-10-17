@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generated_at": "2026-10-17T15:08:38+08:00",
+  "generated_at": "2026-10-17T15:26:49+08:00",
   "generator": "Context-Agent v1.0",
   "generation_pipeline": {
     "root_assets": "Context-Dev-Agent v1.0",
@@ -100,10 +100,10 @@
     "ordering": "ascending_by_synced_at"
   },
   "last_context_sync": {
-    "synced_at": "2026-10-17T15:08:38+08:00",
+    "synced_at": "2026-10-17T15:26:49+08:00",
     "source": ".context/architecture/source/technical_architecture.md v1.4.5、.context/domain/source/product_requirements.md v1.2.2",
     "workflow": "context-check review core（user-authorized fix）",
-    "authority": "用户裁决：核心文档职责边界收敛（README 面向人、AGENTS 为 AI 入口、清单与状态仅由目录树 + Manifest 承载）；修复 review core 的 P2-1~P2-7 并顺带清理 AGENTS 中带日期的 MVP 裁决段；不改 source/、openspec/config.yaml、design/context-dev 与实现代码",
+    "authority": "用户裁决：review core 复核的 R-1 时间戳对齐——README/AGENTS 的 Updated At 刷新为真实写入时刻（15:26），消除与 last_context_sync 的分钟级错位；不改 source/、openspec/config.yaml、design/context-dev 与实现代码",
     "mode": "apply",
     "updated_context_files": [
       ".context/README.md",
