@@ -26,7 +26,7 @@
 **Change ID:** `fix-overview-metrics-null-semantics`  
 **优先级:** P0  
 **预计时间:** 2 人日（规划估算）  
-**状态:** proposed
+**状态:** in-progress
 
 **业务目标（Business Goal）**:
 - 消除「以部分平台数据冒充全网总量」的虚假结论，使驾驶舱指标满足 `criterion.md` §3.2 的数据真实性要求。
