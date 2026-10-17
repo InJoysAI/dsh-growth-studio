@@ -56,6 +56,7 @@ context: |
   - Persistence: atomic write (temp + `rename`) + serial write lock keyed by absolute file path; draft saves use
     `version`/`expectedVersion` optimistic locking, the calendar store has NO such lock (A1); the target directory
     is captured at request start and fixed for the whole operation, including writes inside a cross-`await` RPC.
+    Clients MUST NOT specify arbitrary paths (the directory is host-resolved, never caller-chosen).
   - Directory hot-switch: DETERMINISTIC fixed-directory behavior — never add a `dirChangedDuringSave` flag. The
     config page must state: the new directory applies to later operations; an in-progress save still writes to
     the original directory; old drafts are NOT auto-migrated.
@@ -163,8 +164,9 @@ context: |
      `drafts/invalid-published-url` — loose regex forbidden). `published` only when ALL channels are backfilled;
      partial stays `prefilled` (never downgraded to `draft`); adding an unbackfilled channel reverts
      `ContentDraft.status` `published`→`prefilled` (ItemStatus untouched); deleting a channel prunes orphan URLs.
-     `publishedUrls` is server-governed; `calendar.updateStatus` cannot write `published`; recompute runs in the
-     same write lock as the change.
+     `publishedUrls` is server-governed: the generic save entry (`drafts.save`) MUST ignore any caller-supplied
+     value for it (callers can never forge publish credentials); `calendar.updateStatus` cannot write `published`;
+     recompute runs in the same write lock as the change.
   3. Never pass off incomplete data as whole-network totals — partial metrics → aggregate `null`; distinguish true
      `0` from missing `null`; fill `measuredPlatforms`/`unmeasuredPlatforms`.
   4. Session data (cookies) is zero-egress — stays local; do not read the daily Chrome cookie store; do not report
