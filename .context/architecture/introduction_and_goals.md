@@ -1,7 +1,7 @@
 # 介绍与目标 (Introduction and Goals)
 
 > **Metadata**
-> - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.4.4）+ PRD 基线 v1.2.2
+> - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.4.5）+ PRD 基线 v1.2.2
 > - **Generated At**: `2026-10-16 09:44`
 > - **Updated At**: `2026-10-17 08:51`
 > - **Generator**: `Context-Agent v1.0`
@@ -189,5 +189,5 @@ graph TD
 当 AI 进行架构规划时：
 1. 牢记**取舍取向**：功能顺畅与行为可信冲突时，一律选择可信
 2. 优先满足 Top 5 质量目标，尤其**发布安全**与**数据真实性**
-3. 新功能须对照五条「质量场景」检查是否引入回归
+3. 新功能须对照六条「质量场景」检查是否引入回归
 4. 未到阶段的能力**不提前实现**；跨阶段引入须先更新 PRD 与架构文档

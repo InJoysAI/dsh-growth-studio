@@ -1,7 +1,7 @@
 # 安全策略 (Security Policy)
 
 > **Metadata**
-> - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.4.4 §5.2、§5.3、§六）
+> - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.4.5 §5.2、§5.3、§六）
 > - **Generated At**: `2026-10-16 09:44`
 > - **Updated At**: `2026-10-17 08:51`
 > - **Generator**: `Context-Agent v1.0`

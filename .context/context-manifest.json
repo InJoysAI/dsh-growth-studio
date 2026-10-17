@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generated_at": "2026-10-17T09:21:14+08:00",
+  "generated_at": "2026-10-17T09:47:45+08:00",
   "generator": "Context-Agent v1.0",
   "generation_pipeline": {
     "root_assets": "Context-Dev-Agent v1.0",
@@ -16,7 +16,7 @@
       "path": ".context/domain/source/product_requirements.md",
       "archived_to": ".context/domain/source/product_requirements.md",
       "type": "product_requirements",
-      "content_hash": "0c394848ae4eed25bf644c63f64f4faf0887ad70adf180e6c2f60ddb04c63b4b",
+      "content_hash": "eafb3e678917abccfb8a4b807c4d1abf006797285129996f7ee85a79cff2734c",
       "status": "archived"
     },
     "DEVELOPMENT_PLAN": {
@@ -30,7 +30,7 @@
       "path": ".context/architecture/source/technical_architecture.md",
       "archived_to": ".context/architecture/source/technical_architecture.md",
       "type": "system_architecture",
-      "content_hash": "7f06ef946599538470435d9c5d0d4bcaa303e9cbb12d935db595093b8781b4e1",
+      "content_hash": "8ad1bf241e5db9cde3006b02f445ae04e9a5d6c19dd8bd54c07ffc2c35b7bc49",
       "status": "archived"
     }
   },
@@ -102,32 +102,18 @@
     "ordering": "ascending_by_synced_at"
   },
   "last_context_sync": {
-    "synced_at": "2026-10-17T09:21:14+08:00",
-    "source": ".context/architecture/source/technical_architecture.md v1.4.4、.context/domain/source/product_requirements.md v1.2.2",
+    "synced_at": "2026-10-17T09:47:45+08:00",
+    "source": ".context/architecture/source/technical_architecture.md v1.4.5、.context/domain/source/product_requirements.md v1.2.2",
     "workflow": "context-update (user-authorized manual sync)",
-    "authority": "用户裁决：architecture 生成资产同步（F1-F10 + U1-U5 + R1-R15 收口）；回写 R5 源文档升级（v1.4.3→v1.4.4）后的指纹；补 R7 源指纹/审计；补 R9 索引计数、R10 RISK-003 状态、TD-015、R13 索引 README 时间戳与 R14 审计登记",
+    "authority": "用户裁决：A2 旧展示要求同步清理（R1 五处 + business_rules BR-074）+ 恢复 v1.4.4 修订条目（R2）；同步 PRD/领域验收资产",
     "mode": "apply",
     "updated_context_files": [
-      ".context/AGENTS.md",
-      ".context/README.md",
       ".context/architecture/source/technical_architecture.md",
-      ".context/architecture/README.md",
-      ".context/architecture/system_design.md",
-      ".context/architecture/tech_stack.md",
-      ".context/architecture/security_policy.md",
-      ".context/architecture/risks_and_debt.md",
-      ".context/architecture/api_strategy.md",
-      ".context/architecture/data_architecture.md",
-      ".context/architecture/runtime_view.md",
-      ".context/architecture/cross_cutting_concepts.md",
-      ".context/architecture/introduction_and_goals.md",
-      ".context/architecture/constraints.md",
-      ".context/architecture/context_view.md",
-      ".context/architecture/container_component_view.md",
-      ".context/architecture/adr_001_unified_browseros_session.md",
       ".context/architecture/adr_009_browseros_capability_management.md",
-      ".context/domain/README.md",
-      ".context/openspec/integration.md",
+      ".context/domain/source/product_requirements.md",
+      ".context/domain/business_rules.md",
+      ".context/domain/edge_cases.md",
+      ".context/domain/testing_strategy.md",
       ".context/context-manifest.json"
     ],
     "history_path": ".context/history/context-sync.jsonl"

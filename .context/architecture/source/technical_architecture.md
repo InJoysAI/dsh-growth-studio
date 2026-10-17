@@ -4,11 +4,13 @@
 >
 > | 属性 | 值 |
 > | :--- | :--- |
-> | **文档版本** | v1.4.4 |
+> | **文档版本** | v1.4.5 |
 > | **对应 PRD 基线** | `.context/domain/source/product_requirements.md` **v1.2.2**（MVP 简化裁决版 Approved Baseline） |
 > | **状态** | 评审整改版 |
 > | **初次编写** | 2026-10-13 |
-> | **本次修订** | 2026-10-17（用户裁决 A-1～A-3；追加 BrowserOS 能力管理方案；补齐 PRD↔TAD 契约缺口；收窄 P2-2/P2-6 文案、明确 P2-3 Profile 归属、补 P2-5 映射表；修正映射表目标/现状混用与旧指标卡名；补齐 PlatformId 9 值与 expectedVersion） |
+> | **本次修订** | 2026-10-17（用户裁决 A-1～A-3；追加 BrowserOS 能力管理方案；补齐 PRD↔TAD 契约缺口；收窄 P2-2/P2-6 文案、明确 P2-3 Profile 归属、补 P2-5 映射表；修正映射表目标/现状混用与旧指标卡名；补齐 PlatformId 9 值与 expectedVersion；澄清 A1 排期并发 / A2 能力清单 / A3 落盘失败语义） |
+>
+> **v1.4.5 的修订（2026-10-17，A1/A2/A3 源契约澄清）**：A1 排期库无乐观锁（`CalendarItem` 无 `version`）；A2 `browseros.capabilities` 只列实时暴露工具（删除 `available`/`unavailableReason`，消失的工具就消失）；A3 生成落盘失败（存储类）统一走 `drafts/storage-unavailable` 错误信封，`draftSaved:false` 仅表「已生成未落盘」、不包装存储错误。
 >
 > **v1.4.4 的修订（2026-10-17，U1/U2 契约补齐）**：§4.1 `PlatformId` 补 `xiaohongshu`（9 值，与 criterion §5.5 对齐）；§3.2.3 `SaveDraftRequest` 补可选 `expectedVersion?: number`（乐观锁，与 `ops/concurrency-conflict` 冲突响应一致）。
 >
@@ -502,6 +504,7 @@ MVP 使用 `drafts.get` 读取当前内容、`drafts.save` 覆盖保存当前内
   ```
 
 * **写入边界**：只保存本地草稿，不调用 Injoys 文档写入；仅用户明确触发 §3.5.1 后才沉淀。
+* **落盘失败语义（与 §3.5 视频生成一致）**：`draftSaved: true` 表示已成功落盘；`draftSaved: false` 表示**物料已生成但尚未落盘**（供前端重试），**不得**谎报已保存。存储类写盘失败须在**统一 RPC 错误边界**返回 `drafts/storage-unavailable`（§3.10.4 / §4.4），**不得**以 `{ ok:true, draftSaved:false }` 包装存储错误。
 
 ---
 
@@ -542,7 +545,8 @@ MVP 使用 `drafts.get` 读取当前内容、`drafts.save` 覆盖保存当前内
 * **写入边界**：视频生成同样只保存本地；不得自动创建或更新 Injoys 文档。响应中的可选 `injoysDocId` 不构成自动沉淀授权。
 * **草稿关联规则**：视频生成与图文生成**行为一致** —— 响应必须返回 `id` 与 `draftSaved`，
   表明物料已自动落盘为 `ContentDraft`（`channelVariants[platform].kind === 'video'`）。
-  未成功落盘时 `draftSaved: false`，且 `id` 仍返回（便于前端重试保存），**不得**谎报已保存。
+  `draftSaved: true` 表示已成功落盘；`draftSaved: false` 表示**物料已生成但尚未落盘**（供前端据此重试保存），**不得**谎报已保存。
+  ⛔ **落盘失败（存储类）不返回成功信封**：目录不可写 / 创建失败等写盘错误，须按 §3.10.4 / §4.4 在**统一 RPC 错误边界**返回 `drafts/storage-unavailable`，**不得**以 `{ ok:true, draftSaved:false }` 包装存储失败；`draftSaved:false` 仅表达「生成成功、落盘未执行或待重试」的语义，不与存储错误码混用。
 * **分区字段映射**：`partition` 存入 `channelVariants[].partition`（§4.1），
   预填时由 `workbench.prefillDraft` 经 Adapter 映射到平台对应控件（B站投稿页分区选择）。
   平台不支持分区时该字段为 `undefined`，预填流程跳过该项而**不报错**。
@@ -889,8 +893,9 @@ const DEFAULT_BROWSEROS_CAPABILITIES = new Set([
 
 #### 3.12.3 能力清单与可用状态读接口
 
-> 支撑 PRD §5.7.1 的「列出实际暴露工具名称、描述、启停开关、当前可用状态」与「不可用原因」展示。
+> 支撑 PRD §5.7.1 的「列出实际暴露工具名称、描述、启停开关」展示。
 > 与 §3.9 `tools.catalog`（仅覆盖 `ops_*` 运营工具）**不同**：本节只读底层 BrowserOS 工具清单，不含入参 JSON Schema 与沙箱执行。
+> 未连接通过顶层 `connected` 表达；未暴露的工具**不列出**（消失的工具就消失，MVP 简化，见 v1.4.5 裁决）。
 
 ```typescript
 interface BrowserOsCapabilityDescriptor {
@@ -900,21 +905,15 @@ interface BrowserOsCapabilityDescriptor {
   description: string
   /** 用户启停开关（含默认值解析，见 §3.12.2） */
   enabled: boolean
-  /** 当前连接是否实际提供并可执行（与 enabled 独立；未连接/未暴露为 false） */
-  available: boolean
-  /** 不可用原因；available === true 时为 undefined */
-  unavailableReason?: string
 }
 
 /** `browseros.capabilities`（只读） → { capabilities: BrowserOsCapabilityDescriptor[]; connected: boolean } */
 ```
 
-* `browseros.capabilities`（**只读**，Phase 0 首版）：返回当前 BrowserOS 连接实际暴露的工具清单，逐项给出
-  `name / description / enabled / available / unavailableReason`，以及顶层 `connected`（BrowserOS 是否已接入）。
-  `enabled` 与 `available` 是**两个独立字段**：`enabled` 来自用户开关（§3.12.2 默认值解析），
-  `available` 来自连接实时解析结果（工具是否真被提供）。
-* 已启用但当前连接未提供、或 BrowserOS 未连接的工具 → `available: false` 并填 `unavailableReason`，
-  前端据此**不显示为可执行**（PRD §5.7.1 L283）。
+* `browseros.capabilities`（**只读**，Phase 0 首版）：返回**当前 BrowserOS 连接实际暴露**的工具清单，逐项给出
+  `name / description / enabled`，以及顶层 `connected`（BrowserOS 是否已接入）。
+  工具清单**以实时连接为准**：连接当前未提供的工具**不列出**（即「消失的工具就消失了」），
+  不保留历史/配置工具行，不伪造、不承诺支持。MVP 不引入「已启用但当前未提供」的保留行语义。
 * 启停写入仍走 `config.save`（§3.10.2），本接口**不**承接写操作；刷新工具清单复用现有连接解析或用户手动刷新，不增加后台轮询（§3.12.5 热更新与复合操作）。
 
 > **实现状态**：`browseros.capabilities` 为 v1.4.1 新增的**文档契约**，`src/` 当前无此方法，**未实现**（实现状态统一见 §3.10.2 待实现清单）。

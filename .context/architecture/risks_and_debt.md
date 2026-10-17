@@ -1,7 +1,7 @@
 # 风险与技术债务 (Risks and Technical Debt)
 
 > **Metadata**
-> - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.4.4）
+> - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.4.5）
 > - **Generated At**: `2026-10-16 09:44`
 > - **Updated At**: `2026-10-17 09:21`
 > - **Generator**: `Context-Agent v1.0`
@@ -377,7 +377,7 @@
 | RISK-003 | 风险 | 会话状态假阳性 | 高 | N/A | 未缓解 / 待修复（Cookie 探测分支待提案移除） | 2026-10-16 |
 | RISK-004 | 风险 | 配置切换竞态跨库覆盖 | 高 | N/A | 已由目录固定缓解 | 2026-10-16 |
 | RISK-005 | 风险 | 存储不可用误报 | 中 | N/A | 已由前置校验缓解 | 2026-10-16 |
-| RISK-006 | 风险 | 指标汇总以偏概全 | 中 | N/A | 已由可空口径缓解 | 2026-10-16 |
+| RISK-006 | 风险 | 指标汇总以偏概全 | 中 | N/A | 已定义契约方案，落实待 TD-007 | 2026-10-16 |
 | RISK-007 | 风险 | 环比基准不可用误读 | 中 | N/A | 已由 null 语义缓解 | 2026-10-16 |
 | RISK-008 | 风险 | 旧草稿「丢失」认知 | 中 | N/A | 已由提示文案缓解 | 2026-10-16 |
 | RISK-009 | 风险 | 两套状态枚举误用 | 中 | N/A | 监控中（依赖映射表） | 2026-10-16 |

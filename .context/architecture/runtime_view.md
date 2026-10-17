@@ -1,7 +1,7 @@
 # 运行时视图 (Runtime View)
 
 > **Metadata**
-> - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.4.4 §3、§4.2、§5）
+> - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.4.5 §3、§4.2、§5）
 > - **Generated At**: `2026-10-16 09:44`
 > - **Updated At**: `2026-10-17 08:51`
 > - **Generator**: `Context-Agent v1.0`
@@ -39,10 +39,23 @@ sequenceDiagram
     RPC->>CE: 路由
     CE->>CE: 结合知识库与 focusVersion 规划
     CE->>Local: 落盘 {itemId}.json（黄金主数据源）
-    CE-->>RPC: { items, sheetExported:false }
-    RPC-->>WB: 返回排期（exportToSheet 默认 false）
 
-    opt 用户显式确认导出
+    alt exportToSheet = false（默认）
+        CE-->>RPC: { items, sheetExported:false }
+        RPC-->>WB: 返回排期（仅落盘）
+    else exportToSheet = true
+        CE->>IC: spreadsheet.applyOperations
+        IC->>Sheet: 按 externalRowId 更新或插入
+        alt 导出成功
+            IC-->>CE: { sheetExported:true }
+        else 导出失败（Injoys 未配置 / 网络错误）
+            IC-->>CE: { sheetExported:false, exportError }
+        end
+        CE-->>RPC: { items, sheetExported, exportError? }
+        RPC-->>WB: 返回排期与本次导出结果
+    end
+
+    opt 用户显式确认导出（独立导出操作）
         U->>WB: 导出至 Injoys 表格
         WB->>RPC: workbench.exportCalendar { period }
         RPC->>IC: spreadsheet.applyOperations
@@ -63,7 +76,7 @@ sequenceDiagram
 | 步骤 | 决策 | 失败处理 |
 |------|------|---------|
 | 4 | 本地落盘为**黄金主数据源** | 落盘失败 → 如实抛错，不谎报成功 |
-| 7 | `exportToSheet` **默认 false** | 导出应为用户**显式确认**的动作（PRD §5.1.2 快速行动为「生成 7 天排期日历」） |
+| 7 | `exportToSheet` **默认 false** | 默认仅落盘；**true 时生成后立即导出**，成功返回 `sheetExported:true`、失败返回 `sheetExported:false` + 真实 `exportError`（不谎报导出成功）。独立 `exportCalendar` 仍为用户显式导出操作 |
 | 11 | 幂等判定依据 `externalRowId` | 存在则更新而非重复插入 |
 | — | Injoys 未配置 / 网络错误 | 返回 `exportError` 与 `sheetExported: false`，**不谎报** |
 

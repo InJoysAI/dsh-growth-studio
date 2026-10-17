@@ -1,7 +1,7 @@
 # 数据架构 (Data Architecture)
 
 > **Metadata**
-> - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.4.4 §4、§5.3）
+> - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.4.5 §4、§5.3）
 > - **Generated At**: `2026-10-16 09:44`
 > - **Updated At**: `2026-10-17 08:51`
 > - **Generator**: `Context-Agent v1.0`
@@ -167,7 +167,7 @@ export interface UserFeedbackItem {
 
 ```typescript
 export type PlatformId =
-  | 'wechat_mp' | 'wechat_channels' | 'bilibili' | 'douyin'
+  | 'wechat_mp' | 'wechat_channels' | 'bilibili' | 'douyin' | 'xiaohongshu'
   | 'youtube' | 'twitter_x' | 'product_hunt' | 'tiktok'
 
 export type ContentKind = 'article' | 'video' | 'post'
@@ -179,8 +179,8 @@ export type SessionState =
   | 'unknown' | 'needs_login' | 'authenticated' | 'no_publish_permission'
 ```
 
-> ⚠️ **`PlatformId` 口径差异**：源文档 §4.1 列出 8 个值，而 criterion §5.5（权威）列出 **9 个** —— 多出 `xiaohongshu`。
-> **以 criterion 为准**：`xiaohongshu` 已列入 `PlatformId` 但**尚未注册适配器**（`AdapterRegistry` 当前注册 8 个）。
+> ⚠️ **`PlatformId` 口径**：源文档 §4.1（v1.4.4）与 criterion §5.5 均为 **9 值**（含 `xiaohongshu`）。
+> `xiaohongshu` 已列入 `PlatformId` 但**尚未注册适配器**（`AdapterRegistry` 当前注册 8 个，见 TD-015）。
 
 ---
 
@@ -288,8 +288,8 @@ $DSH_HOME/
 
 | 数据存储 | 一致性级别 | 适用场景 |
 |---------|-----------|---------|
-| 草稿库（本地 JSON） | **单机强一致** | 临时文件 + `rename` 原子写 + 串行写锁 + `expectedVersion` 乐观锁 |
-| 排期库（本地 JSON） | **单机强一致** | 同上 |
+| 草稿库（本地 JSON） | **单机强一致** | 临时文件 + `rename` 原子写 + 串行写锁 + `expectedVersion` 乐观锁（`ContentDraft.version`） |
+| 排期库（本地 JSON） | **单机强一致** | 临时文件 + `rename` 原子写 + 串行写锁（**无乐观锁**，`CalendarItem` 无 `version`） |
 | 指标历史（本地 JSON） | 追加写 | 按 `(platform, capturedAt)` 追加，供环比 |
 | 配置（本地 JSON） | 单机强一致 | `config.save` 后热更新 |
 | **Injoys Spreadsheet** | **最终一致** | 单向导出（以 `externalRowId` 幂等）；导入本地状态优先 |
@@ -300,8 +300,8 @@ $DSH_HOME/
 | 机制 | 规则 |
 |------|------|
 | **原子写** | 临时文件 + `rename` |
-| **串行写锁** | 同一草稿的写操作串行化；**锁按绝对文件路径**归属，使不同库同 ID 草稿互不阻塞、互不覆盖 |
-| **乐观锁** | `version` 自增 + `expectedVersion` 校验 |
+| **串行写锁** | 同一文件的写操作串行化；**锁按绝对文件路径**归属，使不同库同 ID 实体互不阻塞、互不覆盖 |
+| **乐观锁** | **仅草稿库**：`ContentDraft.version` 自增 + `expectedVersion` 校验；排期 `CalendarItem` **无 `version`**，不适用乐观锁 |
 | **目录固定** | 一次操作（加锁 → 读取 → 版本校验 → 临时文件 → rename）始终针对**同一目录**；配置热切换只对**新发起**操作生效；跨 `await` 的复合 RPC 在**请求开始时**捕获目录并贯穿（含请求内每一次落盘） |
 | **全渠道不变量** | 渠道集合变化须在**同一写锁内**重算状态 |
 

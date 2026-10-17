@@ -1,7 +1,7 @@
 # 跨切面概念 (Cross-cutting Concepts)
 
 > **Metadata**
-> - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.4.4 §3.9、§5.5、§六）
+> - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.4.5 §3.9、§5.5、§六）
 > - **Generated At**: `2026-10-16 09:44`
 > - **Updated At**: `2026-10-17 08:51`
 > - **Generator**: `Context-Agent v1.0`

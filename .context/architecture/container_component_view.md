@@ -1,7 +1,7 @@
 # 容器与组件视图 (Container and Component View)
 
 > **Metadata**
-> - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.4.4 §1.1、§2、§3）
+> - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.4.5 §1.1、§2、§3）
 > - **Generated At**: `2026-10-16 09:44`
 > - **Updated At**: `2026-10-17 08:51`
 > - **Generator**: `Context-Agent v1.0`

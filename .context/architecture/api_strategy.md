@@ -1,7 +1,7 @@
 # API 策略与接口契约 (API Strategy)
 
 > **Metadata**
-> - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.4.4 §2.2、§3）
+> - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.4.5 §2.2、§3）
 > - **Generated At**: `2026-10-16 09:44`
 > - **Updated At**: `2026-10-17 08:51`
 > - **Generator**: `Context-Agent v1.0`
@@ -313,7 +313,8 @@ interface GenerateVideoMetaResponse {
 - **生成只保存本地**；不自动创建或更新 Injoys 文档，可选 `injoysDocId` 不构成写入授权。
 - **`titleCandidates` 数量恒为 3** —— UI 依赖此固定数量，**不得返回其他个数**；
 - **草稿关联规则**：视频生成与图文生成**行为一致** —— 响应必须返回 `id` 与 `draftSaved`，表明物料已自动落盘为 `ContentDraft`（`channelVariants[platform].kind === 'video'`）；
-- 未成功落盘时 `draftSaved: false`，且 `id` **仍返回**（便于前端重试保存），**不得谎报已保存**；
+- `draftSaved: true` 表示已成功落盘；`draftSaved: false` 表示**物料已生成但尚未落盘**（供前端重试），**不得谎报已保存**；
+- ⛔ **落盘失败（存储类）不返回成功信封**：目录不可写等写盘错误须在**统一 RPC 错误边界**返回 `drafts/storage-unavailable`（§3.7 / 源文档 §3.10.4），**不得**以 `{ ok:true, draftSaved:false }` 包装存储错误；
 - **分区字段映射**：`partition` 存入 `channelVariants[].partition`，预填时经 Adapter 映射到平台控件；平台不支持分区时该字段为 `undefined`，预填流程**跳过该项而不报错**。
 
 ---
@@ -705,8 +706,6 @@ interface BrowserOsCapabilityDescriptor {
   name: string               // 实际暴露的工具名（未暴露不列出、不承诺）
   description: string        // 现有元数据能提供的描述；无则空串，不伪造
   enabled: boolean           // 用户开关（默认值解析见源文档 TAD §3.12.2）
-  available: boolean         // 连接实时解析结果（与 enabled 独立）
-  unavailableReason?: string // available === false 时填
 }
 
 // browseros.capabilities（只读）
@@ -714,6 +713,7 @@ interface BrowserOsCapabilityDescriptor {
 ```
 
 - 默认八项（默认启用集，非上限）：`tabs / navigate / snapshot / act / read / grep / wait / upload`；其余实际暴露工具默认关闭、可手动开启；不存在永久禁用项（`shell`/`cmd` 若暴露同样由用户管理）。
+- 工具清单**以实时连接为准**：连接当前未提供的工具**不列出**（消失的工具就消失了），不保留历史/配置工具行，不伪造、不承诺支持（MVP 简化）。
 - 配置读写走 `config.save`（`OpsConfig.browserosCapabilities`，见 §3.6）；本接口**不承接写操作**。
 - 错误码：`browser/capability-disabled`（工具存在但开关关）、`browser/tool-unavailable`（工具未暴露）、`browser/not-connected`（未连接）。
 - 统一执行检查：所有 BrowserOS 调用必经 `BrowserOsMcpClient.callTool` 单一入口，Adapter 禁止绕过；经 `ops_*` 调用时「运营工具开关 + 引擎能力开关」**两层同时满足**。
@@ -727,10 +727,11 @@ interface BrowserOsCapabilityDescriptor {
 
 > 对应源文档 TAD §3.13。`ops_*` 是 AI 调用入口，RPC 是客户端调用入口；可共享领域服务、不必互相调用。
 > 「领域服务 / 外部依赖 / 主数据位置」三列为**目标口径**，不代表当前实现已具备；现状以「当前实现差距」为准。
+> **引用体系**：本表「对应 RPC」列的 `§x.y` 均指**本文件（api_strategy.md）**的章节号（如 §3.1 工作台类、§3.3 排期类、§3.4 浏览器类），非源文档 TAD 编号。
 
 | 工具（AI 入口） | 对应 RPC | 目标领域服务 | 目标外部依赖 | 目标主数据 | 当前实现差距 | 阶段 |
 |---|---|---|---|---|---|---|
-| `ops_plan_calendar` | `workbench.generateCalendar`（§3.3） | CalendarEngine | Injoys 读取/显式导出 | 本地 calendar | RPC 未实现 | Phase 0 |
+| `ops_plan_calendar` | `workbench.generateCalendar`（§3.1） | CalendarEngine | Injoys 读取/显式导出 | 本地 calendar | RPC 未实现 | Phase 0 |
 | `ops_discover_trends` | 无 | TrendsDiscoverer | 真实搜索 | — | 本地固定模板，未接搜索 | Phase 0 原型 |
 | `ops_keyword_research` | 无 | — | — | — | 未注册、无实现 | 未定 |
 | `ops_draft_article` | `workbench.generateArticleDraft`（§3.1） | ContentStudioEngine | Injoys 读取 | 本地 drafts | 无条件写 Injoys（TD-008） | Phase 0 |

@@ -1,7 +1,7 @@
 # .context/architecture/ — 架构上下文
 
 > **Metadata**
-> - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.4.4）
+> - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.4.5）
 > - **Generated At**: `2026-10-16 09:44`
 > - **Updated At**: `2026-10-17 08:51`
 > - **Generator**: `Context-Agent v1.0`
@@ -12,7 +12,7 @@
 
 | 文件 | 内容概要 |
 |------|---------|
-| `source/technical_architecture.md` | 技术架构设计说明书 v1.4.4：5 层架构（客户端视图层 / 宿主 RPC 网关层 / 业务领域服务层 / 外部 MCP 集成层 / 本地持久化基础设施层）、`POST /api/ops` RPC 信封契约、领域实体与状态机、统一 BrowserOS 实例方案、仅预填的人机协同发布闭环、Injoys 分阶段同步策略、设计令牌约束与安全治理 |
+| `source/technical_architecture.md` | 技术架构设计说明书 v1.4.5：5 层架构（客户端视图层 / 宿主 RPC 网关层 / 业务领域服务层 / 外部 MCP 集成层 / 本地持久化基础设施层）、`POST /api/ops` RPC 信封契约、领域实体与状态机、统一 BrowserOS 实例方案、仅预填的人机协同发布闭环、Injoys 分阶段同步策略、设计令牌约束与安全治理 |
 
 > 本项目 `docs/` 下**没有** `docs/architecture.md`；上述文件为唯一权威架构输入。
 > ⚠️ **若下方总结与 `source/` 冲突，以 `source/` 目录中的源文档为准。**
@@ -78,7 +78,7 @@
 | **开始改代码** | `../criterion.md` → `constraints.md` → `tech_stack.md` → `container_component_view.md` |
 | **改接口 / 契约** | `../criterion.md` §6–§7 → `api_strategy.md` → `data_architecture.md` |
 | **安全评审** | `security_policy.md` → `context_view.md` §数据流向与隐私边界 → `adr_002` |
-| **理解某条设计取舍** | `adr_*.md`（8 条决策记录） |
+| **理解某条设计取舍** | `adr_*.md`（9 条决策记录） |
 | **排查风险 / 规划工作** | `risks_and_debt.md` |
 | **实现具体流程** | `runtime_view.md`（8 个场景时序） |
 
