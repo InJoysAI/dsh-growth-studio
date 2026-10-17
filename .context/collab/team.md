@@ -1,0 +1,16 @@
+# 协作花名册
+
+> 记录各角色默认由哪个 AI 工具负责。只有用户修改，推荐用 `context-collab setup` 配置。协议见 `design/context-dev/tools/collab/AGENTS.md`。
+
+| 角色 | 负责工具 | 对应命令 |
+|------|----------|----------|
+| 生成 | codex, dsh, opencode | `context-init`、`context-update`、`context-interview`、`context-openspec`（domain/architecture/db/ui/legacy/project） |
+| 规划 | dsh, grok, windsurf, opencode, codex | `context-openspec plan`、`context-openspec proposal` |
+| 评审 | codex, windsurf, opencode, dsh | `context-check` |
+| 实现 | cursor, codex, agy, grok, windsurf, dsh | `context-start` |
+| 工具侧 | 用户 | 维护 `design/context-dev` 规范（非命令） |
+
+一个角色可填多个，用逗号分隔，括号内为分工备注，如 `cursor（前端）, claude-code（后端）`。
+可填：`claude-code`、`codex`、`cursor` 等工具 id；`用户`；`未指定`。
+
+> 「评审」与「实现」均为多工具：评审的**书写顺序即评审顺序**（codex → windsurf → opencode → dsh），由用户把关交接；实现多工具并行时，同一提案同一时间只能一个工具认领（见协议 §8）。
