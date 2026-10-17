@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generated_at": "2026-10-17T16:32:39+08:00",
+  "generated_at": "2026-10-17T16:51:40+08:00",
   "generator": "Context-Agent v1.0",
   "generation_pipeline": {
     "root_assets": "Context-Dev-Agent v1.0",
@@ -100,14 +100,18 @@
     "ordering": "ascending_by_synced_at"
   },
   "last_context_sync": {
-    "synced_at": "2026-10-17T16:32:39+08:00",
-    "source": ".context/architecture/source/technical_architecture.md v1.4.5、.context/domain/source/product_requirements.md v1.2.2",
-    "workflow": ".agent/workflows/context-openspec.md project",
-    "authority": "用户核查：context-check project 复核 FAIL（P1×2）修复——补齐 criterion.md 两条 MUST：① 通用保存入口 drafts.save 必须忽略调用方传入的 publishedUrls（发布凭据不得被伪造，criterion.md:205）；② 客户端不得指定任意路径，草稿目录由宿主解析并在单次操作内固定（criterion.md:178）。内容缺陷强制重生成派生快照：Context-SHA256 不变、config_sha256 更新；不改 source/、权威来源与实现代码",
+    "synced_at": "2026-10-17T16:51:40+08:00",
+    "source": ".context/criterion.md、.context/architecture/*（含 adr_009_browseros_capability_management.md）、.context/domain/*（读取用 Context 资产，本次未变更）",
+    "workflow": ".agent/workflows/context-openspec.md plan",
+    "authority": "用户指令：按更新后的 Context 资产重新规划（replan）提案路线图；形态保持总纲+分Phase（M=26 / P=5 / K=8）；重构 Phase 0（BrowserOS 能力开关、会话探测假阳性修复、injoys.test 文档数）、Phase 1 补生成时立即导出、Phase 2 收窄阶段未定工具、Phase 3 补能力管理 UI 并解除令牌待决门槛；仅重生成 openspec/proposal-roadmap*.md，不改任何 .context 资产、source/、config.yaml 与实现代码",
     "mode": "apply",
     "updated_context_files": [
-      ".context/context-manifest.json",
-      "openspec/config.yaml"
+      "openspec/proposal-roadmap.md",
+      "openspec/proposal-roadmap-Phase-0.md",
+      "openspec/proposal-roadmap-Phase-1.md",
+      "openspec/proposal-roadmap-Phase-2.md",
+      "openspec/proposal-roadmap-Phase-3.md",
+      ".context/context-manifest.json"
     ],
     "history_path": ".context/history/context-sync.jsonl"
   }

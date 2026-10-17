@@ -3,63 +3,68 @@
 > **返回总纲**: [proposal-roadmap.md](./proposal-roadmap.md)
 > **文件名**: `proposal-roadmap-Phase-3.md`（编号与总纲阶段总览一致：Phase 3 → `Phase-3`）
 > **状态**: proposed
-> **来源**: `.context/architecture/risks_and_debt.md`（TD-002）；`.context/domain/risks_and_debt.md`（PD-004）；`.context/architecture/adr_003_custom_rpc_envelope.md` / `adr_007_manual_refresh_no_persistent_connection.md`；`.context/architecture/api_strategy.md` §3.7 / §4；`.context/domain/testing_strategy.md` 模块 1 / 2 / 3 / 6 / 7
-> **预计工作量与周期**: ~17.5 人日（**规划估算**；源文档工作量字段为 `N/A – 源文档未提供`）
+> **来源**: `.context/architecture/risks_and_debt.md`（TD-002 / TD-012）；`.context/domain/risks_and_debt.md`（PD-004）；`.context/architecture/adr_003_custom_rpc_envelope.md` / `adr_007_manual_refresh_no_persistent_connection.md` / `adr_009_browseros_capability_management.md`；`.context/architecture/api_strategy.md` §3.4 / §3.6 / §3.7 / §3.9 / §4；`.context/domain/business_rules.md`（BR-052 / BR-074）；`.context/domain/testing_strategy.md` 模块 1 / 2 / 3 / 6 / 7
+> **预计工作量与周期**: ~19 人日（**规划估算**；源文档工作量字段为 `N/A – 源文档未提供`）
 
 ## 阶段目标与范围
 
 - **目标与交付结果**：把 Phase 0–2 已就绪的宿主契约接进客户端 6 大 Tab 中 Phase 0 所需的 5 个 Tab（运营驾驶舱、内容创作室、排期日历、AI 工具中枢、引擎与平台配置），偿还 PD-004（高）的界面缺口，使「草稿管理 → 多变体编辑 → 预填入口」可在界面完成。
 - **In / Out**：
-  - ✅ In：`config.*` 接入引擎策略配置页；驾驶舱指标 / 渠道矩阵接入；内容创作室与草稿库接入（含沉淀入口）；公众号 / B站真实样式模拟器；排期日历流水与回填入口；AI 工具中枢与沙箱控制台。
-  - ❌ Out：新增宿主能力（Phase 0–2 已提供全部所需契约）；舆情监控 Tab 的评论抓取（属 PRD Phase 1，**不在本路线图范围**）；热点雷达的选题生成（数据源属 Phase 0 原型，PRD 未指定渠道，见 `risks_and_debt.md` 外部依赖）；P2 技能包 / 自定义编辑器（PD-002）。
+  - ✅ In：`config.*` 接入引擎策略配置页（含 BrowserOS **能力管理**）；驾驶舱指标 / 渠道矩阵 / 引擎状态（知识库连通性 + 文档数、浏览器引擎连接状态）接入；内容创作室与草稿库接入（含沉淀入口）；公众号 / B站真实样式模拟器；排期日历流水与回填入口；AI 工具中枢与沙箱控制台。
+  - ❌ Out：新增宿主能力（Phase 0–2 已提供全部所需契约）；舆情监控 Tab 的评论抓取（属 PRD Phase 1，**不在本路线图范围**）；热点雷达的选题生成（数据源属 Phase 0 原型，PRD 未指定渠道，见 `risks_and_debt.md` 外部依赖）；P2 技能包 / 自定义编辑器（PD-002）；细粒度行为拦截界面（ADR-009 边界：能力开关 ≠ 行为拦截）。
 - **适用约束**：
   - `criterion.md` §3.1「客户端禁止绕过 `callOpsRpc` 直连 Injoys / BrowserOS MCP 或任何外部服务」；
   - `criterion.md` §3.3「禁止硬编码色值」——样式走设计令牌；
-  - `criterion.md` §3.4「在 Phase 0 禁止 WebSocket / SSE 持久连接或后台定时轮询」——刷新经 `adr_007_manual_refresh_no_persistent_connection.md` 的手动刷新；
+  - `criterion.md` §3.4「在 Phase 0 禁止 WebSocket / SSE 持久连接或后台定时轮询」——刷新经 `adr_007_manual_refresh_no_persistent_connection.md` 的手动刷新；「令牌返回边界」的本机回填例外**已由该条授权**（客户端运行在 DSH 渲染进程，属本机受信任客户端）；
   - `criterion.md` §6 SSoT-first（UI 是依赖链末端，必须等宿主契约就绪）。
 
 ## 提案详情
 
-### 提案 1: 引擎策略配置页接入
+### 提案 1: 引擎策略配置页接入（含 BrowserOS 能力管理）
 
 **Change ID:** `feat-client-engine-config`  
 **优先级:** P0  
-**预计时间:** 2 人日（规划估算）  
+**预计时间:** 3 人日（规划估算）  
 **状态:** proposed
 
 **业务目标（Business Goal）**:
-- 把 `config.get` / `config.save` / `injoys.test` 接入配置页 UI，支持全局运营策略即时生效、连通性测试与凭证显隐切换。
+- 把 `config.get` / `config.save` / `injoys.test` 接入配置页 UI，支持全局运营策略即时生效、连通性测试（展示延迟）与凭证显隐切换。
+- 落地 **BrowserOS 能力管理** UI：基于 `browseros.capabilities` 呈现能力清单与启停，经 `config.save` 的 `browserosCapabilities` 持久化，落实 BR-074。
 - 展示本地草稿存储目录与切换提示文案（三件事实），落实 RISK-008 缓解措施。
 
 **范围边界（In / Out）**:
 
 | 类型 | 内容 |
 |------|------|
-| ✅ In | 配置页表单接入 `config.get`（平铺契约）/ `config.save` / `injoys.test` |
-| ✅ In | 默认产品名称、基调、`draftsDir`、`reuseHostBrowserProfile`、`autoSyncToInjoys` 编辑与热更新 |
+| ✅ In | 配置页表单接入 `config.get`（平铺契约）/ `config.save` / `injoys.test`（含 `latencyMs` / `documentCount`） |
+| ✅ In | 默认产品名称、基调、`draftsDir`、`autoSyncToInjoys` 编辑与热更新 |
+| ✅ In | BrowserOS 能力管理：`browseros.capabilities` 能力清单（默认八项启用、其余默认关闭）+ 启停开关，经 `config.save` 持久化；未暴露工具**不列出**，未连接状态灯表达连接状态 |
 | ✅ In | 凭证掩码 + 显隐切换；目录切换提示文案（覆盖三件事实） |
 | ✅ In | 硬编码色值治理：样式走设计令牌 |
-| ❌ Out | `config.get` 令牌返回策略变更（RISK-011 前置条件未触发，维持明文回填） |
-| ❌ Out | 新宿主配置字段 |
+| ❌ Out | `reuseHostBrowserProfile` 编辑入口（Phase 0 的 `fix-browser-session-cookie-probe` 已退役该字段，UI 不再提供） |
+| ❌ Out | 细粒度行为拦截界面（ADR-009 边界：能力开关 ≠ 行为拦截） |
+| ❌ Out | 新宿主配置字段（Phase 0–2 已提供 `browserosCapabilities`） |
 
 > [!NOTE]
-> **令牌口径边界说明**：`criterion.md` §3.4 的 MUST NOT「将敏感策略 / 令牌下发到客户端」与 §4「前端支持显隐切换」存在**口径张力**，其例外边界见 `.context/architecture/security_policy.md`「令牌返回策略」：`config.get` 明文 `token` **仅在宿主内 RPC（本机进程内）**暴露、用于表单回填与显隐切换，**不作为对外网络端点**；前置条件为「若未来 RPC 可被非本机访问，必须先改为只回 `hasToken: boolean`，明文另走回填专用通道」。本提案**维持现状**（前置条件未触发），但若 RPC 暴露边界变化，须先改契约再改 UI。⛔ 本路线图不擅自修改 `criterion.md`；**该口径是否构成 §3.4 的例外仍待 criterion 侧澄清**（已登记于本 Phase「待决事项」），应经 `context-update` 并取得用户授权。
+> **令牌口径已裁决（本提案不再受阻）**：`criterion.md` §3.4「令牌返回边界（本机回填例外，唯一授权口径）」已明确授权 `config.get` / `config.save` 向**本机受信任的 DSH 客户端**返回明文 `token`，仅用于表单回填与显隐切换；客户端工作台运行在 DSH Desktop 渲染进程，与宿主非同进程但属**同一 DSH 实例内的受信任客户端**，适用该例外。本提案据此实施显隐切换，**不再有待决门槛**；若未来 RPC 可被非本机访问，须先改契约（只回 `hasToken: boolean`）再改 UI。
 
 **关联 Context 资产**:
 
 | Scope | 关联资产 | 关联说明 |
 |-------|---------|----------|
-| criterion | `.context/criterion.md` | §3.1 经 `callOpsRpc`、§3.3 禁止硬编码色值、§3.4 令牌下发边界、§3.5、§4 显隐切换 |
-| architecture | `.context/architecture/security_policy.md` | 「令牌返回策略」：明文 token 的暴露边界与「非本机可达」前置条件 |
-| architecture | `.context/architecture/risks_and_debt.md` | TD-002、RISK-008、RISK-011（令牌明文暴露面扩大） |
-| architecture | `.context/architecture/api_strategy.md` | §3.6 `config.*`（`config.get` 平铺契约与令牌返回策略）、§3.7 `draftsDir` 变更语义 |
-| domain | `.context/domain/testing_strategy.md` | 模块 6 场景 1 / 2 / 3 / 4 |
+| criterion | `.context/criterion.md` | §3.1 经 `callOpsRpc`、§3.3 禁止硬编码色值、§3.4 令牌返回边界（本机回填例外）、§4 显隐切换与能力开关、§5.4 |
+| architecture | `.context/architecture/api_strategy.md` | §3.6 `config.*`（平铺契约与令牌返回策略）、§3.7 `draftsDir` 变更语义、§3.9 `browseros.capabilities` |
+| architecture | `.context/architecture/adr_009_browseros_capability_management.md` | 能力开关模型与边界（不夸大） |
+| architecture | `.context/architecture/risks_and_debt.md` | TD-002、TD-012、RISK-008、RISK-011（令牌明文暴露面扩大） |
+| domain | `.context/domain/business_rules.md` | BR-074（能力管理 / 状态灯展示规则：只展示连接状态，不推测 Profile） |
+| domain | `.context/domain/testing_strategy.md` | 模块 6 场景 1 / 2 / 3 / 4 / 5 / 6 |
 
 **关键任务**:
 1. 配置页接入 `config.get`（平铺契约）与表单渲染（0.75 人日）
 2. 接入 `config.save` 热更新与目录切换提示文案（0.75 人日）
-3. 接入 `injoys.test` 连通性与凭证显隐（0.25 人日）
-4. 样式令牌化与硬编码色值清理（0.25 人日）
+3. 接入 `injoys.test` 连通性 / 延迟 / 文档数与凭证显隐（0.5 人日）
+4. BrowserOS 能力管理 UI（清单 / 启停 / 未暴露不列出 / 逐项保存）（0.75 人日）
+5. 样式令牌化与硬编码色值清理（0.25 人日）
 
 **验证标准**:
 
@@ -68,7 +73,9 @@
 | 即时生效 | 保存后新建物料使用新配置，无需重启 | UI 验收 |
 | 目录提示 | 切换目录时展示「新目录对后续操作生效；正在进行的保存仍写入原目录。旧草稿不会自动迁移」 | UI 验收 |
 | 凭证显隐 | 默认掩码，点击可切明文 | UI 验收 |
+| 能力管理 | 默认八项启用、其余默认关闭；关闭后保存并重启仍保持；未暴露工具不列出 | UI 验收 |
 | 仅经 callOpsRpc | 客户端不直连 Injoys / BrowserOS | 代码审查 |
+| 无 Profile 推测 | 状态灯只展示连接状态，不展示推测 / 硬编码的 Profile 路径 | UI 验收 + 代码审查 |
 
 **验收场景（按需，建议 BDD）**:
 
@@ -79,23 +86,23 @@
   Then 新建物料应以新的产品名称生成
     And 无需重启工作台即可生效
 
-场景: 本地草稿存储目录配置
-  Given 用户配置页中展示了本地草稿存储目录
-  When 用户将目录更改为一个新的可用位置并保存
-  Then 后续新发起的草稿操作应写入新目录
-    And 界面应提示"新目录对后续操作生效；正在进行的保存仍写入原目录。旧草稿不会自动迁移"
+场景: BrowserOS 能力管理默认八项与启停保持（BR-074）
+  Given 首次使用或旧配置缺少能力字段
+  When 打开引擎策略配置 → BrowserOS 浏览器引擎 → 能力管理
+  Then 默认八项 tabs/navigate/snapshot/act/read/grep/wait/upload 均启用
+    And 其余实际暴露工具默认关闭
+
+场景: 未暴露工具不列出（BR-074）
+  Given 某工具当前连接未提供
+  When 打开能力管理页
+  Then 该工具不出现于清单（消失的工具就消失）
+    And 未连接通过引擎状态灯（connected）表达
 ```
 
-**风险与处理决定（按需）**:
-
-| 风险 | 影响 | 处理决定及理由 |
-|------|------|----------|
-| `criterion.md` §3.4 令牌例外口径未裁决即实施 | 实现可能违反 MUST NOT「将敏感策略 / 令牌下发到客户端」 | ⛔ **实施门槛未满足，不启动**：以 `criterion.md` 为准；`security_policy.md`「令牌返回策略」的例外只登记为待决项，**不得**用安全总结覆盖准则。裁决须经 `context-update` 并取得用户授权后方可排期 |
-
 **依赖**:
-- 前置: 无
+- 前置: `feat-browseros-capability-toggle`、`fix-browser-session-cookie-probe`
 - 被依赖: 无
-- 约束: 样式走设计令牌（criterion §3.3）；⛔ **实施门槛**：`criterion.md` §3.4 令牌例外口径未裁决前**不得进入实现**（见本 Phase「待决事项」）
+- 约束: 样式走设计令牌（criterion §3.3）；能力开关 UI 不得宣称具备细粒度行为拦截（ADR-009 边界）；令牌显隐依 criterion §3.4 本机回填例外
 
 ---
 
@@ -103,23 +110,24 @@
 
 **Change ID:** `feat-client-dashboard`  
 **优先级:** P0  
-**预计时间:** 3 人日（规划估算）  
+**预计时间:** 3.5 人日（规划估算）  
 **状态:** proposed
 
 **业务目标（Business Goal）**:
-- 把 `workbench.overview` / `browser.sessions` 接入驾驶舱，呈现指标卡、渠道矩阵连通度与头部引擎状态。
-- 正确呈现指标 `null` 语义（暂无数据 / 暂无环比）与四态会话，避免「以偏概全」误导用户。
+- 把 `workbench.overview` / `browser.sessions` / `injoys.test` 接入驾驶舱，呈现指标卡（含互动与关注增长）、渠道矩阵连通度与头部引擎状态。
+- 正确呈现指标 `null` 语义（暂无数据 / 暂无环比）与四态会话，避免「以偏概全」误导用户；知识库引擎状态展示真实延迟与文档数，浏览器引擎状态**仅**展示连接状态。
 
 **范围边界（In / Out）**:
 
 | 类型 | 内容 |
 |------|------|
-| ✅ In | 驾驶舱接入 `workbench.overview`（指标卡 / 汇总 / 环比 / 本周排期进度）与 `browser.sessions`（渠道矩阵四态） |
+| ✅ In | 驾驶舱接入 `workbench.overview`（指标卡 / 汇总 / 环比 / **互动与关注增长** / 本周排期进度）与 `browser.sessions`（渠道矩阵四态） |
 | ✅ In | `null` 语义呈现：汇总缺失显示「暂无数据」、环比不足显示「暂无环比」，并展示 `measuredPlatforms` / `unmeasuredPlatforms` 覆盖范围 |
-| ✅ In | 头部引擎状态（知识库中枢 / 浏览器引擎）、快捷行动组跳转创作室 |
-| ✅ In | 手动刷新（无持久连接 / 轮询） |
+| ✅ In | 头部引擎状态：知识库中枢展示连通性 + `latencyMs` + `documentCount`（缺失为「暂无数据」，不显示 0）；浏览器引擎**仅**展示连接状态与「去登录 ↗」引导（不展示推测 Profile 路径） |
+| ✅ In | 快捷行动组跳转创作室；手动刷新（无持久连接 / 轮询） |
 | ❌ Out | 热点雷达真实选题来源（外部依赖未指定渠道） |
 | ❌ Out | 指标采集适配器修复 |
+| ❌ Out | BrowserOS Profile 路径展示（BR-074：仅在现有连接能真实提供时展示，MVP 不推测） |
 
 **关联 Context 资产**:
 
@@ -127,15 +135,16 @@
 |-------|---------|----------|
 | criterion | `.context/criterion.md` | §3.1、§3.3、§3.4（禁止持久连接 / 轮询） |
 | architecture | `.context/architecture/risks_and_debt.md` | TD-002、RISK-003（会话四态）、RISK-006 / RISK-007（null 语义） |
-| architecture | `.context/architecture/api_strategy.md` | §3.1 `workbench.overview`、§3.4 `browser.sessions` |
+| architecture | `.context/architecture/api_strategy.md` | §3.1 `workbench.overview`、§3.4 `browser.sessions`、§3.6 `injoys.test` |
 | architecture | `.context/architecture/adr_007_manual_refresh_no_persistent_connection.md` | 手动刷新裁决 |
+| domain | `.context/domain/business_rules.md` | BR-052（互动与关注增长汇总）、BR-074（状态灯展示规则） |
 | domain | `.context/domain/testing_strategy.md` | 模块 1 场景 1 / 2 / 3 / 4 / 5、模块 5 场景 4 / 5 / 6 |
 
 **关键任务**:
-1. 接入 `workbench.overview` 指标卡与汇总（含 null 呈现与覆盖范围标注）（1.25 人日）
+1. 接入 `workbench.overview` 指标卡与汇总（含互动与关注增长、null 呈现与覆盖范围标注）（1.25 人日）
 2. 接入 `browser.sessions` 渠道矩阵四态与连通度统计（0.75 人日）
-3. 头部引擎状态与快捷行动组跳转（0.5 人日）
-4. 手动刷新交互与样式令牌化（0.5 人日）
+3. 头部引擎状态（知识库：`injoys.test` 连通性 / 延迟 / 文档数；浏览器：`browser.sessions` 连接状态）与快捷行动组跳转（0.75 人日）
+4. 手动刷新交互与样式令牌化（0.75 人日）
 
 **验证标准**:
 
@@ -144,6 +153,8 @@
 | 汇总空值呈现 | 部分缺失时汇总显示「暂无数据」，不显示求和数字 | UI 验收 |
 | 0 与缺失可区分 | 真实 0 显示为 0，采集失败显示「暂无数据」 | UI 验收 |
 | 四态呈现 | 会话四态（未知 / 需登录 / 已认证 / 无权限）颜色与文案正确 | UI 验收 |
+| 互动与关注增长 | 依 BR-052 呈现互动与关注增长汇总；缺失为「暂无数据」 | UI 验收 |
+| 引擎状态灯 | 知识库展示延迟与文档数（缺失「暂无数据」）；浏览器仅展示连接状态 | UI 验收 |
 | 无轮询 | 无 WebSocket / SSE / 后台轮询，仅手动刷新 | 代码审查 |
 
 **验收场景（按需，建议 BDD）**:
@@ -162,12 +173,19 @@
   When 用户查看该汇总指标卡
   Then 汇总值应显示"暂无数据"
     And 界面应能看出哪些渠道未被采集
+
+场景: 驾驶舱头部引擎状态
+  Given 知识库中枢已正确配置且可连通
+    And 浏览器引擎实例未启动
+  When 用户查看驾驶舱头部
+  Then 知识库中枢状态灯应为绿色并展示延迟与文档数
+    And 浏览器引擎状态灯应为红色且仅表达连接状态
 ```
 
 **依赖**:
-- 前置: `fix-overview-metrics-null-semantics`、`feat-storage-metrics-snapshot`、`feat-calendar-generate-list`
+- 前置: `fix-overview-metrics-null-semantics`、`feat-storage-metrics-snapshot`、`feat-calendar-generate-list`、`fix-browser-session-cookie-probe`、`feat-injoys-test-document-count`
 - 被依赖: 无
-- 约束: 依赖 Phase 0 的汇总语义与环比基准；UI 只呈现，不自行计算全网汇总
+- 约束: 依赖 Phase 0 的汇总语义、环比基准、统一会话四态与 `documentCount` 契约，以及 Phase 1 的 `weeklyPipeline` 周聚合；UI 只呈现，不自行计算全网汇总
 
 ---
 
@@ -463,11 +481,11 @@
 ## 执行顺序与依赖
 
 - **可并行三条主线**：
-  1. `feat-client-engine-config`（无前置，可最先启动；但须待 `criterion.md` §3.4 令牌口径裁决后方可**进入实现**，见本 Phase「待决事项」与提案 1 风险表）。
+  1. `feat-client-engine-config`（依赖 Phase 0 的 `feat-browseros-capability-toggle` 与 `fix-browser-session-cookie-probe`，契约就绪后即可实施；令牌显隐依 criterion §3.4 本机回填例外，无待决门槛）。
   2. 内容线：`feat-client-content-studio` → `feat-client-feed-simulators`。
   3. 排期线：`feat-client-schedule-view`；工具线：`feat-client-tools-console`。
-- **驾驶舱线**：`feat-client-dashboard` 待 Phase 0 的汇总语义与环比基准完成后再接入。
-- 跨阶段前置条件：驾驶舱依赖 Phase 0（A1 / A2）与 Phase 1（B2 的 `weeklyPipeline` 周聚合）；创作室依赖 Phase 2（C1）；排期视图依赖 Phase 1（B2 / B3 / B4 / B5）；工具控制台依赖 Phase 2（C2 / C3 / C4）。
+- **驾驶舱线**：`feat-client-dashboard` 待 Phase 0 的汇总语义、环比基准、统一会话四态与 `documentCount` 契约，以及 Phase 1 的 `weeklyPipeline` 周聚合完成后再接入。
+- 跨阶段前置条件：引擎配置依赖 Phase 0（A5 能力开关 / A6 会话探测）；驾驶舱依赖 Phase 0（A1 / A2 / A6 / A8）与 Phase 1（B2 的 `weeklyPipeline` 周聚合）；创作室依赖 Phase 2（C1）；排期视图依赖 Phase 1（B2 / B3 / B4 / B5）；工具控制台依赖 Phase 2（C2 / C3 / C4）。
 - 提供给后续阶段的能力：可端到端操作的 Phase 0 工作台界面（供 Phase 0 Live 实测与签收）。
 
 ## 阶段整体验收
@@ -475,9 +493,8 @@
 - 模块 1 / 2 / 3 / 6 / 7 BDD 场景通过；PD-004 的界面缺口闭合（草稿管理 → 多变体编辑 → 预填入口可视化）。
 - **跨提案联合验收「排期 → 创作 → 预填 → 回填」**：由 `feat-calendar-status-transitions`（宿主 `documentId` 不变量）+ `feat-client-content-studio`（从排期项发起创作时建立关联）+ `feat-client-schedule-view`（预填 / 回填入口）联合保证——从排期项发起创作后自动写回 `CalendarItem.documentId`，无 `documentId` 不可进入「草稿就绪」，预填后「已推草稿箱」，回填 URL 后才「已发布」。
 - 代码审查确认：客户端仅经 `callOpsRpc` 访问宿主；无硬编码色值；无 WebSocket / SSE / 后台轮询（`criterion.md` §3.1 / §3.3 / §3.4）。
-- Phase 0 Live 实测清单中界面相关项可勾选（状态呈现、生成持久化、预填入口、回填 URL）。
+- Phase 0 Live 实测清单中界面相关项可勾选（状态呈现、生成持久化、预填入口、回填 URL、能力管理启停）。
 
 ## 待决事项（按需）
 
 - 热点雷达 Tab 的真实选题来源（PRD 未指定具体渠道）：本路线图不安排该 Tab 的选题生成，待来源明确后另行提案。
-- **令牌下发口径待澄清**（关联提案 1）：`criterion.md` §3.4（MUST NOT 下发令牌）与 §4（前端显隐切换）的口径张力尚未在 criterion 侧裁决；本例的例外边界现引自 `.context/architecture/security_policy.md`「令牌返回策略」。是否将该例外正式写入 `criterion.md` 需经 `context-update` 并取得用户授权，本次不改。

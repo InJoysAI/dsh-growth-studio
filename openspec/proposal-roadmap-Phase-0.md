@@ -3,20 +3,21 @@
 > **返回总纲**: [proposal-roadmap.md](./proposal-roadmap.md)
 > **文件名**: `proposal-roadmap-Phase-0.md`（编号与总纲阶段总览一致：Phase 0 → `Phase-0`）
 > **状态**: proposed
-> **来源**: `.context/criterion.md` §3.2 / §3.5 / §4；`.context/architecture/risks_and_debt.md`（RISK-002 / RISK-006 / RISK-007 / TD-007 / TD-008 / TD-009 / TD-012 / TD-013）；`.context/architecture/api_strategy.md` §3.1 / §3.7；`.context/architecture/data_architecture.md`；`.context/domain/testing_strategy.md` 模块 3 / 5 / 8；`.context/domain/risks_and_debt.md`
-> **预计工作量与周期**: ~10 人日（**规划估算**；源文档对 TD-007 ~ TD-014 的工作量字段一律标注 `N/A – 源文档未提供`）
+> **来源**: `.context/criterion.md` §3.1 / §3.2 / §4 / §5.4 / §5.5 / §6；`.context/architecture/risks_and_debt.md`（RISK-002 / RISK-003 / RISK-006 / RISK-007；TD-007 / TD-008 / TD-009 / TD-012 / TD-013）；`.context/architecture/adr_009_browseros_capability_management.md`；`.context/architecture/api_strategy.md` §2.3 / §3.1 / §3.4 / §3.6 / §3.7 / §3.9 / §3.10；`.context/architecture/data_architecture.md`；`.context/architecture/security_policy.md`；`.context/domain/business_rules.md`（BR-052 / BR-074）；`.context/domain/risks_and_debt.md`（PD-006）；`.context/domain/testing_strategy.md` 模块 1 / 3 / 5 / 6 / 8
+> **预计工作量与周期**: ~15 人日（**规划估算**；源文档对 TD-007 ~ TD-013 的工作量字段一律标注 `N/A – 源文档未提供`）
 
 ## 阶段目标与范围
 
 - **目标与交付结果**：让**既有**已实现接口先「不说假话、不越界」——修掉触碰 `criterion.md` 铁律、数据真实性与安全边界的实现缺口，使 Phase 0 端到端闭环（排期 → AI 生成 → 本地草稿 → 真实预填 → 人工确认回填 → 真实指标采集）具备可信的数据基座，为 Phase 1 起的宿主契约建设与 Phase 3 的客户端 UI 提供不违反铁律的接口。
 - **In / Out**：
-  - ✅ In：`workbench.overview` 的汇总空值语义与真实数据来源（TD-007 及 `src/ops-rpc.ts` 中硬编码的热点样例数据）；`metrics/` 历史快照落盘（TD-010 的 metrics 部分，作为环比基准）；生成 / 复盘路径的未授权 Injoys 文档写入（TD-008）；`ops_generate_review` 的假文档编号（TD-009）；BrowserOS 动作白名单契约与实现对齐（TD-012）；落盘文件与目录权限位（TD-013）。
-  - ❌ Out：排期 `calendar/` 主数据与生成 / 导出 / 导入（属 Phase 1）；`workbench.sinkToInjoysDoc` 唯一授权沉淀入口的**实现**（属 Phase 2，本 Phase 只负责移除未授权写入）；任何客户端 UI（属 Phase 3）；统一「未找到」错误码与客户端消费测试（属 Phase 4）；双向同步与冲突解决（PRD Phase 3，**不在本路线图范围**，见 `constraints.md`「未到阶段的能力不提前实现」）。
+  - ✅ In：`workbench.overview` 的汇总空值语义与真实数据来源（TD-007 及 `src/ops-rpc.ts` 中硬编码的热点样例数据）；`metrics/` 历史快照落盘（TD-010 的 metrics 部分，作为环比基准）；生成 / 复盘路径的未授权 Injoys 文档写入（TD-008）；`ops_generate_review` 的假文档编号（TD-009）；BrowserOS **能力开关**契约与统一执行检查（TD-012，按 `adr_009` 取代旧「固定动作白名单」口径）；`browser.sessions` 会话探测的假阳性修复与 `ops_inspect_sessions` 按名登记（RISK-003 / PD-006）；落盘文件与目录权限位（TD-013）；`injoys.test` 补可空文档数（`documentCount: number | null`）。
+  - ❌ Out：排期 `calendar/` 主数据与生成 / 导出 / 导入（属 Phase 1）；`workbench.sinkToInjoysDoc` 唯一授权沉淀入口的**实现**（属 Phase 2，本 Phase 只负责移除未授权写入）；任何客户端 UI（属 Phase 3）；统一「未找到」错误码与客户端消费测试（属 Phase 4）；`browser.login.*` 前台登录（PD-001，属 Phase 2 PoC）；`ops_keyword_research` / `ops_generate_hooks`（阶段未定，见 Phase 2 的 `feat-tools-lifecycle-gaps`）；双向同步与冲突解决（PRD Phase 3，**不在本路线图范围**，见 `constraints.md`「未到阶段的能力不提前实现」）。
 - **适用约束**：
   - `criterion.md` §3.2「禁止虚报成功 / 禁止伪造、硬编码指标数据（无法获取的字段必须为 `null`）」；
-  - `criterion.md` §4「内容写入边界」（生成只保存本地；写入 Injoys 必须由用户显式触发）、「最小权限」（BrowserOS 仅白名单动作）、「文件权限仅限当前操作系统用户」；
+  - `criterion.md` §4「内容写入边界」（生成只保存本地；写入 Injoys 必须由用户显式触发）、「最小权限（能力开关）」（默认八项、其余默认关闭可手动开启、禁止绕过统一执行检查）、「会话隔离」（Cookie 零外发）、「文件权限仅限当前操作系统用户」；
+  - `criterion.md` §3.1「会话探测、预填执行、指标采集必须统一由**同一个** BrowserOS MCP 实例调度」；
   - `criterion.md` §6 **SSoT-first**：类型契约 → 宿主 RPC 契约 → 领域实现 → 客户端 UI 与测试；
-  - `architecture/risks_and_debt.md` RISK-006 / RISK-007（指标汇总与环比的 `null` 语义是不可协商口径）。
+  - `architecture/risks_and_debt.md` RISK-006 / RISK-007（指标汇总与环比的 `null` 语义是不可协商口径）；RISK-003（会话四态，严禁退化为 boolean）。
 
 ## 提案详情
 
@@ -57,7 +58,7 @@
 | architecture | `.context/architecture/risks_and_debt.md` | TD-007（高）、TD-005（`views` 兼容字段误用，中）、RISK-006、RISK-007 |
 | architecture | `.context/architecture/api_strategy.md` | §3.1 `workbench.overview` 契约与「部分缺失汇总规则」权威口径 |
 | architecture | `.context/architecture/data_architecture.md` | `PlatformMetrics` 注与窗口字段 |
-| domain | `.context/domain/business_rules.md` | BR-051（曝光/播放区分口径，MUST） |
+| domain | `.context/domain/business_rules.md` | BR-051（曝光/播放区分口径，MUST）、BR-052（互动与关注增长汇总） |
 | domain | `.context/domain/testing_strategy.md` | 模块 5 场景 4 / 5 / 6（BR-050 / BR-051 / BR-052） |
 
 **关键任务**:
@@ -104,7 +105,7 @@
 
 **依赖**:
 - 前置: 无
-- 被依赖: `feat-storage-metrics-snapshot`、`feat-client-dashboard`
+- 被依赖: `feat-storage-metrics-snapshot`、`feat-calendar-generate-list`、`feat-client-dashboard`
 - 约束: 必须先改契约（`src/types.ts` → `src/ops-rpc.ts`）再改领域实现（criterion §6）
 
 ---
@@ -308,63 +309,186 @@
 
 ---
 
-### 提案 5: BrowserOS 动作白名单契约与实现对齐
+### 提案 5: BrowserOS 能力开关契约与统一执行检查
 
-**Change ID:** `fix-browseros-action-whitelist`  
+**Change ID:** `feat-browseros-capability-toggle`  
 **优先级:** P0  
-**预计时间:** 2 人日（规划估算）  
+**预计时间:** 3 人日（规划估算）  
 **状态:** proposed
 
 **业务目标（Business Goal）**:
-- 使「仅允许 `tabs / navigate / snapshot / act`、禁用 shell/cmd」的最小权限边界在**实现层**真实生效，而非仅存在于文档。
-- 消除「文档层封闭白名单、实现层开放集合」的安全边界缺口，使安全审查可定位越界动作。
+- 落地 `adr_009_browseros_capability_management.md` 的**能力开关模型**，消除 TD-012 的「文档封闭白名单 / 实现开放集合」安全边界分叉。
+- 使「最小权限」在**宿主侧真实生效**：所有 BrowserOS 调用经 `BrowserOsMcpClient.callTool` 统一入口集中检查「工具存在 / 启用 / 连接可用」，Adapter 禁止绕过。
+- 让预填必需能力（`upload`）不再被旧「固定四动作」口径误伤，同时**不解除**「禁止自动发布 / Cookie 零外发」业务守卫。
 
 **范围边界（In / Out）**:
 
 | 类型 | 内容 |
 |------|------|
-| ✅ In | 同轮定稿 `criterion.md` §4 权威口径（确认 `read` / `grep` / `wait` / `upload` 是否纳入允许集，或收紧为仅四动作） |
-| ✅ In | 对齐 `src/browser/browseros-bridge.ts` 的 `EXPECTED_TOOLS` 与 `browser-driver.ts` / `browseros-ops.ts` 调用点 |
-| ✅ In | 补宿主侧动作白名单校验实现 |
-| ✅ In | 同步 `security_policy.md` / `constraints.md` / `context_view.md` / `system_design.md` / `container_component_view.md` / `risks_and_debt.md` 等约 8 处复述文案 |
-| ❌ Out | BrowserOS 驱动禁用 shell/cmd 的既有约束（维持不变） |
+| ✅ In | `src/types.ts` / `src/config-store.ts` 落 `OpsConfig.browserosCapabilities` 字段与**默认八项**解析（`tabs` / `navigate` / `snapshot` / `act` / `read` / `grep` / `wait` / `upload`；其余实际暴露工具默认关闭；`Set.has` + `hasOwnProperty` 空值前置短路） |
+| ✅ In | `src/ops-rpc.ts` 落只读方法 `browseros.capabilities`（返回 `capabilities: BrowserOsCapabilityDescriptor[]` 与 `connected`）；配置读写仍走 `config.save`，本接口**不承接写操作** |
+| ✅ In | 在 `browseros-bridge.ts` 的 `callTool` 统一入口集中检查「工具存在 / 启用 / 连接可用」，并将 `EXPECTED_TOOLS` 补齐为八项（补 `upload`，与 `browser-driver.ts` 的调用点对齐） |
+| ✅ In | 新增错误码 `browser/capability-disabled`（工具存在但开关关）、`browser/tool-unavailable`（工具未暴露）、`browser/not-connected`（未连接）；经 `ops_*` 调用时「运营工具开关 + 引擎能力开关」**两层同时满足** |
+| ✅ In | 同轮同步资产复述文案：`criterion.md` §4（已为能力开关口径，核对无残留「固定四动作 / 永久禁用 shell/cmd」旧措辞）、`api_strategy.md` §3.9 / §2.3、`security_policy.md` / `constraints.md` / `context_view.md` / `system_design.md` / `container_component_view.md` / `risks_and_debt.md` 中约 8 处白名单复述 |
+| ❌ Out | 细粒度行为拦截（如区分「保存草稿」与「确认发布」按钮）——当前**未确定**，本提案不宣称具备，边界如实记录 |
 | ❌ Out | `browser.login.*` 的前台登录能力（PD-001，Phase 2 PoC） |
+| ❌ Out | 能力管理 UI（`feat-client-engine-config`，Phase 3） |
 
 > [!NOTE]
-> 本提案的 Change ID 与既有空脚手架目录 `openspec/changes/fix-browseros-action-whitelist/specs/browseros-security/` 对齐（该目录当前仅有结构、无文件）。⛔ 依 `criterion.md` §6 / §7.1，**不得只改资产文案**，必须同轮改实现，否则文档-实现继续分叉。
+> **边界不得夸大（ADR-009）**：能力开关只决定「哪些 BrowserOS 工具可调用」，**不等于**允许自动发布或外传 Cookie；流程守卫与业务守卫另计。依 `criterion.md` §6 / §7.1，本提案属 SSoT 契约变更，须**同轮**改契约资产与实现（`src/types.ts` → `src/ops-rpc.ts` → `browseros-bridge.ts`），**不得只改资产文案**。
 
 **关联 Context 资产**:
 
 | Scope | 关联资产 | 关联说明 |
 |-------|---------|----------|
-| criterion | `.context/criterion.md` | §4 最小权限（权威口径，本提案须同轮定稿）、§7.1 |
-| architecture | `.context/architecture/risks_and_debt.md` | TD-012（高）、RISK-002 |
-| architecture | `.context/architecture/security_policy.md` | 白名单断言与安全语义 |
-| architecture | `.context/architecture/container_component_view.md` | 组件表与容器图两处白名单复述 |
-| architecture | `.context/architecture/constraints.md` | 动作白名单约束复述 |
+| criterion | `.context/criterion.md` | §4 最小权限（能力开关权威口径）、§5.4、§6 SSoT-first、§7.1 |
+| architecture | `.context/architecture/adr_009_browseros_capability_management.md` | 能力开关模型决策与边界 |
+| architecture | `.context/architecture/risks_and_debt.md` | TD-012（高）、RISK-002（业务守卫不解除） |
+| architecture | `.context/architecture/api_strategy.md` | §3.9 `browseros.capabilities`、§2.3 错误码、§3.6 `config.save` |
+| architecture | `.context/architecture/security_policy.md` | 授权边界与假阳性防治 |
+| domain | `.context/domain/business_rules.md` | BR-074（默认八项 / 启停保持 / 两层开关 / 行为边界） |
+| domain | `.context/domain/testing_strategy.md` | 模块 6 场景 5 / 6 / 7 / 8 |
 
 **关键任务**:
-1. 确认并冻结权威白名单口径（四动作 vs 纳入 `read`/`grep`/`wait`/`upload`）（0.5 人日）
-2. 对齐 `EXPECTED_TOOLS` 与各调用点（`browser-driver.ts` 的 `upload`、`browseros-ops.ts` 的 `read`/`wait`）（0.75 人日）
-3. 实现宿主侧动作白名单校验（越界动作拒绝）（0.5 人日）
-4. 同步约 8 处资产复述文案（0.25 人日）
+1. 落 `OpsConfig.browserosCapabilities` 字段与默认八项解析（`Set.has` + `hasOwnProperty` 空值短路）（0.75 人日）
+2. 落 `browseros.capabilities` 只读方法与 `browser/*` 三个错误码（0.75 人日）
+3. 在 `callTool` 统一入口集中检查「存在 / 启用 / 连接可用」并实现两层开关同时满足（0.75 人日）
+4. 同轮同步约 8 处资产复述文案（去掉旧「固定动作白名单」口径）（0.5 人日）
+5. 补测试：默认八项、显式关闭重启保持、未暴露不列出、禁用拒绝、两层开关（0.25 人日）
 
 **验证标准**:
 
 | 验收项 | 验收条件 | 验收方式 |
 |--------|----------|----------|
-| 白名单有实现 | `src/` 内存在动作白名单校验且越界动作被拒 | 单元测试 + `grep` |
-| 实现与文档一致 | `EXPECTED_TOOLS` 与 criterion §4 权威口径一致 | 代码审查 + 逐处比对 |
-| 无 shell/cmd | 驱动不暴露 shell / cmd 动作 | 代码审查 |
+| 默认八项 | 首次使用或旧配置缺字段时八项默认启用，其余默认关闭 | 单元测试 |
+| 启停保持 | 显式关闭并保存后重启仍保持关闭，不重置 | 单元测试 |
+| 未暴露不列出 | 连接当前未提供的工具不出现在清单 | 单元测试 |
+| 统一检查 | 所有 BrowserOS 调用经 `callTool` 单一入口校验；禁用返回 `browser/capability-disabled`、未暴露返回 `browser/tool-unavailable`、未连接返回 `browser/not-connected` | 单元测试 + `grep` |
+| 两层开关 | 经 `ops_*` 调用时运营工具开关与引擎能力开关**同时满足**才执行 | 单元测试 |
+| 守卫不解除 | 能力开关不改变「不自动发布 / Cookie 零外发」业务守卫 | 代码审查 |
+
+**验收场景（按需，建议 BDD）**:
+
+```gherkin
+场景: BrowserOS 能力管理默认八项与启停保持（BR-074）
+  Given 首次使用或旧配置缺少能力字段
+  When 打开引擎策略配置 → BrowserOS 浏览器引擎 → 能力管理
+  Then 默认八项 tabs/navigate/snapshot/act/read/grep/wait/upload 均启用
+    And 其余实际暴露工具默认关闭
+
+场景: 未暴露工具不列出（BR-074）
+  Given 某工具当前连接未提供
+  When 打开能力管理页
+  Then 该工具不出现于清单（消失的工具就消失）
+
+场景: 两层开关的执行拒绝（BR-074）
+  Given 一个 ops_* 运营工具调用 BrowserOS 底层工具
+  When 运营工具开关开启、而所调用的 BrowserOS 能力开关关闭
+  Then 执行被拒绝
+    And 返回「已禁用」语义，不执行底层工具
+```
 
 **依赖**:
 - 前置: 无
-- 被依赖: 无
-- 约束: 属 SSoT 契约变更，须 `criterion.md` §7.1 与实现**同轮**落地（criterion §6）
+- 被依赖: `feat-client-engine-config`（能力管理 UI 消费 `browseros.capabilities` 与 `config.save` 的能力字段）
+- 约束: 契约先行（criterion §6）；能力开关不解除业务守卫（ADR-009）；不得新增独立 MCP 连接 / 后台轮询 / 常驻进程
 
 ---
 
-### 提案 6: 落盘文件与目录权限位实现
+### 提案 6: 统一 BrowserOS 会话探测并登记会话探活工具
+
+**Change ID:** `fix-browser-session-cookie-probe`  
+**优先级:** P0  
+**预计时间:** 2.5 人日（规划估算）  
+**状态:** proposed
+
+**业务目标（Business Goal）**:
+- 消除 RISK-003「会话状态假阳性」：移除读取宿主 Chrome / Chromium **Cookie 库**的会话探测分支（已证实存在根本缺陷），改为按 `criterion.md` §3.1 仅经**同一个** BrowserOS MCP 实例做轻量探测（当前活跃 Tab / 页面特征），并严格保持四态 `SessionState`（**严禁退化为 boolean**）。
+- 补齐 `browser.sessions` 契约中已定义、实现缺失的 `statuses.loginUrl`，使 `needs_login` 平台可提供「去登录 ↗」外链（PRD §5.2.1 / §六.3）。
+- 登记 PD-006 中属 Phase 0 的 `ops_inspect_sessions` 工具名（映射到已实现的 `browser.sessions`），使 BR-040 的「系统与调度」类目具备**已实现**工具。
+
+**范围边界（In / Out）**:
+
+| 类型 | 内容 |
+|------|------|
+| ✅ In | 移除 `SessionGuard.checkAllRealSessions` / `findHostBrowserCookiesPath` / `PLATFORM_COOKIE_RULES` 的**宿主 Cookie 库读取路径**（复制宿主 Cookie SQLite 并 `node:sqlite` 查询），以及 `browser.sessions` 中据此产生的假阳性判定 |
+| ✅ In | `browser.sessions` 统一走 `checkBrowserSessions`（同一 BrowserOS 实例的活跃 Tab 轻量探测），四态返回保持不变 |
+| ✅ In | 补齐 `statuses.loginUrl` 契约与实现（`needs_login` 时提供登录入口外链） |
+| ✅ In | 退役 `OpsConfig.reuseHostBrowserProfile` 与 `browser.sessions` 响应中的 `reuseHostBrowserProfile` 字段；同轮更新 `criterion.md` §5.4（现文「浏览器: `browser.sessions`（返回额外含 `reuseHostBrowserProfile`）」）、`api_strategy.md` §3.4 与相关复述 |
+| ✅ In | 在 `src/tools/index.ts` 按名注册 `ops_inspect_sessions`（`system` 类，调用 `browser.sessions`），纳入 `tools.catalog` 五类分组（登记即可，`tools.catalog` 契约属 Phase 2） |
+| ✅ In | 补测试：四态（含 `unknown` / `no_publish_permission`）不回退为 boolean；`needs_login` 含 `loginUrl`；无宿主 Cookie 库读取路径 |
+| ❌ Out | `browser.login.*` 前台登录能力（PD-001，Phase 2 PoC） |
+| ❌ Out | `ops_keyword_research` / `ops_generate_hooks`（阶段未定，Phase 2 `feat-tools-lifecycle-gaps`） |
+| ❌ Out | BrowserOS 能力开关（`feat-browseros-capability-toggle`，本 Phase 提案 5） |
+| ❌ Out | 渠道矩阵 / 引擎状态 UI（Phase 3） |
+
+> [!NOTE]
+> **合并理由**：会话探测分支移除、`reuseHostBrowserProfile` 退役、`ops_inspect_sessions` 按名登记三者同属 `browser.sessions` **一条链路**（同一 `src/ops-rpc.ts` 分支与同一 `SessionGuard` / 同一契约），拆成并行提案会同时改写同一处代码与契约、互相冲突，故合并为一个提案。依 `criterion.md` §6 / §7.1，`reuseHostBrowserProfile` 退役属契约变更，须与 `criterion.md` §5.4 及 `api_strategy.md` §3.4 **同轮**落地。
+
+**关联 Context 资产**:
+
+| Scope | 关联资产 | 关联说明 |
+|-------|---------|----------|
+| criterion | `.context/criterion.md` | §3.1「会话探测 / 预填 / 指标采集统一由同一 BrowserOS 实例调度」、§3.2 不虚报、§5.4 实现基线、§5.5 `SessionState` 四态、§6 SSoT-first |
+| architecture | `.context/architecture/risks_and_debt.md` | RISK-003（高，未缓解 / 待修复）、TD-012 相关（BrowserOS 调用集中入口） |
+| architecture | `.context/architecture/api_strategy.md` | §3.4 `browser.sessions`（含 `loginUrl`、`reuseHostBrowserProfile` 注）、§3.10 `ops_inspect_sessions` 映射 |
+| architecture | `.context/architecture/adr_001_unified_browseros_session.md` | 统一 BrowserOS 会话裁决 |
+| domain | `.context/domain/risks_and_debt.md` | PD-006（`ops_inspect_sessions` 属 Phase 0） |
+| domain | `.context/domain/business_rules.md` | BR-074（Profile / 状态灯展示规则：只展示连接状态，不推测 Profile） |
+| domain | `.context/domain/testing_strategy.md` | 模块 1 场景 1 / 3（四态、未知与无权限） |
+
+**关键任务**:
+1. 移除宿主 Cookie 库读取路径（`checkAllRealSessions` / `findHostBrowserCookiesPath` / `PLATFORM_COOKIE_RULES`）与 `browser.sessions` 中的假阳性分支（1 人日）
+2. 统一走 `checkBrowserSessions` 并保持四态（0.5 人日）
+3. 补齐 `statuses.loginUrl` 契约与实现（0.25 人日）
+4. 退役 `reuseHostBrowserProfile`，同轮更新 criterion §5.4 / api_strategy §3.4（0.5 人日）
+5. 注册 `ops_inspect_sessions` 工具名并补测试（0.25 人日）
+
+**风险与处理决定（按需）**:
+
+| 风险 | 影响 | 处理决定及理由 |
+|------|------|----------|
+| 移除 Cookie 探测后部分平台状态更保守（多为 `unknown`） | 偶发需用户手动确认登录 | 依 RISK-003 应急预案：`unknown` 时引导用户在当前 BrowserOS 实例中直接扫码登录；**假阴性（提示登录）优于假阳性（显示就绪但实际未登录）** |
+| 退役 `reuseHostBrowserProfile` 影响既有配置 | 旧配置字段被忽略 | 默认值解析对未知字段短路（不抛 `TypeError`）；客户端编辑入口在 Phase 3 一并移除，本 Phase 只改契约与实现 |
+
+**验证标准**:
+
+| 验收项 | 验收条件 | 验收方式 |
+|--------|----------|----------|
+| 无 Cookie 库读取 | `src/` 内不存在读取宿主 Chrome / Chromium Cookie 库的路径 | `grep` + 代码审查 |
+| 统一实例 | 会话探测仅经同一 BrowserOS MCP 实例（活跃 Tab 轻量探测） | 代码审查 |
+| 四态不回退 | `SessionState` 保持四态，`unknown` / `no_publish_permission` 可区分，未退化为 boolean | 单元测试 |
+| 登录外链 | `needs_login` 平台返回 `loginUrl` | 单元测试 |
+| 字段退役 | `browser.sessions` 响应与 `criterion.md` §5.4 / `api_strategy.md` §3.4 均不含 `reuseHostBrowserProfile` | 代码审查 + 逐处比对 |
+| 工具登记 | `ops_inspect_sessions` 在 `src/tools/index.ts` 可检索，映射 `browser.sessions` | `grep` |
+
+**验收场景（按需，建议 BDD）**:
+
+```gherkin
+场景: 渠道会话四态呈现
+  Given 用户已打开工作台
+    And 微信公众号已在浏览器实例中完成扫码登录
+    And B站尚未登录
+  When 用户查看渠道矩阵网格
+  Then 微信公众号卡片应显示"已认证就绪"状态
+    And B站卡片应显示"需登录"状态
+    And B站卡片应展示"去登录 ↗"按钮
+
+场景: 未知与无权限两态（BR-010）
+  Given 工作台尚未探测某渠道的会话状态
+  When 用户查看渠道矩阵网格
+  Then 该渠道应显示"未知 / 探测中"状态
+    And 不得显示为"已认证就绪"
+```
+
+**依赖**:
+- 前置: 无
+- 被依赖: `feat-client-engine-config`（引擎 / 平台状态展示）、`feat-client-dashboard`（渠道矩阵四态）
+- 约束: 统一实例绑定（criterion §3.1）；四态严禁退化（§5.5）；Cookie 零外发（§4）——本提案只**移除**宿主 Cookie 读取，不新增任何会话数据外发
+
+---
+
+### 提案 7: 落盘文件与目录权限位实现
 
 **Change ID:** `fix-storage-file-permissions`  
 **优先级:** P1  
@@ -411,22 +535,74 @@
 
 ---
 
+### 提案 8: `injoys.test` 补文档数（可空）契约
+
+**Change ID:** `feat-injoys-test-document-count`  
+**优先级:** P1  
+**预计时间:** 1.5 人日（规划估算）  
+**状态:** proposed
+
+**业务目标（Business Goal）**:
+- 补齐 `injoys.test` 契约中已定义、实现缺失的 `documentCount: number | null`，使引擎状态可展示真实文档数。
+- 遵守 `criterion.md` §3.2 数据真实性：未配置令牌或探活失败时 `documentCount` 必须为 `null`，**不得按 0 伪造**。
+
+**范围边界（In / Out）**:
+
+| 类型 | 内容 |
+|------|------|
+| ✅ In | 在 `src/types.ts` / `src/ops-rpc.ts` 的 `injoys.test` 响应补 `documentCount: number | null` |
+| ✅ In | 经 `knowledge.list` 探活取真实文档数；未配置令牌或探活失败时返回 `null`，且未配置令牌时**不得发请求并谎报「认证失败」** |
+| ✅ In | 补测试：连通时返回真实文档数、未配置 / 失败时返回 `null`（不为 0） |
+| ❌ Out | `injoys.test` 的既有 `connected` / `latencyMs` / `message` 字段语义（不改） |
+| ❌ Out | 知识库读取的其它能力（不改） |
+| ❌ Out | 引擎状态灯 / 驾驶舱的 `documentCount` 展示（`feat-client-dashboard`，Phase 3） |
+
+**关联 Context 资产**:
+
+| Scope | 关联资产 | 关联说明 |
+|-------|---------|----------|
+| criterion | `.context/criterion.md` | §3.2 不伪造数据（无法获取须为 `null`）、§5.4 实现基线 |
+| architecture | `.context/architecture/api_strategy.md` | §3.6 `injoys.test` 契约（`documentCount: number \| null` 权威口径） |
+| domain | `.context/domain/testing_strategy.md` | 模块 6 场景 1（连通性测试与延迟诊断） |
+
+**关键任务**:
+1. 补 `injoys.test` 响应的 `documentCount` 契约（`src/types.ts`）（0.5 人日）
+2. 在 `src/ops-rpc.ts` 的 `injoys.test` 实现真实文档数读取与 `null` 语义（0.75 人日）
+3. 补测试（连通返回文档数 / 未配置或失败返回 `null`）（0.25 人日）
+
+**验证标准**:
+
+| 验收项 | 验收条件 | 验收方式 |
+|--------|----------|----------|
+| 真实文档数 | 连通时 `documentCount` 为 `knowledge.list` 返回的真实文档数 | 单元测试（mock） |
+| 不伪造 | 未配置令牌或探活失败时 `documentCount` 为 `null`，不为 0 | 单元测试 |
+| 不谎报 | 未配置令牌时不发请求、不返回「认证失败」，返回明确提示 | 单元测试 |
+
+**依赖**:
+- 前置: 无
+- 被依赖: `feat-client-dashboard`（引擎状态展示文档数）
+- 约束: 契约先行（criterion §6）；缺失数据一律 `null`（§3.2）
+
+---
+
 ## 执行顺序与依赖
 
-本 Phase 内可并行的两条主线：
+本 Phase 内可并行推进的四条主线：
 
-1. **数据真实性线**：`fix-overview-metrics-null-semantics` → `feat-storage-metrics-snapshot`（严格顺序）。
-2. **安全边界线**：`fix-unauthorized-injoys-doc-write` → `fix-review-doc-id-fabrication`（严格顺序）；`fix-browseros-action-whitelist` 与两条主线**均可并行**；`fix-storage-file-permissions` 是 `feat-storage-metrics-snapshot` 的**前置**（统一落盘封装的权限位），须先于其完成。
+1. **数据真实性线**：`fix-overview-metrics-null-semantics` → `feat-storage-metrics-snapshot`（严格顺序）；`fix-storage-file-permissions` 是 `feat-storage-metrics-snapshot` 的**前置**（统一落盘封装的权限位），须先于其完成。
+2. **内容写入边界线**：`fix-unauthorized-injoys-doc-write` → `fix-review-doc-id-fabrication`（严格顺序）；`feat-injoys-test-document-count` 与 `fix-storage-file-permissions` 同属基础设施补强，可并行。
+3. **安全边界线**：`feat-browseros-capability-toggle`（能力开关契约与统一执行检查）与 `fix-browser-session-cookie-probe`（会话探测假阳性修复 + 工具登记）**互不重叠**，可并行；二者均为 `feat-client-engine-config`（Phase 3）的前置。
+4. 上述各线之间无相互阻塞，可整体并行。
 
 - 跨阶段前置条件：无（本 Phase 是路线图起点）。
-- 提供给后续阶段的能力：正确的汇总 `null` 语义与环比基准（供 Phase 3 驾驶舱）、只写本地的生成路径与 `InjoysClient` 文档写入能力（供 Phase 2 显式沉淀入口）、对齐后的 BrowserOS 白名单与落盘权限（供所有后续落盘）。
+- 提供给后续阶段的能力：正确的汇总 `null` 语义与环比基准（供 Phase 3 驾驶舱）；只写本地的生成路径与 `InjoysClient` 文档写入能力（供 Phase 2 显式沉淀入口）；对齐后的 BrowserOS 能力开关、统一会话四态与落盘权限（供所有后续落盘与 Phase 3 引擎 / 平台配置页）；`ops_inspect_sessions` 工具名（供 Phase 2 工具目录分类）。
 
 ## 阶段整体验收
 
-- `criterion.md` §3.2 / §4 相关的 BDD 场景通过：模块 5 场景 4 / 5 / 6、模块 3 场景 1（宿主生成路径未经明确要求不得创建 / 更新 Injoys 文档）。**模块 8 场景 2 / 3 依赖沉淀能力（Phase 2 的 `feat-workbench-sink-to-injoys-doc`）与沉淀界面（Phase 3），不在本 Phase 验收**；本 Phase 只验证宿主路径「未授权写入已移除」「复盘不返回假编号」「未连通不谎报」。
-- `pnpm typecheck` + `pnpm test` 通过；新增用例覆盖「部分缺失 → `null`」「真实 0 参与求和」「未显式触发不写远端」「未连通不返回成功文档编号」「白名单越界被拒」「文件权限位」。
-- `workbench.overview` 响应不再包含硬编码样例数据；`src/` 内生成 / 复盘路径无无条件 `document.create` 调用；`src/` 内存在动作白名单校验实现。
+- `criterion.md` §3.2 / §3.4 / §4 相关的 BDD 场景通过：模块 5 场景 4 / 5 / 6、模块 3 场景 1（宿主生成路径未经明确要求不得创建 / 更新 Injoys 文档）、模块 1 场景 1 / 3（会话四态不回退）、模块 6 场景 5 / 6 / 7 / 8（能力开关默认八项 / 未暴露不列出 / 两层开关）。**模块 8 场景 2 / 3 依赖沉淀能力（Phase 2 的 `feat-workbench-sink-to-injoys-doc`）与沉淀界面（Phase 3），不在本 Phase 验收**；本 Phase 只验证宿主路径「未授权写入已移除」「复盘不返回假编号」「未连通不谎报」。
+- `pnpm typecheck` + `pnpm test` 通过；新增用例覆盖「部分缺失 → `null`」「真实 0 参与求和」「未显式触发不写远端」「未连通不返回成功文档编号」「能力开关默认八项 / 启停保持 / 禁用拒绝 / 两层开关」「会话四态与 `loginUrl`」「文件权限位」「`injoys.test` 文档数为 `null`」。
+- `workbench.overview` 响应不再包含硬编码样例数据；`src/` 内生成 / 复盘路径无无条件 `document.create` 调用；`src/` 内存在 `callTool` 统一执行检查实现、无宿主 Chrome / Chromium Cookie 库读取路径；`browser.sessions` 无 `reuseHostBrowserProfile` 字段。
 
 ## 待决事项（按需）
 
-- BrowserOS 权威白名单是否纳入 `read` / `grep` / `wait` / `upload`（提案 5 任务 1 需与 `criterion.md` §4 同轮定稿）——影响资产约 8 处复述文案的定稿方向。
+- 无。旧「固定四动作白名单 / 永久禁用 shell/cmd」口径已由 `adr_009_browseros_capability_management.md` 与 `criterion.md` §4 的**能力开关模型**取代，本 Phase 按其定稿实施，不再保留待决项。

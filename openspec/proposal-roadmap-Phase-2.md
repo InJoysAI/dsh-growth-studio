@@ -3,14 +3,14 @@
 > **返回总纲**: [proposal-roadmap.md](./proposal-roadmap.md)
 > **文件名**: `proposal-roadmap-Phase-2.md`（编号与总纲阶段总览一致：Phase 2 → `Phase-2`）
 > **状态**: proposed
-> **来源**: `.context/architecture/risks_and_debt.md`（TD-001）；`.context/architecture/api_strategy.md` §3.1 / §3.5；`.context/architecture/security_policy.md`；`.context/architecture/adr_003_custom_rpc_envelope.md`；`.context/domain/risks_and_debt.md`（PD-002 / PD-006）；`.context/domain/testing_strategy.md` 模块 7 / 8
-> **预计工作量与周期**: ~13 人日（**规划估算**；源文档工作量字段为 `N/A – 源文档未提供`）
+> **来源**: `.context/architecture/risks_and_debt.md`（TD-001）；`.context/architecture/api_strategy.md` §3.1 / §3.5 / §3.10；`.context/architecture/security_policy.md`；`.context/architecture/adr_003_custom_rpc_envelope.md`；`.context/domain/risks_and_debt.md`（PD-002 / PD-006）；`.context/domain/testing_strategy.md` 模块 7 / 8
+> **预计工作量与周期**: ~12.5 人日（**规划估算**；源文档工作量字段为 `N/A – 源文档未提供`）
 
 ## 阶段目标与范围
 
 - **目标与交付结果**：补齐「用户显式触发」的**唯一**物料沉淀入口（`workbench.sinkToInjoysDoc`，衔接 Phase 0 已移除的未授权写入），并落地 AI 工具中枢的最小可实施契约（工具目录、白名单开关、单步调试沙箱、脱敏遥测）。
 - **In / Out**：
-  - ✅ In：`workbench.sinkToInjoysDoc` 契约与实现（唯一授权沉淀入口、幂等更新、`injoysDocId` 回写、目录固定）；`tools.catalog` / `tools.toggle` / `tools.executeSandbox` / `tools.telemetry` 契约与实现；宿主侧白名单强制校验；补齐 PD-006 的 3 个工具的分类登记。
+  - ✅ In：`workbench.sinkToInjoysDoc` 契约与实现（唯一授权沉淀入口、幂等更新、`injoysDocId` 回写、目录固定）；`tools.catalog` / `tools.toggle` / `tools.executeSandbox` / `tools.telemetry` 契约与实现；宿主侧白名单强制校验；收口 PD-006 中**阶段未定**的 2 个工具（`ops_keyword_research` / `ops_generate_hooks`）的分类与归属（`ops_inspect_sessions` 已在 Phase 0 由 `fix-browser-session-cookie-probe` 按名登记）。
   - ❌ Out：5 大官方场景技能包与自定义技能包编辑器（PD-002，PRD Phase 2/3，**不在本路线图范围**）；`browser.login.*` 前台登录能力（PD-001，需 BrowserOS CDP PoC）；AI 工具中枢 UI（`feat-client-tools-console`，Phase 3）。
 - **适用约束**：
   - `criterion.md` §4「写入 Injoys 必须由用户显式触发」「工具白名单宿主侧强制」「遥测必须脱敏」；
@@ -278,52 +278,53 @@
 
 ---
 
-### 提案 5: 补齐生命周期分类缺失的 3 个工具
+### 提案 5: 收口生命周期分类中阶段未定的 2 个工具
 
 **Change ID:** `feat-tools-lifecycle-gaps`  
 **优先级:** P2  
-**预计时间:** 2 人日（规划估算）  
+**预计时间:** 1.5 人日（规划估算）  
 **状态:** proposed
 
 **业务目标（Business Goal）**:
-- 补齐 PRD §5.5.1「工具全景与生命周期分类」中未实现且未按名登记的 `ops_keyword_research`（策划与选题）、`ops_generate_hooks`（创意与生成）、`ops_inspect_sessions`（系统与调度）。
-- 使 BR-040「工具中枢按五类分组展示，每组包含对应工具」在三个类别具备对应工具，或显式标注移出范围。
+- 收口 PRD §5.5.1「工具全景与生命周期分类」中**阶段未定**、且未实现的 `ops_keyword_research`（策划与选题）、`ops_generate_hooks`（创意与生成）两个工具：或补阶段归属并实现 / 登记，或**显式标注移出范围**。
+- 使 BR-040「工具中枢按五类分组展示，**每组包含对应工具**」在「策划与选题 / 创意与生成」两类不再存在「类别无对应工具」的不可判定缺口。
 
 **范围边界（In / Out）**:
 
 | 类型 | 内容 |
 |------|------|
-| ✅ In | 实现或显式标注 `ops_keyword_research` / `ops_generate_hooks` / `ops_inspect_sessions` 的归属与分类 |
-| ✅ In | 在 `src/tools/index.ts` 按名登记，纳入 `tools.catalog` 五类分组 |
-| ✅ In | 若某工具移出范围，在资产侧**显式标注**，避免「遗漏」与「范围变更」不可区分 |
+| ✅ In | 对 `ops_keyword_research` / `ops_generate_hooks` 各自裁定「实现（按名登记，纳入 `tools.catalog` 五类分组）」或「**显式标注移出范围**」，并记录依据 |
+| ✅ In | 若某工具移出范围，在资产侧**显式标注**，避免「遗漏」与「范围变更」不可区分，且 `src/tools/index.ts` 不残留半成品登记 |
+| ❌ Out | `ops_inspect_sessions`（属 Phase 0，已在 `fix-browser-session-cookie-probe` 中按名登记，本提案不重复） |
 | ❌ Out | 5 大官方场景技能包（PD-002，不在范围） |
 | ❌ Out | 工具中枢 UI（Phase 3） |
 
 > [!NOTE]
-> PD-006 的偿还计划为「N/A – PRD / 开发计划未标注三者交付阶段」。本提案按「能实现则实现、否则显式标注移出范围」处理，确保 BR-040 的验收点不再存在「类别无对应工具」的不可判定缺口；具体取舍在提案创建时依 `criterion.md` §3.1「不在客户端承载核心业务规则」与 SSoT 顺序定夺。
+> PD-006 原列 3 个未实现工具；其中 `ops_inspect_sessions` 已由 Phase 0 的 `fix-browser-session-cookie-probe` 按名登记并映射到已实现的 `browser.sessions`（`api_strategy.md` §3.10 阶段列标 Phase 0），故本提案收窄为 `ops_keyword_research` / `ops_generate_hooks` 两项。二者在 `api_strategy.md` §3.10 的阶段列标「未定」，PRD / 开发计划未提供阶段归属，故本提案按「能实现则实现、否则显式标注移出范围」处理；**具体取舍为待决事项**，须在提案创建时依 `criterion.md` §3.1「不在客户端承载核心业务规则」与 SSoT 顺序定夺。
 
 **关联 Context 资产**:
 
 | Scope | 关联资产 | 关联说明 |
 |-------|---------|----------|
 | criterion | `.context/criterion.md` | §3.1、§6 SSoT-first |
-| domain | `.context/domain/risks_and_debt.md` | PD-006 |
-| architecture | `.context/architecture/api_strategy.md` | §3.5 `category` 五类定义 |
+| domain | `.context/domain/risks_and_debt.md` | PD-006（阶段未定的 2 个工具） |
+| architecture | `.context/architecture/api_strategy.md` | §3.5 `category` 五类定义、§3.10 `ops_*` 映射（`ops_keyword_research` / `ops_generate_hooks` 阶段「未定」） |
 | domain | `.context/domain/testing_strategy.md` | 模块 7 场景 1（BR-040） |
 
 **关键任务**:
-1. 确认三个工具的归属阶段与分类（0.5 人日）
-2. 按名登记 / 实现（1.25 人日）
-3. 对移出范围者补显式标注（0.25 人日）
+1. 确认 `ops_keyword_research` / `ops_generate_hooks` 的归属阶段与分类（0.5 人日）
+2. 对选择实现者按名登记 / 实现（0.75 人日）
+3. 对移出范围者补显式标注，并核对 `src/tools/index.ts` 无半成品残留（0.25 人日）
 
 **验证标准**:
 
 | 验收项 | 验收条件 | 验收方式 |
 |--------|----------|----------|
-| 分类完整 | 五类分组每组均有对应工具（或显式标注移出） | 单元测试 + 资产审查 |
-| 取舍定性 | 三个工具在 `criterion.md` §3.1 与 SSoT 顺序下各自定妥「实现」或「移出范围」，并记录依据 | 资产审查 + 代码审查 |
+| 分类完整 | 「策划与选题 / 创意与生成」两类均有对应工具（或显式标注移出） | 单元测试 + 资产审查 |
+| 取舍定性 | 两个工具在 `criterion.md` §3.1 与 SSoT 顺序下各自定妥「实现」或「移出范围」，并记录依据 | 资产审查 + 代码审查 |
 | 实现则登记 | **对选择实现的工具**：工具名在 `src/tools/index.ts` 可检索，并纳入 `tools.catalog` 对应五类分组 | `grep` + 单元测试 |
 | 移出则标注 | **对选择移出范围的工具**：在资产侧显式标注移出范围与理由，且 `src/tools/index.ts` 不残留半成品登记 | `grep` + 资产审查 |
+| 不重复登记 | `ops_inspect_sessions` 不在本提案重复登记（已在 Phase 0 完成） | `grep` + 代码审查 |
 
 **验收场景（按需，建议 BDD）**:
 
@@ -337,7 +338,7 @@
 **依赖**:
 - 前置: `feat-tools-catalog-toggle`
 - 被依赖: 无
-- 约束: 分类以 `api_strategy.md` §3.5 五类为准
+- 约束: 分类以 `api_strategy.md` §3.5 五类为准；`ops_inspect_sessions` 的登记归属 Phase 0，本提案不越界
 
 ---
 
@@ -356,4 +357,4 @@
 
 ## 待决事项（按需）
 
-- PD-006 的 3 个工具属「实现」还是「显式移出范围」（提案 5 任务 1）；PRD / 开发计划未标注其交付阶段，需在提案创建时定夺并同步资产。
+- PD-006 中阶段未定的 2 个工具（`ops_keyword_research` / `ops_generate_hooks`）属「实现」还是「显式移出范围」（提案 5 任务 1）；PRD / 开发计划未标注其交付阶段，需在提案创建时定夺并同步资产。（`ops_inspect_sessions` 已属 Phase 0，不在本待决项内。）
