@@ -8,12 +8,12 @@
 >
 > If this block is missing/outdated, re-run `.agent/workflows/context-openspec.md` (or `.agent/workflows/context-openspec.md <subcommand>`).
 
-- Required:
+- **Required**:
   - `.context/README.md`
   - `.context/AGENTS.md`
   - `.context/criterion.md`
   - `.context/context-manifest.json`
-- Architecture (21 个文件):
+- **Architecture** (22 个文件):
   - `.context/architecture/README.md`
   - `.context/architecture/system_design.md`
   - `.context/architecture/tech_stack.md`
@@ -36,7 +36,7 @@
   - `.context/architecture/adr_007_manual_refresh_no_persistent_connection.md`
   - `.context/architecture/adr_008_version_snapshot_storage.md`
   - `.context/architecture/adr_009_browseros_capability_management.md`
-- Domain (8 个文件):
+- **Domain** (8 个文件):
   - `.context/domain/README.md`
   - `.context/domain/business_rules.md`
   - `.context/domain/user_journeys.md`
@@ -45,14 +45,21 @@
   - `.context/domain/risks_and_debt.md`
   - `.context/domain/data_strategy.md`
   - `.context/domain/edge_cases.md`
-- DB (0 个文件):
+- **DB** (0 个文件):
   - (未提供 DB 源文档)
-- UI (0 个文件):
+- **UI** (0 个文件):
   - (未提供 UI 源文档)
-- Legacy (0 个文件):
+- **Legacy** (0 个文件):
   - (未提供遗留代码库)
-- OpenSpec (1 个文件):
+- **OpenSpec** (8 个文件，派生产物，不作为 Context 输入):
   - `.context/openspec/integration.md`
+  - `openspec/proposal-roadmap.md`
+  - `openspec/proposal-roadmap-Phase-0.md`
+  - `openspec/proposal-roadmap-Phase-1.md`
+  - `openspec/proposal-roadmap-Phase-2.md`
+  - `openspec/proposal-roadmap-Phase-3.md`
+  - `openspec/proposal-roadmap-Phase-4.md`
+  - `openspec/config.yaml`
 <!-- CONTEXT_ASSET_INDEX:END -->
 
 ---

@@ -1,9 +1,9 @@
 # .context/domain/ — 业务领域上下文
 
 > **Metadata**
-> - **Source**: `.context/domain/source/product_requirements.md`（PRD v1.2.0）、`.context/domain/source/development_plan.md`
+> - **Source**: `.context/domain/source/product_requirements.md`（PRD 基线 v1.2.2）、`.context/domain/source/development_plan.md`
 > - **Generated At**: `2026-10-16 09:00`
-> - **Updated At**: `2026-10-17 09:21`
+> - **Updated At**: `2026-10-17 12:54`
 > - **Generator**: `Context-Agent v1.0`
 
 ---
@@ -26,7 +26,7 @@
 
 | 文件 | 类型 | 内容概要 |
 |------|------|---------|
-| `source/product_requirements.md` | 需求类（权威主来源） | PRD v1.2.0：产品愿景、用户画像、6 大功能模块规格、Phase 0–3 里程碑与验收标准 |
+| `source/product_requirements.md` | 需求类（权威主来源） | PRD v1.2.2：产品愿景、用户画像、6 大功能模块规格、Phase 0–3 里程碑与验收标准 |
 | `source/development_plan.md` | 计划类（辅助） | 开发与落地计划：实现基线与阶段任务拆解。**仅用于确认阶段范围与交付节奏，不从中抽取业务规则** |
 
 ---

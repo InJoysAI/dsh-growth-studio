@@ -3,7 +3,7 @@
 > **Metadata**
 > - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.4.5 §1.1、§2、§3）
 > - **Generated At**: `2026-10-16 09:44`
-> - **Updated At**: `2026-10-17 08:51`
+> - **Updated At**: `2026-10-17 12:54`
 > - **Generator**: `Context-Agent v1.0`
 
 > ⚠️ 本项目的「容器」不是 Docker 容器，而是 **C4 语义下的运行时单元**（客户端 / 宿主进程 / 外部服务 / 本地存储）。

@@ -3,7 +3,7 @@
 > **Metadata**
 > - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.4.5）
 > - **Generated At**: `2026-10-16 09:44`
-> - **Updated At**: `2026-10-17 08:51`
+> - **Updated At**: `2026-10-17 12:54`
 > - **Generator**: `Context-Agent v1.0`
 
 > ⚠️ **约束的权威来源是 `.context/criterion.md`**。本文为其结构化摘录与背景说明。

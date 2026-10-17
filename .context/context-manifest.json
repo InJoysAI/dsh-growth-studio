@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generated_at": "2026-10-17T09:47:45+08:00",
+  "generated_at": "2026-10-17T12:54:34+08:00",
   "generator": "Context-Agent v1.0",
   "generation_pipeline": {
     "root_assets": "Context-Dev-Agent v1.0",
@@ -75,9 +75,6 @@
       ".context/domain/data_strategy.md",
       ".context/domain/edge_cases.md"
     ],
-    "db": [],
-    "ui": [],
-    "legacy": [],
     "openspec": [
       ".context/openspec/integration.md",
       "openspec/proposal-roadmap.md",
@@ -85,15 +82,16 @@
       "openspec/proposal-roadmap-Phase-1.md",
       "openspec/proposal-roadmap-Phase-2.md",
       "openspec/proposal-roadmap-Phase-3.md",
-      "openspec/proposal-roadmap-Phase-4.md"
+      "openspec/proposal-roadmap-Phase-4.md",
+      "openspec/config.yaml"
     ]
   },
   "pending_generation": {},
   "last_openspec_project": {
     "path": "openspec/config.yaml",
-    "context_sha256": "20d4b16abcf8f36b9194d80f9cadc1710938c153822c36800304fdeed11d0715",
-    "config_sha256": "4c85a65ee85430ade733181e0cc056d180058eb925026a371e63fc14a4cabdfb",
-    "generated_at": "2026-10-16T18:08:51+08:00",
+    "context_sha256": "6ebe1d53a0f58f0f950386a27b1fd387f66c9e615f4662774b4bf0e42855e739",
+    "config_sha256": "31d755d4583c8c0839ee358167f9ce30911df12ed9d207fab5599410bc68f5fc",
+    "generated_at": "2026-10-17T12:54:34+08:00",
     "workflow": ".agent/workflows/context-openspec.md project"
   },
   "context_sync_history": {
@@ -102,19 +100,36 @@
     "ordering": "ascending_by_synced_at"
   },
   "last_context_sync": {
-    "synced_at": "2026-10-17T09:47:45+08:00",
+    "synced_at": "2026-10-17T12:54:34+08:00",
     "source": ".context/architecture/source/technical_architecture.md v1.4.5、.context/domain/source/product_requirements.md v1.2.2",
-    "workflow": "context-update (user-authorized manual sync)",
-    "authority": "用户裁决：A2 旧展示要求同步清理（R1 五处 + business_rules BR-074）+ 恢复 v1.4.4 修订条目（R2）；同步 PRD/领域验收资产",
+    "workflow": "context-check review assets（裁决 C：UA=真实写入时刻）",
+    "authority": "用户裁决 C：Updated At = 文件真实最后写入时刻（任何字节变更都更新）、mtime 不回填；本轮把 22 个曾被回填 mtime 的文件 UA 统一为真实写入时刻（12:54），并按新内容重算派生快照指纹；不改 source/，不引入实现变更",
     "mode": "apply",
     "updated_context_files": [
-      ".context/architecture/source/technical_architecture.md",
-      ".context/architecture/adr_009_browseros_capability_management.md",
-      ".context/domain/source/product_requirements.md",
+      ".context/AGENTS.md",
+      ".context/architecture/README.md",
+      ".context/architecture/api_strategy.md",
+      ".context/architecture/constraints.md",
+      ".context/architecture/container_component_view.md",
+      ".context/architecture/context_view.md",
+      ".context/architecture/cross_cutting_concepts.md",
+      ".context/architecture/data_architecture.md",
+      ".context/architecture/introduction_and_goals.md",
+      ".context/architecture/risks_and_debt.md",
+      ".context/architecture/runtime_view.md",
+      ".context/architecture/security_policy.md",
+      ".context/architecture/system_design.md",
+      ".context/architecture/tech_stack.md",
+      ".context/domain/README.md",
       ".context/domain/business_rules.md",
+      ".context/domain/data_strategy.md",
       ".context/domain/edge_cases.md",
+      ".context/domain/market_insights.md",
+      ".context/domain/risks_and_debt.md",
       ".context/domain/testing_strategy.md",
-      ".context/context-manifest.json"
+      ".context/domain/user_journeys.md",
+      ".context/context-manifest.json",
+      "openspec/config.yaml"
     ],
     "history_path": ".context/history/context-sync.jsonl"
   }

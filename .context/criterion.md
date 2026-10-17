@@ -3,7 +3,7 @@
 > **Metadata**
 > - **Source**: `.context/domain/source/product_requirements.md`, `.context/domain/source/development_plan.md`, `.context/architecture/source/technical_architecture.md`
 > - **Generated At**: `2026-10-15 20:23`
-> - **Updated At**: `2026-10-17 00:47`
+> - **Updated At**: `2026-10-17 12:41`
 > - **Generator**: `Context-Dev-Agent v1.0`
 
 > **用途**: 定义 AI 代理必须遵守的工程约束和技术规范。
@@ -42,7 +42,7 @@ dsh-growth-studio/
 ├── scripts/                     # 校验脚本（check-patch.mts / verify-live-metrics.mts）
 ├── design/context-dev/          # Context 工程化工具链（本文件所在体系）
 ├── docs/                        # 报告等其他文档（PRD/架构/计划源文档已归档至 .context/）
-├── openspec/                    # 变更提案与规范（config.yaml / proposal-roadmap.md 待生成）
+├── openspec/                    # 变更提案与规范（config.yaml / proposal-roadmap*.md 已生成）
 └── .context/                    # AI 代理长期记忆目录
 ```
 

@@ -1,9 +1,9 @@
 # 测试策略 (Testing Strategy)
 
 > **Metadata**
-> - **Source**: `.context/domain/source/product_requirements.md`（PRD v1.2.0）、`.context/domain/source/development_plan.md`（验收条件）
+> - **Source**: `.context/domain/source/product_requirements.md`（PRD 基线 v1.2.2）、`.context/domain/source/development_plan.md`（验收条件）
 > - **Generated At**: `2026-10-16 09:00`
-> - **Updated At**: `2026-10-16 16:46`
+> - **Updated At**: `2026-10-17 12:54`
 > - **Generator**: `Context-Agent v1.0`
 
 ---

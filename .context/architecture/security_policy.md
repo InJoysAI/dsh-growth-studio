@@ -3,7 +3,7 @@
 > **Metadata**
 > - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.4.5 §5.2、§5.3、§六）
 > - **Generated At**: `2026-10-16 09:44`
-> - **Updated At**: `2026-10-17 08:51`
+> - **Updated At**: `2026-10-17 12:54`
 > - **Generator**: `Context-Agent v1.0`
 
 > **NFR/Security 权威说明**：架构文档为安全策略的**权威来源**。PRD 中若含安全 / NFR 内容，仅作为补充引用，**不覆盖**架构决策。

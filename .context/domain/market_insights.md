@@ -1,9 +1,9 @@
 # 市场洞察 (Market Insights)
 
 > **Metadata**
-> - **Source**: `.context/domain/source/product_requirements.md`（PRD v1.2.0）
+> - **Source**: `.context/domain/source/product_requirements.md`（PRD 基线 v1.2.2）
 > - **Generated At**: `2026-10-16 09:00`
-> - **Updated At**: `2026-10-16 11:05`
+> - **Updated At**: `2026-10-17 12:54`
 > - **Generator**: `Context-Agent v1.0`
 
 ---
