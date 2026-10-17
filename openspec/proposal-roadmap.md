@@ -33,13 +33,18 @@
 | 架构组件 `FeedbackIntelligence`（评论爬取与需求提炼） | Phase 1 | `.context/architecture/system_design.md` 组件表；`.context/architecture/introduction_and_goals.md`「范围与阶段」 |
 | 架构组件 `SkillEngine` / `OverseasStrategyManager` | Phase 2 | `.context/architecture/system_design.md` 组件表；`.context/architecture/context_view.md`「Out-of-Scope（本系统不负责）」 |
 
+> [!NOTE]
+> **`ops_draft_launch_kit`（出海 Launch 物料）的阶段边界**：该工具所属**能力**属 Phase 2，但它**当前实现中已存在**且存在越权写入 Injoys 与时间戳伪造编号两处合规缺陷（`docs/implementation-gaps-report.md` §1 / §2）。依「触碰铁律的实现缺口全部置于 Phase 0」，其**减法**合规修复已并入 Phase 0 的 `fix-unauthorized-injoys-doc-write` 与 `fix-doc-id-fabrication`；本路线图**不**提前实现 Phase 2 的出海模拟 / 预填能力。
+>
+> **`.context` 登记补登**：`architecture/risks_and_debt.md` 的 TD-008 仅登记 4 处写入站点、TD-009 仅登记 `ops_generate_review` 一处假编号（见 `docs/implementation-gaps-report.md` §5 的「已知覆盖缺口」）。上述两个 Phase 0 提案已把「补登第 5 处 / 第 2 处站点」列入 In-scope，实施时须同轮刷新 `.context` 资产、Manifest 与 `history`。
+
 ---
 
 ## 🗺️ 阶段总览
 
 | 阶段 | 名称 | 目标 | 预计周期 | 提案数 | 详情 |
 |:----:|------|------|----------|:------:|------|
-| Phase 0 | 安全与数据真实性修复 | 消除触碰铁律 2 / 铁律 3 / 铁律 4、内容写入边界与安全边界的实现缺口，让既有接口先「不说假话、不越界」 | ~15 人日 | 8 | [Phase-0](./proposal-roadmap-Phase-0.md) |
+| Phase 0 | 安全与数据真实性修复 | 消除触碰铁律 2 / 铁律 3 / 铁律 4、内容写入边界与安全边界的实现缺口，让既有接口先「不说假话、不越界」 | ~16 人日 | 8 | [Phase-0](./proposal-roadmap-Phase-0.md) |
 | Phase 1 | 排期主数据与 Injoys 单向同步 | 让排期成为本地黄金主数据源，并打通生成 / 状态推进 / 单向导出 / 显式导入 | ~15 人日 | 5 | [Phase-1](./proposal-roadmap-Phase-1.md) |
 | Phase 2 | 内容沉淀与 AI 工具中枢 | 补齐「用户显式触发」的唯一沉淀入口，并落地工具目录 / 白名单 / 沙箱 / 遥测 | ~12.5 人日 | 5 | [Phase-2](./proposal-roadmap-Phase-2.md) |
 | Phase 3 | 客户端工作台 UI 接入 | 把宿主侧契约接进 6 大 Tab 中 Phase 0 所需的 5 个 Tab，补齐 PD-004 的界面缺口 | ~19 人日 | 6 | [Phase-3](./proposal-roadmap-Phase-3.md) |
@@ -59,7 +64,7 @@ graph LR
         A1["fix-overview-metrics-null-semantics"]
         A2["feat-storage-metrics-snapshot"]
         A3["fix-unauthorized-injoys-doc-write"]
-        A4["fix-review-doc-id-fabrication"]
+        A4["fix-doc-id-fabrication"]
         A5["feat-browseros-capability-toggle"]
         A6["fix-browser-session-cookie-probe"]
         A7["fix-storage-file-permissions"]
@@ -137,8 +142,8 @@ graph LR
 |-----------|:-----:|------|:------:|----------|------|------|
 | `fix-overview-metrics-null-semantics` | 0 | 工作台总览的汇总空值语义与真实数据来源 | P0 | 无 | proposed | [Phase-0](./proposal-roadmap-Phase-0.md) |
 | `feat-storage-metrics-snapshot` | 0 | 指标历史快照落盘（环比基准） | P1 | `fix-overview-metrics-null-semantics`、`fix-storage-file-permissions` | proposed | [Phase-0](./proposal-roadmap-Phase-0.md) |
-| `fix-unauthorized-injoys-doc-write` | 0 | 移除生成 / 复盘路径未授权的 Injoys 文档写入 | P0 | 无 | proposed | [Phase-0](./proposal-roadmap-Phase-0.md) |
-| `fix-review-doc-id-fabrication` | 0 | 复盘工具不得以字面量冒充文档编号 | P0 | `fix-unauthorized-injoys-doc-write` | proposed | [Phase-0](./proposal-roadmap-Phase-0.md) |
+| `fix-unauthorized-injoys-doc-write` | 0 | 移除生成 / 复盘 / 海外 Launch 路径未授权的 Injoys 文档写入 | P0 | 无 | proposed | [Phase-0](./proposal-roadmap-Phase-0.md) |
+| `fix-doc-id-fabrication` | 0 | 工具不得以字面量 / 时间戳冒充文档编号 | P0 | `fix-unauthorized-injoys-doc-write` | proposed | [Phase-0](./proposal-roadmap-Phase-0.md) |
 | `feat-browseros-capability-toggle` | 0 | BrowserOS 能力开关契约与统一执行检查 | P0 | 无 | proposed | [Phase-0](./proposal-roadmap-Phase-0.md) |
 | `fix-browser-session-cookie-probe` | 0 | 统一 BrowserOS 会话探测并登记会话探活工具 | P0 | 无 | proposed | [Phase-0](./proposal-roadmap-Phase-0.md) |
 | `fix-storage-file-permissions` | 0 | 落盘文件与目录权限位实现 | P1 | 无 | proposed | [Phase-0](./proposal-roadmap-Phase-0.md) |

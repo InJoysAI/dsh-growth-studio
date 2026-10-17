@@ -4,13 +4,13 @@
 > **文件名**: `proposal-roadmap-Phase-0.md`（编号与总纲阶段总览一致：Phase 0 → `Phase-0`）
 > **状态**: proposed
 > **来源**: `.context/criterion.md` §3.1 / §3.2 / §4 / §5.4 / §5.5 / §6；`.context/architecture/risks_and_debt.md`（RISK-002 / RISK-003 / RISK-006 / RISK-007；TD-007 / TD-008 / TD-009 / TD-012 / TD-013）；`.context/architecture/adr_009_browseros_capability_management.md`；`.context/architecture/api_strategy.md` §2.3 / §3.1 / §3.4 / §3.6 / §3.7 / §3.9 / §3.10；`.context/architecture/data_architecture.md`；`.context/architecture/security_policy.md`；`.context/domain/business_rules.md`（BR-052 / BR-074）；`.context/domain/risks_and_debt.md`（PD-006）；`.context/domain/testing_strategy.md` 模块 1 / 3 / 5 / 6 / 8
-> **预计工作量与周期**: ~15 人日（**规划估算**；源文档对 TD-007 ~ TD-013 的工作量字段一律标注 `N/A – 源文档未提供`）
+> **预计工作量与周期**: ~16 人日（**规划估算**；源文档对 TD-007 ~ TD-013 的工作量字段一律标注 `N/A – 源文档未提供`）
 
 ## 阶段目标与范围
 
 - **目标与交付结果**：让**既有**已实现接口先「不说假话、不越界」——修掉触碰 `criterion.md` 铁律、数据真实性与安全边界的实现缺口，使 Phase 0 端到端闭环（排期 → AI 生成 → 本地草稿 → 真实预填 → 人工确认回填 → 真实指标采集）具备可信的数据基座，为 Phase 1 起的宿主契约建设与 Phase 3 的客户端 UI 提供不违反铁律的接口。
 - **In / Out**：
-  - ✅ In：`workbench.overview` 的汇总空值语义与真实数据来源（TD-007 及 `src/ops-rpc.ts` 中硬编码的热点样例数据）；`metrics/` 历史快照落盘（TD-010 的 metrics 部分，作为环比基准）；生成 / 复盘路径的未授权 Injoys 文档写入（TD-008）；`ops_generate_review` 的假文档编号（TD-009）；BrowserOS **能力开关**契约与统一执行检查（TD-012，按 `adr_009` 取代旧「固定动作白名单」口径）；`browser.sessions` 会话探测的假阳性修复与 `ops_inspect_sessions` 按名登记（RISK-003 / PD-006）；落盘文件与目录权限位（TD-013）；`injoys.test` 补可空文档数（`documentCount: number | null`）。
+  - ✅ In：`workbench.overview` 的汇总空值语义与真实数据来源（TD-007 及 `src/ops-rpc.ts` 中硬编码的热点样例数据）；`metrics/` 历史快照落盘（TD-010 的 metrics 部分，作为环比基准）；生成 / 复盘 / 海外 Launch 路径的未授权 Injoys 文档写入（TD-008，含第 5 处 `ops_draft_launch_kit`）；`ops_generate_review` 与 `ops_draft_launch_kit` 的假文档编号（TD-009，两处）；BrowserOS **能力开关**契约与统一执行检查（TD-012，按 `adr_009` 取代旧「固定动作白名单」口径）；`browser.sessions` 会话探测的假阳性修复与 `ops_inspect_sessions` 按名登记（RISK-003 / PD-006）；落盘文件与目录权限位（TD-013）；`injoys.test` 补可空文档数（`documentCount: number | null`）。
   - ❌ Out：排期 `calendar/` 主数据与生成 / 导出 / 导入（属 Phase 1）；`workbench.sinkToInjoysDoc` 唯一授权沉淀入口的**实现**（属 Phase 2，本 Phase 只负责移除未授权写入）；任何客户端 UI（属 Phase 3）；统一「未找到」错误码与客户端消费测试（属 Phase 4）；`browser.login.*` 前台登录（PD-001，属 Phase 2 PoC）；`ops_keyword_research` / `ops_generate_hooks`（阶段未定，见 Phase 2 的 `feat-tools-lifecycle-gaps`）；双向同步与冲突解决（PRD Phase 3，**不在本路线图范围**，见 `constraints.md`「未到阶段的能力不提前实现」）。
 - **适用约束**：
   - `criterion.md` §3.2「禁止虚报成功 / 禁止伪造、硬编码指标数据（无法获取的字段必须为 `null`）」；
@@ -172,45 +172,49 @@
 
 ---
 
-### 提案 3: 移除生成 / 复盘路径未授权的 Injoys 文档写入
+### 提案 3: 移除生成 / 复盘 / 海外 Launch 路径未授权的 Injoys 文档写入
 
 **Change ID:** `fix-unauthorized-injoys-doc-write`  
 **优先级:** P0  
-**预计时间:** 2 人日（规划估算）  
+**预计时间:** 2.5 人日（规划估算）  
 **状态:** proposed
 
 **业务目标（Business Goal）**:
-- 使生成（图文 / 视频元数据）与复盘路径**只写本地**，符合 `criterion.md` §4 内容写入边界：写入 Injoys 必须由用户显式触发。
+- 使生成（图文 / 视频元数据 / 海外 Launch 物料）与复盘路径**只写本地**，符合 `criterion.md` §4 内容写入边界：写入 Injoys 必须由用户显式触发。
 - 消除「用户未授权即把物料写入其 Injoys 空间」的越界行为。
 
 **范围边界（In / Out）**:
 
 | 类型 | 内容 |
 |------|------|
-| ✅ In | 从 `src/ops-rpc.ts` 的 `workbench.generateArticleDraft`、`src/tools/index.ts` 的 `ops_draft_article` / `ops_draft_video_meta`、`src/analytics/review-reporter.ts` 移除**无条件**的 `document.create` 调用 |
+| ✅ In | 从 `src/ops-rpc.ts` 的 `workbench.generateArticleDraft`、`src/tools/index.ts` 的 `ops_draft_article` / `ops_draft_video_meta` / `ops_draft_launch_kit`、`src/analytics/review-reporter.ts` 移除**无条件**的 `document.create` 调用（共 **5 处**，含 `ops_draft_launch_kit` 的 `saveLaunchKitDocument`） |
 | ✅ In | 修正 `src/tools/index.ts` 中与契约相悖的工具描述文案 |
-| ✅ In | 补测试覆盖「未显式触发时不写远端」 |
-| ✅ In | 保留 `InjoysClient.saveArticleDocument` / `saveVideoDocument` / `saveReviewDocument` 能力（供 Phase 2 的显式沉淀入口复用） |
+| ✅ In | 同步 `.context/architecture/risks_and_debt.md` 的 **TD-008** 站点清单（补第 5 处 `ops_draft_launch_kit`），使债务登记与实现一致 |
+| ✅ In | 补测试覆盖「未显式触发时不写远端」（含海外 Launch 生成路径） |
+| ✅ In | 保留 `InjoysClient.saveArticleDocument` / `saveVideoDocument` / `saveReviewDocument` / `saveLaunchKitDocument` 能力（供 Phase 2 的显式沉淀入口复用） |
 | ❌ Out | `workbench.sinkToInjoysDoc` 唯一授权入口的**实现**（`feat-workbench-sink-to-injoys-doc`，Phase 2） |
+| ❌ Out | 海外四大渠道（YouTube / X / Product Hunt / TikTok）**模拟与预填能力本身**（属 Phase 2，见总纲「被移出的能力」）；本提案只对已存在的 `ops_draft_launch_kit` 做**减法**合规修复 |
 | ❌ Out | 知识库读取能力（生成时读取知识库属允许行为，不动） |
 
 > [!NOTE]
-> 本提案只做「减法」（移除未授权写入），不实现替代入口。这样 Phase 0 与 Phase 2 之间不会出现「旧入口已删、新入口未上」的能力空洞：Phase 0 期间用户仍可经 Injoys 侧手工操作，Phase 2 再补显式沉淀入口。
+> **`ops_draft_launch_kit` 的阶段边界**：该工具所属**能力**（出海 Launch 物料）属 Phase 2，但它在**当前实现中已存在**且**无用户显式触发判定即写入 Injoys**——这是**在线**触碰 `criterion.md` §4 铁律的缺口。依 `docs/implementation-gaps-report.md` §1（TD-008 登记不完整，只列 4 处站点），本提案按「同一条写入边界修复」将其并入（与已属 Phase 1 能力的 `review-reporter.ts` 复盘路径同性质），**不**提前实现 Phase 2 的出海能力。
+>
+> **只做减法**：本提案不实现替代入口。这样 Phase 0 与 Phase 2 之间不会出现「旧入口已删、新入口未上」的能力空洞：Phase 0 期间用户仍可经 Injoys 侧手工操作，Phase 2 再补显式沉淀入口。
 
 **关联 Context 资产**:
 
 | Scope | 关联资产 | 关联说明 |
 |-------|---------|----------|
 | criterion | `.context/criterion.md` | §4 内容写入边界、§3.5 目录固定（贯穿每次落盘） |
-| architecture | `.context/architecture/risks_and_debt.md` | TD-008（高） |
+| architecture | `.context/architecture/risks_and_debt.md` | TD-008（高；本提案同轮补登第 5 处站点 `ops_draft_launch_kit`） |
 | architecture | `.context/architecture/api_strategy.md` | §3.1 `generateArticleDraft` / `generateVideoMeta` 的「只保存本地」契约 |
 | domain | `.context/domain/testing_strategy.md` | 模块 3 场景 1（宿主生成路径「未经明确要求不得创建 / 更新」）；沉淀界面的 模块 8 场景 2 / 3 属 Phase 2 / 3 |
 
 **关键任务**:
-1. 定位并移除生成路径的无条件 `document.create` 调用（`workbench.generateArticleDraft`、`ops_draft_article`、`ops_draft_video_meta`）（1 人日）
+1. 定位并移除生成路径的无条件 `document.create` 调用（`workbench.generateArticleDraft`、`ops_draft_article`、`ops_draft_video_meta`、`ops_draft_launch_kit`，共 4 处）（1.5 人日）
 2. 移除 `review-reporter.ts` 复盘路径的无条件 `saveReviewDocument` 调用（0.5 人日）
-3. 修正 `src/tools/index.ts` 工具描述文案使之与契约一致（0.25 人日）
-4. 补测试：「未显式触发时无远端写入」（0.25 人日）
+3. 修正 `src/tools/index.ts` 工具描述文案使之与契约一致，并补登 TD-008 第 5 处站点（0.25 人日）
+4. 补测试：「未显式触发时无远端写入」（1 条通用 + 1 条覆盖海外 Launch 生成路径）（0.25 人日）
 
 **风险与处理决定（按需）**:
 
@@ -225,6 +229,7 @@
 |--------|----------|----------|
 | 生成不写远端 | 调用生成方法后无 `document.create` 请求发出 | 单元测试（mock InjoysClient）+ 代码审查 |
 | 复盘不写远端 | 复盘路径无无条件 `saveReviewDocument` 调用 | 单元测试 + `grep` |
+| 海外 Launch 不写远端 | `ops_draft_launch_kit` 不再无条件经 `saveLaunchKitDocument` 触发 `document.create` | 单元测试 + `grep` |
 | 文案一致 | 工具描述不再暗示「生成即沉淀」 | 代码审查 |
 
 **验收场景（按需，建议 BDD）**:
@@ -241,33 +246,41 @@
   When 复盘生成完成
   Then 不得向 Injoys 发出无条件的 saveReviewDocument 请求
     And 未经用户明确要求不得创建或更新 Injoys 文档
+
+场景: 海外 Launch 物料生成不得无条件写入 Injoys
+  Given 海外 Launch 物料生成路径已存在（`ops_draft_launch_kit`）
+  When 用户仅触发物料生成
+  Then 不得向 Injoys 发出无条件的 saveLaunchKitDocument 请求
+    And 未经用户明确要求不得创建或更新 Injoys 文档
 ```
 
 **依赖**:
 - 前置: 无
-- 被依赖: `fix-review-doc-id-fabrication`、`feat-workbench-sink-to-injoys-doc`
+- 被依赖: `fix-doc-id-fabrication`、`feat-workbench-sink-to-injoys-doc`
 - 约束: 生成只保存本地；请求开始时捕获草稿目录并贯穿每次落盘（`criterion.md` §3.5）
 
 ---
 
-### 提案 4: 复盘工具不得以字面量冒充文档编号
+### 提案 4: 工具不得以字面量 / 时间戳冒充文档编号
 
-**Change ID:** `fix-review-doc-id-fabrication`  
+**Change ID:** `fix-doc-id-fabrication`  
 **优先级:** P0  
-**预计时间:** 1 人日（规划估算）  
+**预计时间:** 1.5 人日（规划估算）  
 **状态:** proposed
 
 **业务目标（Business Goal）**:
 - 消除「知识库未连通或写入失败时仍向用户播报不存在的文档编号」的虚报成功，满足 `criterion.md` §3.2。
-- 让调用方能区分「已沉淀」与「未沉淀」。
+- 让调用方能区分「已沉淀」与「未沉淀」（含 `ops_generate_review` 与 `ops_draft_launch_kit` 两处）。
 
 **范围边界（In / Out）**:
 
 | 类型 | 内容 |
 |------|------|
-| ✅ In | 将 `ops_generate_review` 的 `injoysDocId` 改为可空并取消 `output.schema` 的 `required` |
-| ✅ In | 失败 / 未配置时如实返回未沉淀状态或抛错，移除 `report.injoysDocId ?? 'doc_review'` 回退 |
-| ✅ In | 补测试覆盖「知识库未连通时不得返回成功文档编号」 |
+| ✅ In | 将 `ops_generate_review` 与 `ops_draft_launch_kit` 的 `injoysDocId` 改为可空并取消 `output.schema` 的 `required`（**两处**） |
+| ✅ In | 移除 `ops_generate_review` 的 `report.injoysDocId ?? 'doc_review'` 字面量回退 |
+| ✅ In | 将 `InjoysClient.saveLaunchKitDocument` 返回类型改为 `Promise<string \| null>`，移除其在 `catch` 后回退 `doc_launch_${Date.now()}` 的**时间戳伪造编号**行为 |
+| ✅ In | 同步 `.context/architecture/risks_and_debt.md` 的 **TD-009** 站点清单（补第 2 处 `ops_draft_launch_kit` / `saveLaunchKitDocument`），使债务登记与实现一致 |
+| ✅ In | 补测试覆盖「知识库未连通时不得返回成功文档编号」（两处工具） |
 | ❌ Out | 生成路径的未授权写入移除（`fix-unauthorized-injoys-doc-write`） |
 | ❌ Out | `InjoysClient.saveReviewDocument` 的 `catch → null` 行为本身（如属实现缺陷，另行提案） |
 
@@ -276,20 +289,21 @@
 | Scope | 关联资产 | 关联说明 |
 |-------|---------|----------|
 | criterion | `.context/criterion.md` | §3.2 虚报成功 |
-| architecture | `.context/architecture/risks_and_debt.md` | TD-009（高）、架构 §3.5.1「不得谎报成功，也不得静默写本地假 ID」 |
+| architecture | `.context/architecture/risks_and_debt.md` | TD-009（高；本提案同轮补登第 2 处站点 `ops_draft_launch_kit` / `saveLaunchKitDocument`）、架构 §3.5.1「不得谎报成功，也不得静默写本地假 ID」 |
 | domain | `.context/domain/testing_strategy.md` | 模块 8 场景 3 的**宿主复盘路径子集**（「不返回假编号」）；完整沉淀界面场景（点击「沉淀至 Injoys 知识文档」的 模块 8 场景 2 / 3）依赖 Phase 2 接口与 Phase 3 界面，不在本 Phase |
 
 **关键任务**:
-1. 将 `ops_generate_review` 的 `injoysDocId` 改为可空并取消 `required`（0.5 人日）
-2. 移除 `doc_review` 字面量回退，失败时如实返回未沉淀状态（0.25 人日）
-3. 补测试：「未连通时不返回成功文档编号」（0.25 人日）
+1. 将 `ops_generate_review` 与 `ops_draft_launch_kit` 的 `injoysDocId` 改为可空并取消 `required`（两处）（0.75 人日）
+2. 移除 `doc_review` 字面量回退与 `saveLaunchKitDocument` 的时间戳伪造（返回类型改 `Promise<string | null>`）（0.5 人日）
+3. 补测试：「未连通 / 写入失败时不返回成功文档编号」（两处工具）（0.25 人日）
 
 **验证标准**:
 
 | 验收项 | 验收条件 | 验收方式 |
 |--------|----------|----------|
 | 无假编号 | 知识库未连通 / 写入失败时响应不含字面量文档编号 | 单元测试 |
-| schema 一致 | `output.schema` 不再将 `injoysDocId` 声明为 required | 代码审查 |
+| 时间戳不伪造 | `saveLaunchKitDocument` 失败 / 未配置时返回 `null`，不再回退 `doc_launch_${Date.now()}` | 单元测试 |
+| schema 一致 | `output.schema` 不再将 `injoysDocId` 声明为 required（两处工具） | 代码审查 |
 | 可区分状态 | 调用方可据响应判断是否已沉淀 | 单元测试 |
 
 **验收场景（按需，建议 BDD）**:
@@ -300,6 +314,12 @@
   When 用户触发周度复盘
   Then 不得显示"沉淀成功"
     And 不得返回不存在的文档编号
+
+场景: 海外 Launch 物料未沉淀时不得编造编号
+  Given 知识库中枢未连通
+  When 用户触发海外 Launch 物料沉淀
+  Then 不得返回 `doc_launch_<时间戳>` 形式的编号
+    And 应如实返回未沉淀状态（`injoysDocId` 为 null）
 ```
 
 **依赖**:
@@ -414,16 +434,19 @@
 | ✅ In | 移除 `SessionGuard.checkAllRealSessions` / `findHostBrowserCookiesPath` / `PLATFORM_COOKIE_RULES` 的**宿主 Cookie 库读取路径**（复制宿主 Cookie SQLite 并 `node:sqlite` 查询），以及 `browser.sessions` 中据此产生的假阳性判定 |
 | ✅ In | `browser.sessions` 统一走 `checkBrowserSessions`（同一 BrowserOS 实例的活跃 Tab 轻量探测），四态返回保持不变 |
 | ✅ In | 补齐 `statuses.loginUrl` 契约与实现（`needs_login` 时提供登录入口外链） |
-| ✅ In | 退役 `OpsConfig.reuseHostBrowserProfile` 与 `browser.sessions` 响应中的 `reuseHostBrowserProfile` 字段；同轮更新 `criterion.md` §5.4（现文「浏览器: `browser.sessions`（返回额外含 `reuseHostBrowserProfile`）」）、`api_strategy.md` §3.4 与相关复述 |
+| ✅ In | `reuseHostBrowserProfile` **兼容退出**：`browser.sessions` 不再读取该字段决定探测路径（强制统一实例探测），但**保留** `OpsConfig.reuseHostBrowserProfile` 字段、`browser.sessions` 响应字段与旧配置解析，避免破坏既有配置；同轮在 `criterion.md` §5.4 与 `api_strategy.md` §3.4 **标注该字段为「待废弃」**（引用 TAD §3.10.1） |
 | ✅ In | 在 `src/tools/index.ts` 按名注册 `ops_inspect_sessions`（`system` 类，调用 `browser.sessions`），纳入 `tools.catalog` 五类分组（登记即可，`tools.catalog` 契约属 Phase 2） |
-| ✅ In | 补测试：四态（含 `unknown` / `no_publish_permission`）不回退为 boolean；`needs_login` 含 `loginUrl`；无宿主 Cookie 库读取路径 |
+| ✅ In | 补测试：四态（含 `unknown` / `no_publish_permission`）不回退为 boolean；`needs_login` 含 `loginUrl`；无宿主 Cookie 库读取路径；`reuseHostBrowserProfile=true` 时不读本机 Cookie SQLite |
+| ❌ Out | `reuseHostBrowserProfile` 字段的**彻底移除**（留待后续版本单列提案；本提案只做兼容退出） |
 | ❌ Out | `browser.login.*` 前台登录能力（PD-001，Phase 2 PoC） |
 | ❌ Out | `ops_keyword_research` / `ops_generate_hooks`（阶段未定，Phase 2 `feat-tools-lifecycle-gaps`） |
 | ❌ Out | BrowserOS 能力开关（`feat-browseros-capability-toggle`，本 Phase 提案 5） |
 | ❌ Out | 渠道矩阵 / 引擎状态 UI（Phase 3） |
 
 > [!NOTE]
-> **合并理由**：会话探测分支移除、`reuseHostBrowserProfile` 退役、`ops_inspect_sessions` 按名登记三者同属 `browser.sessions` **一条链路**（同一 `src/ops-rpc.ts` 分支与同一 `SessionGuard` / 同一契约），拆成并行提案会同时改写同一处代码与契约、互相冲突，故合并为一个提案。依 `criterion.md` §6 / §7.1，`reuseHostBrowserProfile` 退役属契约变更，须与 `criterion.md` §5.4 及 `api_strategy.md` §3.4 **同轮**落地。
+> **合并理由**：会话探测分支移除、`reuseHostBrowserProfile` 兼容退出、`ops_inspect_sessions` 按名登记三者同属 `browser.sessions` **一条链路**（同一 `src/ops-rpc.ts` 分支与同一 `SessionGuard` / 同一契约），拆成并行提案会同时改写同一处代码与契约、互相冲突，故合并为一个提案。
+>
+> **为何是「兼容退出」而非「彻底退役」**：依 `docs/implementation-gaps-report.md` §6 建议修复方向 #2——「先忽略该字段并强制统一实例探测，**保留字段与旧配置解析**（不直接删字段破坏旧配置），后续版本再彻底移除」。故本提案在 `criterion.md` §5.4 / `api_strategy.md` §3.4 只**标注「待废弃」**，不删除字段、不改响应形状；彻底移除留待后续版本单列提案（届时才更新契约基线）。
 
 **关联 Context 资产**:
 
@@ -431,7 +454,7 @@
 |-------|---------|----------|
 | criterion | `.context/criterion.md` | §3.1「会话探测 / 预填 / 指标采集统一由同一 BrowserOS 实例调度」、§3.2 不虚报、§5.4 实现基线、§5.5 `SessionState` 四态、§6 SSoT-first |
 | architecture | `.context/architecture/risks_and_debt.md` | RISK-003（高，未缓解 / 待修复）、TD-012 相关（BrowserOS 调用集中入口） |
-| architecture | `.context/architecture/api_strategy.md` | §3.4 `browser.sessions`（含 `loginUrl`、`reuseHostBrowserProfile` 注）、§3.10 `ops_inspect_sessions` 映射 |
+| architecture | `.context/architecture/api_strategy.md` | §3.4 `browser.sessions`（含 `loginUrl`、`reuseHostBrowserProfile` 由本提案标注「待废弃」）、§3.10 `ops_inspect_sessions` 映射 |
 | architecture | `.context/architecture/adr_001_unified_browseros_session.md` | 统一 BrowserOS 会话裁决 |
 | domain | `.context/domain/risks_and_debt.md` | PD-006（`ops_inspect_sessions` 属 Phase 0） |
 | domain | `.context/domain/business_rules.md` | BR-074（Profile / 状态灯展示规则：只展示连接状态，不推测 Profile） |
@@ -441,7 +464,7 @@
 1. 移除宿主 Cookie 库读取路径（`checkAllRealSessions` / `findHostBrowserCookiesPath` / `PLATFORM_COOKIE_RULES`）与 `browser.sessions` 中的假阳性分支（1 人日）
 2. 统一走 `checkBrowserSessions` 并保持四态（0.5 人日）
 3. 补齐 `statuses.loginUrl` 契约与实现（0.25 人日）
-4. 退役 `reuseHostBrowserProfile`，同轮更新 criterion §5.4 / api_strategy §3.4（0.5 人日）
+4. `reuseHostBrowserProfile` 兼容退出（不再读取该字段），同轮在 criterion §5.4 / api_strategy §3.4 标注「待废弃」（0.5 人日）
 5. 注册 `ops_inspect_sessions` 工具名并补测试（0.25 人日）
 
 **风险与处理决定（按需）**:
@@ -449,7 +472,7 @@
 | 风险 | 影响 | 处理决定及理由 |
 |------|------|----------|
 | 移除 Cookie 探测后部分平台状态更保守（多为 `unknown`） | 偶发需用户手动确认登录 | 依 RISK-003 应急预案：`unknown` 时引导用户在当前 BrowserOS 实例中直接扫码登录；**假阴性（提示登录）优于假阳性（显示就绪但实际未登录）** |
-| 退役 `reuseHostBrowserProfile` 影响既有配置 | 旧配置字段被忽略 | 默认值解析对未知字段短路（不抛 `TypeError`）；客户端编辑入口在 Phase 3 一并移除，本 Phase 只改契约与实现 |
+| `reuseHostBrowserProfile` 兼容退出 | 旧配置字段暂被忽略（仍可解析） | 依 `docs/implementation-gaps-report.md` §6 建议：**保留**字段与旧配置解析（不破坏旧配置），默认值解析对未知字段短路（不抛 `TypeError`）；客户端编辑入口在 Phase 3 一并移除；彻底移除留待后续版本单列提案 |
 
 **验证标准**:
 
@@ -459,7 +482,7 @@
 | 统一实例 | 会话探测仅经同一 BrowserOS MCP 实例（活跃 Tab 轻量探测） | 代码审查 |
 | 四态不回退 | `SessionState` 保持四态，`unknown` / `no_publish_permission` 可区分，未退化为 boolean | 单元测试 |
 | 登录外链 | `needs_login` 平台返回 `loginUrl` | 单元测试 |
-| 字段退役 | `browser.sessions` 响应与 `criterion.md` §5.4 / `api_strategy.md` §3.4 均不含 `reuseHostBrowserProfile` | 代码审查 + 逐处比对 |
+| 兼容退出 | `reuseHostBrowserProfile=true` 时仍只经 BrowserOS 实例探测（不读本机 Cookie）；字段与旧配置解析保留，`criterion.md` §5.4 / `api_strategy.md` §3.4 标注「待废弃」 | 单元测试 + 逐处比对 |
 | 工具登记 | `ops_inspect_sessions` 在 `src/tools/index.ts` 可检索，映射 `browser.sessions` | `grep` |
 
 **验收场景（按需，建议 BDD）**:
@@ -479,6 +502,12 @@
   When 用户查看渠道矩阵网格
   Then 该渠道应显示"未知 / 探测中"状态
     And 不得显示为"已认证就绪"
+
+场景: 复用宿主 Profile 开关不得触发 Cookie 库读取
+  Given 旧配置中 reuseHostBrowserProfile 为 true
+  When 调用 browser.sessions
+  Then 会话状态仍只基于 BrowserOS 实例探测
+    And 不得读取本机 Chrome / Chromium 的 Cookie SQLite
 ```
 
 **依赖**:
@@ -590,7 +619,7 @@
 本 Phase 内可并行推进的四条主线：
 
 1. **数据真实性线**：`fix-overview-metrics-null-semantics` → `feat-storage-metrics-snapshot`（严格顺序）；`fix-storage-file-permissions` 是 `feat-storage-metrics-snapshot` 的**前置**（统一落盘封装的权限位），须先于其完成。
-2. **内容写入边界线**：`fix-unauthorized-injoys-doc-write` → `fix-review-doc-id-fabrication`（严格顺序）；`feat-injoys-test-document-count` 与 `fix-storage-file-permissions` 同属基础设施补强，可并行。
+2. **内容写入边界线**：`fix-unauthorized-injoys-doc-write` → `fix-doc-id-fabrication`（严格顺序）；覆盖 5 处写入站点（含 `ops_draft_launch_kit`）与 2 处假编号（`ops_generate_review` / `ops_draft_launch_kit`）；`feat-injoys-test-document-count` 与 `fix-storage-file-permissions` 同属基础设施补强，可并行。
 3. **安全边界线**：`feat-browseros-capability-toggle`（能力开关契约与统一执行检查）与 `fix-browser-session-cookie-probe`（会话探测假阳性修复 + 工具登记）**互不重叠**，可并行；二者均为 `feat-client-engine-config`（Phase 3）的前置。
 4. 上述各线之间无相互阻塞，可整体并行。
 
@@ -600,8 +629,8 @@
 ## 阶段整体验收
 
 - `criterion.md` §3.2 / §3.4 / §4 相关的 BDD 场景通过：模块 5 场景 4 / 5 / 6、模块 3 场景 1（宿主生成路径未经明确要求不得创建 / 更新 Injoys 文档）、模块 1 场景 1 / 3（会话四态不回退）、模块 6 场景 5 / 6 / 7 / 8（能力开关默认八项 / 未暴露不列出 / 两层开关）。**模块 8 场景 2 / 3 依赖沉淀能力（Phase 2 的 `feat-workbench-sink-to-injoys-doc`）与沉淀界面（Phase 3），不在本 Phase 验收**；本 Phase 只验证宿主路径「未授权写入已移除」「复盘不返回假编号」「未连通不谎报」。
-- `pnpm typecheck` + `pnpm test` 通过；新增用例覆盖「部分缺失 → `null`」「真实 0 参与求和」「未显式触发不写远端」「未连通不返回成功文档编号」「能力开关默认八项 / 启停保持 / 禁用拒绝 / 两层开关」「会话四态与 `loginUrl`」「文件权限位」「`injoys.test` 文档数为 `null`」。
-- `workbench.overview` 响应不再包含硬编码样例数据；`src/` 内生成 / 复盘路径无无条件 `document.create` 调用；`src/` 内存在 `callTool` 统一执行检查实现、无宿主 Chrome / Chromium Cookie 库读取路径；`browser.sessions` 无 `reuseHostBrowserProfile` 字段。
+- `pnpm typecheck` + `pnpm test` 通过；新增用例覆盖「部分缺失 → `null`」「真实 0 参与求和」「未显式触发不写远端（生成 / 复盘 / 海外 Launch）」「未连通不返回成功文档编号（复盘 / 海外 Launch）」「能力开关默认八项 / 启停保持 / 禁用拒绝 / 两层开关」「会话四态与 `loginUrl`」「`reuseHostBrowserProfile=true` 不读本机 Cookie」「文件权限位」「`injoys.test` 文档数为 `null`」。
+- `workbench.overview` 响应不再包含硬编码样例数据；`src/` 内生成 / 复盘 / 海外 Launch 路径无无条件 `document.create` 调用；`src/` 内存在 `callTool` 统一执行检查实现、无宿主 Chrome / Chromium Cookie 库读取路径；`browser.sessions` 不再依据 `reuseHostBrowserProfile` 读取宿主 Cookie（字段保留但已标注「待废弃」）。
 
 ## 待决事项（按需）
 
