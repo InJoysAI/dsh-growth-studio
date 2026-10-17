@@ -39,7 +39,7 @@
 | ✅ In | `src/types.ts` 的 `CalendarItem` 与 `ItemStatus` 契约（五态：`planned` / `drafting` / `draft_ready` / `prefilled` / `published`）；含 `documentId`（关联 `ContentDraft.id`，criterion §5.5）与 `externalRowId` 字段 |
 | ✅ In | `src/storage/` 下 calendar 读写服务（落盘、读取、按周期 / 平台 / 状态查询） |
 | ✅ In | 复用 `draftsDir` 同级布局与统一落盘封装（含目录固定与错误码映射） |
-| ❌ Out | `calendar.list` / `updateStatus` 的方法实现（提案 3） |
+| ❌ Out | `calendar.list` 的方法实现（属提案 2）、`calendar.updateStatus` 的方法实现（属提案 3） |
 | ❌ Out | Injoys 导出 / 导入（提案 4 / 5） |
 | ❌ Out | 排期日历 UI（Phase 3） |
 
@@ -222,7 +222,7 @@
 
 **依赖**:
 - 前置: `feat-storage-calendar-items`
-- 被依赖: `feat-client-schedule-view`
+- 被依赖: `feat-client-schedule-view`、`feat-client-content-studio`（从排期项发起创作并推进状态）
 - 约束: `published` 只能由 `drafts.updatePublishUrl` 写入（criterion §4）
 
 ---
@@ -253,7 +253,8 @@
 | Scope | 关联资产 | 关联说明 |
 |-------|---------|----------|
 | criterion | `.context/criterion.md` | §3.1 禁止客户端直连 Injoys、§6 SSoT-first |
-| architecture | `.context/architecture/risks_and_debt.md` | TD-001、TD-006（单向导出有意为之）、RISK-B005 |
+| architecture | `.context/architecture/risks_and_debt.md` | TD-001、TD-006（单向导出有意为之） |
+| domain | `.context/domain/risks_and_debt.md` | RISK-B005（多平台同步冲突造成数据覆盖；单向导出规避） |
 | architecture | `.context/architecture/api_strategy.md` | §3.1 `exportCalendar` 幂等规则 |
 | architecture | `.context/architecture/adr_004_local_primary_injoys_export.md` | 单向导出裁决 |
 | domain | `.context/domain/testing_strategy.md` | 模块 2 场景 4 |
@@ -315,7 +316,7 @@
 | Scope | 关联资产 | 关联说明 |
 |-------|---------|----------|
 | criterion | `.context/criterion.md` | §3.2 不谎报成功、§6 SSoT-first |
-| architecture | `.context/architecture/risks_and_debt.md` | TD-001、TD-006、RISK-B005 |
+| architecture | `.context/architecture/risks_and_debt.md` | TD-001、TD-006 |
 | architecture | `.context/architecture/api_strategy.md` | §3.1 `importCalendar` 冲突与重复导入规则 |
 | domain | `.context/domain/risks_and_debt.md` | PD-003、RISK-B005 |
 | domain | `.context/domain/testing_strategy.md` | 模块 2 场景 5 |

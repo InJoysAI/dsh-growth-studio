@@ -116,7 +116,7 @@
 | ✅ In | `tools.catalog`、`tools.toggle` 实现；启停状态持久化到本地配置，重启后保持 |
 | ✅ In | `category` 按五类：`planning` / `creative` / `publishing` / `analytics` / `system` |
 | ❌ Out | 沙箱执行（提案 3）、遥测（提案 4） |
-| ❌ Out | 补齐 3 个缺失工具（提案 5） |
+| ❌ Out | 补齐 / 收口 2 个阶段未定的缺失工具（提案 5） |
 | ❌ Out | 工具中枢 UI（Phase 3） |
 
 **关联 Context 资产**:

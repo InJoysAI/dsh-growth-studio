@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generated_at": "2026-10-17T17:34:26+08:00",
+  "generated_at": "2026-10-17T17:44:59+08:00",
   "generator": "Context-Agent v1.0",
   "generation_pipeline": {
     "root_assets": "Context-Dev-Agent v1.0",
@@ -100,13 +100,17 @@
     "ordering": "ascending_by_synced_at"
   },
   "last_context_sync": {
-    "synced_at": "2026-10-17T17:34:26+08:00",
-    "source": ".context/criterion.md、.context/architecture/*、.context/domain/*（读取用于 Phase 5 核验；未变更任何 .context 资产）",
+    "synced_at": "2026-10-17T17:44:59+08:00",
+    "source": ".context/criterion.md、.context/domain/risks_and_debt.md（RISK-B005 定位）、.context/domain/testing_strategy.md（读取核对；未变更任何 .context 资产）",
     "workflow": ".agent/workflows/context-openspec.md plan",
-    "authority": "用户对提案路线图执行 Phase 5 检查并回传报告：结论 PASS（无 P0/P1 差异）。落地报告中唯一可选最小修复——把总纲「被移出的能力」表的列头「所属后续阶段」标注为 PRD 口径（新增口径说明块，明确该列指 PRD §七 阶段，与本路线图 Phase 0–4 编号不同）。仅改 openspec/proposal-roadmap.md 与 Manifest，不改任何 .context 资产、source/、config.yaml 与实现代码",
+    "authority": "用户回传 Phase 5 检查（PASS Conditional：P0=0 / P1=0 / P2=2）并要求检查与修复。逐条核验两项 P2 均属实后修复：① 补登缺失依赖——D1 feat-client-engine-config 增列前置 feat-injoys-test-document-count（消费 injoys.test.documentCount）；D3 feat-client-content-studio 增列前置 feat-calendar-status-transitions（排期关联不变量），并同步详情/索引/反向依赖/依赖图；② 修正旧文案——Phase 1 把 calendar.list 错指提案 3（实为提案 2）、RISK-B005 错挂 architecture（实定义于 domain）、Phase 2 仍写「3 个缺失工具」（实为 2 个）。仅改 openspec/proposal-roadmap*.md 与 Manifest，不改任何 .context 资产、source/、config.yaml 与实现代码",
     "mode": "apply",
     "updated_context_files": [
       "openspec/proposal-roadmap.md",
+      "openspec/proposal-roadmap-Phase-0.md",
+      "openspec/proposal-roadmap-Phase-1.md",
+      "openspec/proposal-roadmap-Phase-2.md",
+      "openspec/proposal-roadmap-Phase-3.md",
       ".context/context-manifest.json"
     ],
     "history_path": ".context/history/context-sync.jsonl"

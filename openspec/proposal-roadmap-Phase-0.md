@@ -609,7 +609,7 @@
 
 **依赖**:
 - 前置: 无
-- 被依赖: `feat-client-dashboard`（引擎状态展示文档数）
+- 被依赖: `feat-client-dashboard`（引擎状态展示文档数）、`feat-client-engine-config`（连通性测试展示文档数）
 - 约束: 契约先行（criterion §6）；缺失数据一律 `null`（§3.2）
 
 ---

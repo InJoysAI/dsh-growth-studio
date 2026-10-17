@@ -109,6 +109,7 @@ graph LR
     A5 --> D1
     A6 --> D1
     A6 --> D2
+    A8 --> D1
     A8 --> D2
 
     B1 --> B2
@@ -120,6 +121,7 @@ graph LR
     B2 --> D5
     B2 --> D2
     B3 --> D5
+    B3 --> D3
     B4 --> D5
     B5 --> D5
 
@@ -160,9 +162,9 @@ graph LR
 | `feat-tools-sandbox-execute` | 2 | 单步调试沙箱执行 | P1 | `feat-tools-catalog-toggle` | proposed | [Phase-2](./proposal-roadmap-Phase-2.md) |
 | `feat-tools-telemetry` | 2 | 工具执行遥测（脱敏） | P2 | `feat-tools-sandbox-execute` | proposed | [Phase-2](./proposal-roadmap-Phase-2.md) |
 | `feat-tools-lifecycle-gaps` | 2 | 补齐生命周期分类未定阶段的 2 个工具 | P2 | `feat-tools-catalog-toggle` | proposed | [Phase-2](./proposal-roadmap-Phase-2.md) |
-| `feat-client-engine-config` | 3 | 引擎策略配置页接入（含 BrowserOS 能力管理） | P0 | `feat-browseros-capability-toggle`、`fix-browser-session-cookie-probe` | proposed | [Phase-3](./proposal-roadmap-Phase-3.md) |
+| `feat-client-engine-config` | 3 | 引擎策略配置页接入（含 BrowserOS 能力管理） | P0 | `feat-browseros-capability-toggle`、`fix-browser-session-cookie-probe`、`feat-injoys-test-document-count` | proposed | [Phase-3](./proposal-roadmap-Phase-3.md) |
 | `feat-client-dashboard` | 3 | 运营驾驶舱接入 | P0 | `fix-overview-metrics-null-semantics`、`feat-storage-metrics-snapshot`、`feat-calendar-generate-list`、`fix-browser-session-cookie-probe`、`feat-injoys-test-document-count` | proposed | [Phase-3](./proposal-roadmap-Phase-3.md) |
-| `feat-client-content-studio` | 3 | 内容创作室与草稿库接入 | P0 | `feat-workbench-sink-to-injoys-doc` | proposed | [Phase-3](./proposal-roadmap-Phase-3.md) |
+| `feat-client-content-studio` | 3 | 内容创作室与草稿库接入 | P0 | `feat-workbench-sink-to-injoys-doc`、`feat-calendar-status-transitions` | proposed | [Phase-3](./proposal-roadmap-Phase-3.md) |
 | `feat-client-feed-simulators` | 3 | 公众号 / B站 真实样式模拟器 | P1 | `feat-client-content-studio` | proposed | [Phase-3](./proposal-roadmap-Phase-3.md) |
 | `feat-client-schedule-view` | 3 | 排期日历流水与回填入口 | P1 | `feat-calendar-generate-list`、`feat-calendar-status-transitions`、`feat-calendar-injoys-export`、`feat-calendar-injoys-import` | proposed | [Phase-3](./proposal-roadmap-Phase-3.md) |
 | `feat-client-tools-console` | 3 | AI 工具中枢与沙箱控制台 | P2 | `feat-tools-catalog-toggle`、`feat-tools-sandbox-execute`、`feat-tools-telemetry` | proposed | [Phase-3](./proposal-roadmap-Phase-3.md) |

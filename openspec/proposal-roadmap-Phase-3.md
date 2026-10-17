@@ -100,7 +100,7 @@
 ```
 
 **依赖**:
-- 前置: `feat-browseros-capability-toggle`、`fix-browser-session-cookie-probe`
+- 前置: `feat-browseros-capability-toggle`、`fix-browser-session-cookie-probe`、`feat-injoys-test-document-count`
 - 被依赖: 无
 - 约束: 样式走设计令牌（criterion §3.3）；能力开关 UI 不得宣称具备细粒度行为拦截（ADR-009 边界）；令牌显隐依 criterion §3.4 本机回填例外
 
@@ -256,7 +256,7 @@
 ```
 
 **依赖**:
-- 前置: `feat-workbench-sink-to-injoys-doc`
+- 前置: `feat-workbench-sink-to-injoys-doc`、`feat-calendar-status-transitions`
 - 被依赖: `feat-client-feed-simulators`
 - 约束: 沉淀必须显式触发（criterion §4）
 
@@ -481,11 +481,11 @@
 ## 执行顺序与依赖
 
 - **可并行三条主线**：
-  1. `feat-client-engine-config`（依赖 Phase 0 的 `feat-browseros-capability-toggle` 与 `fix-browser-session-cookie-probe`，契约就绪后即可实施；令牌显隐依 criterion §3.4 本机回填例外，无待决门槛）。
-  2. 内容线：`feat-client-content-studio` → `feat-client-feed-simulators`。
+  1. `feat-client-engine-config`（依赖 Phase 0 的 `feat-browseros-capability-toggle`、`fix-browser-session-cookie-probe` 与 `feat-injoys-test-document-count`，契约就绪后即可实施；令牌显隐依 criterion §3.4 本机回填例外，无待决门槛）。
+  2. 内容线：`feat-client-content-studio`（依赖 Phase 2 的 `feat-workbench-sink-to-injoys-doc` 与 Phase 1 的 `feat-calendar-status-transitions`）→ `feat-client-feed-simulators`。
   3. 排期线：`feat-client-schedule-view`；工具线：`feat-client-tools-console`。
 - **驾驶舱线**：`feat-client-dashboard` 待 Phase 0 的汇总语义、环比基准、统一会话四态与 `documentCount` 契约，以及 Phase 1 的 `weeklyPipeline` 周聚合完成后再接入。
-- 跨阶段前置条件：引擎配置依赖 Phase 0（A5 能力开关 / A6 会话探测）；驾驶舱依赖 Phase 0（A1 / A2 / A6 / A8）与 Phase 1（B2 的 `weeklyPipeline` 周聚合）；创作室依赖 Phase 2（C1）；排期视图依赖 Phase 1（B2 / B3 / B4 / B5）；工具控制台依赖 Phase 2（C2 / C3 / C4）。
+- 跨阶段前置条件：引擎配置依赖 Phase 0（A5 能力开关 / A6 会话探测 / A8 `injoys.test` 文档数契约）；驾驶舱依赖 Phase 0（A1 / A2 / A6 / A8）与 Phase 1（B2 的 `weeklyPipeline` 周聚合）；创作室依赖 Phase 2（C1）与 Phase 1（B3 的 `documentId` 关联不变量）；排期视图依赖 Phase 1（B2 / B3 / B4 / B5）；工具控制台依赖 Phase 2（C2 / C3 / C4）。
 - 提供给后续阶段的能力：可端到端操作的 Phase 0 工作台界面（供 Phase 0 Live 实测与签收）。
 
 ## 阶段整体验收
