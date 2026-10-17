@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generated_at": "2026-10-17T17:07:06+08:00",
+  "generated_at": "2026-10-17T17:34:26+08:00",
   "generator": "Context-Agent v1.0",
   "generation_pipeline": {
     "root_assets": "Context-Dev-Agent v1.0",
@@ -100,14 +100,13 @@
     "ordering": "ascending_by_synced_at"
   },
   "last_context_sync": {
-    "synced_at": "2026-10-17T17:07:06+08:00",
-    "source": ".context/criterion.md、.context/architecture/risks_and_debt.md（TD-008/TD-009）、.context/architecture/api_strategy.md、docs/implementation-gaps-report.md（只读核对；未变更任何 .context 资产）",
+    "synced_at": "2026-10-17T17:34:26+08:00",
+    "source": ".context/criterion.md、.context/architecture/*、.context/domain/*（读取用于 Phase 5 核验；未变更任何 .context 资产）",
     "workflow": ".agent/workflows/context-openspec.md plan",
-    "authority": "用户核查：docs/implementation-gaps-report.md 的内容是否已被路线图覆盖。核查发现 2 处真实缺口（§1 第 5 处写入站点 ops_draft_launch_kit、§2 第 2 处假编号 saveLaunchKitDocument）与 1 处做法分歧（§6 reuseHostBrowserProfile）。经用户确认：缺口并入 Phase 0（A3/A4），A6 改为报告建议的「兼容退出」。仅改 openspec/proposal-roadmap*.md 与 Manifest，不改任何 .context 资产、source/、config.yaml 与实现代码",
+    "authority": "用户对提案路线图执行 Phase 5 检查并回传报告：结论 PASS（无 P0/P1 差异）。落地报告中唯一可选最小修复——把总纲「被移出的能力」表的列头「所属后续阶段」标注为 PRD 口径（新增口径说明块，明确该列指 PRD §七 阶段，与本路线图 Phase 0–4 编号不同）。仅改 openspec/proposal-roadmap.md 与 Manifest，不改任何 .context 资产、source/、config.yaml 与实现代码",
     "mode": "apply",
     "updated_context_files": [
       "openspec/proposal-roadmap.md",
-      "openspec/proposal-roadmap-Phase-0.md",
       ".context/context-manifest.json"
     ],
     "history_path": ".context/history/context-sync.jsonl"

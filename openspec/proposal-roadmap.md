@@ -18,7 +18,9 @@
 
 **被移出的能力（阶段边界与依据）**：以下能力**不在 Phase 0 范围**（未到阶段，或阶段未指定），本路线图不为它们排提案，以避免「范围变更」与「遗漏」不可区分。
 
-| 被移出的能力 | 所属后续阶段 | 依据（资产路径与章节） |
+> **口径说明**：下表「所属 PRD 后续阶段」一列指 **PRD §七 的阶段口径**（PRD Phase 1–3），**与本路线图自身的 Phase 0–4 编号体系不同**，勿混淆（例如「官方内置 5 大场景技能包 | Phase 2」指 PRD Phase 2，并非本路线图的 Phase 2「内容沉淀与 AI 工具中枢」）。
+
+| 被移出的能力 | 所属 PRD 后续阶段 | 依据（资产路径与章节） |
 |--------------|:-----------:|------------------------|
 | 视频号 / 抖音渠道与视频元数据模拟器、预填 | Phase 1 | `.context/domain/source/product_requirements.md` §四（分阶段交付）、§5.4.2、§七；`.context/architecture/constraints.md`「阶段规划」 |
 | `xiaohongshu` 渠道适配器 | 阶段未指定（源文档未提供） | `.context/architecture/risks_and_debt.md` TD-015（`PlatformId` 9 值但适配器未注册）；`.context/criterion.md` §5.5 注；`.context/architecture/container_component_view.md` 平台清单注 |
