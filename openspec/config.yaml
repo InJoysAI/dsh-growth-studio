@@ -27,7 +27,7 @@ context: |
   - Client: JavaScript + React 18 via esbuild `^0.28.2`; injected into `settings.section` (`id: 'ops'`,
     `order: 60`) via `window.__ModuleLoader__.load(...)` (loaderId `dsh-growth-studio`; injects
     `@deepseek-ai/dsh-client-connection`/`-ui-settings`).
-  - Tooling: pnpm; `build` (tsc), `build:client` (esbuild), `typecheck`, `test` (vitest `^3.0.0`).
+  - Tooling: pnpm; `build` (tsc `^5.6.0`), `build:client` (esbuild), `typecheck`, `test` (vitest `^3.0.0`).
   - Persistence: local JSON only (no DB/ORM/migrations): `$DSH_HOME/ops-manager/config.json`,
     `.../growth-studio/drafts/{id}.json`, `.../calendar/{id}.json`, `.../metrics/{YYYY-MM-DD}.json`.
 
@@ -70,6 +70,8 @@ context: |
     targets (idempotent by `externalRowId` / `injoysDocId`).
   - Scheduling: `ops_setup_schedule` registers periodic inspection via the DSH automation center (host tool call;
     default cron `0 9 * * 1`, `Asia/Shanghai`), distinct from forbidden polling.
+  - Refresh (Phase 0, criterion §3.4 / ADR-007): user-manually-triggered RPC + local partial state replacement
+    (no full reload); same-card concurrent refresh MUST in-flight dedup; NO WebSocket/SSE/background polling.
 
   ## Testing Strategy
   - BDD Gherkin acceptance criteria by module (驾驶舱/渠道矩阵, 日历与发布流水线, 创作室, 草稿箱预填安全边界,
@@ -145,6 +147,8 @@ context: |
   - Content write: generation saves locally only; Injoys doc writes need explicit `workbench.sinkToInjoysDoc`; KB
     reads unrestricted.
   - `PlatformId` = 9 values; `xiaohongshu` has no registered adapter (8 registered).
+  - `CalendarItem.documentId` links a calendar item to its `ContentDraft`; it is a DRAFT ID, not an Injoys
+    document ID (criterion §5.5).
   - Implementation status ≠ contracts: `workbench.generateCalendar`, `calendar.*`, `workbench.sinkToInjoysDoc`,
     `tools.*` unimplemented (TD-001); `workbench.overview` lacks partial-missing aggregation (TD-007); Phase 2
     `browser.login.*` needs unvalidated CDP (RISK-012); plus TD-008/009/010/012–015 (risks_and_debt).

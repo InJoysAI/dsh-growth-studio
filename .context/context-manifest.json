@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generated_at": "2026-10-17T15:26:49+08:00",
+  "generated_at": "2026-10-17T16:20:14+08:00",
   "generator": "Context-Agent v1.0",
   "generation_pipeline": {
     "root_assets": "Context-Dev-Agent v1.0",
@@ -90,8 +90,8 @@
   "last_openspec_project": {
     "path": "openspec/config.yaml",
     "context_sha256": "2b48bd6e9a8f4a97379d878c80c02663adf6e7b71f468013aae3726afeb89ae4",
-    "config_sha256": "c4b7092f5334a4d9df6eca2e80a45753c9fed9843e38e6a0ffd01964b02385e1",
-    "generated_at": "2026-10-17T13:53:54+08:00",
+    "config_sha256": "7e5d798bc829d0a854c328ff13cf272f41a0783ba61a3849f8137db1ec69a4bf",
+    "generated_at": "2026-10-17T16:20:14+08:00",
     "workflow": ".agent/workflows/context-openspec.md project"
   },
   "context_sync_history": {
@@ -100,15 +100,14 @@
     "ordering": "ascending_by_synced_at"
   },
   "last_context_sync": {
-    "synced_at": "2026-10-17T15:26:49+08:00",
+    "synced_at": "2026-10-17T16:20:14+08:00",
     "source": ".context/architecture/source/technical_architecture.md v1.4.5、.context/domain/source/product_requirements.md v1.2.2",
-    "workflow": "context-check review core（user-authorized fix）",
-    "authority": "用户裁决：review core 复核的 R-1 时间戳对齐——README/AGENTS 的 Updated At 刷新为真实写入时刻（15:26），消除与 last_context_sync 的分钟级错位；不改 source/、openspec/config.yaml、design/context-dev 与实现代码",
+    "workflow": ".agent/workflows/context-openspec.md project",
+    "authority": "用户核查：context-check project 复核发现的 P1-1（Phase 0 刷新语义 MUST 缺失）、P2-1（CalendarItem.documentId 语义缺失）、P2-2（tsc 版本号缺失）修复后重生成派生快照 openspec/config.yaml（内容缺陷强制重生成：Context-SHA256 不变、config_sha256 更新、体积 20.30 KiB 属提示级）；同时补记本次 Manifest 写入与根时间戳对齐的审计事件；不改 source/、任何权威来源与实现代码",
     "mode": "apply",
     "updated_context_files": [
-      ".context/README.md",
-      ".context/AGENTS.md",
-      ".context/context-manifest.json"
+      ".context/context-manifest.json",
+      "openspec/config.yaml"
     ],
     "history_path": ".context/history/context-sync.jsonl"
   }
