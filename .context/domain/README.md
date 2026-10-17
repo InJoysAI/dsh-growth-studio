@@ -3,7 +3,7 @@
 > **Metadata**
 > - **Source**: `.context/domain/source/product_requirements.md`（PRD v1.2.0）、`.context/domain/source/development_plan.md`
 > - **Generated At**: `2026-10-16 09:00`
-> - **Updated At**: `2026-10-16 13:56`
+> - **Updated At**: `2026-10-17 09:21`
 > - **Generator**: `Context-Agent v1.0`
 
 ---
@@ -91,4 +91,4 @@
 - 架构总结 → [`../architecture/`](../architecture/)（**已生成**）
 - 资产清单与生成状态 → [`../context-manifest.json`](../context-manifest.json)
 
-> 是否生成见 `../context-manifest.json` 的 `generated_files.domain`（当前 8 项）与 `generated_files.architecture`（当前 21 项）。
+> 是否生成见 `../context-manifest.json` 的 `generated_files.domain`（当前 8 项）与 `generated_files.architecture`（当前 22 项）。

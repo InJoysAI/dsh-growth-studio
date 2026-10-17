@@ -1,9 +1,9 @@
 # 风险与技术债务 (Risks and Technical Debt)
 
 > **Metadata**
-> - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.3.0）
+> - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.4.4）
 > - **Generated At**: `2026-10-16 09:44`
-> - **Updated At**: `2026-10-16 16:46`
+> - **Updated At**: `2026-10-17 09:21`
 > - **Generator**: `Context-Agent v1.0`
 
 > ⚠️ **本文只记录源文档中有明确依据的风险与债务**。源文档未提供的字段标注 `N/A – 源文档未提供`，
@@ -46,7 +46,7 @@
 | **风险等级** | **高风险** |
 | **负责人** | N/A – 源文档未提供 |
 | **描述** | AI 幻觉或误操作触发正式发布 / 群发，造成不可撤销的对外影响。 |
-| **缓解措施** | ① 从**所有**工具白名单、RPC 端点与文档中**彻底删除** `ops_publish_now`，使其**不存在于 catalog**，因此**无法构造调用**；② 保留平台原生确认发布步骤（Human-in-the-Loop）；③ 预填止步于平台原生「保存为草稿」；④ BrowserOS 驱动动作白名单仅开放 `tabs / navigate / snapshot / act`，禁用 shell/cmd。 |
+| **缓解措施** | ① 从**所有**工具白名单、RPC 端点与文档中**彻底删除** `ops_publish_now`，使其**不存在于 catalog**，因此**无法构造调用**；② 保留平台原生确认发布步骤（Human-in-the-Loop）；③ 预填止步于平台原生「保存为草稿」；④ BrowserOS 能力开关仅决定可调用工具，不解除「禁止自动发布 / Cookie 零外发」业务守卫。 |
 | **应急预案** | 在平台后台人工撤回；本插件不提供发布能力，故无需回滚代码路径。 |
 
 #### RISK-003: 会话状态假阳性（工作台显示「就绪」但实际未登录）
@@ -189,7 +189,7 @@
 |------|-----|
 | **类型** | 文档债务 / 实现债务 |
 | **严重性** | 中 |
-| **描述** | 架构文档 §3 已定义契约、但**仍未实现**的方法：`workbench.generateCalendar`、`calendar.list`、`calendar.updateStatus`、`workbench.exportCalendar`、`workbench.importCalendar`、`workbench.sinkToInjoysDoc`、`tools.catalog`、`tools.toggle`、`tools.executeSandbox`、`tools.telemetry`。 |
+| **描述** | 架构文档 §3 已定义契约、但**仍未实现**的方法：`workbench.generateCalendar`、`calendar.list`、`calendar.updateStatus`、`workbench.exportCalendar`、`workbench.importCalendar`、`workbench.sinkToInjoysDoc`、`tools.catalog`、`tools.toggle`、`tools.executeSandbox`、`tools.telemetry`；以及 v1.4.1 补齐的**字段级未实现**：`browseros.capabilities`（§3.12.3，`src/` 无此方法）、`injoys.test.documentCount`（`src/ops-rpc.ts` 当前仅返回 `{ connected; latencyMs; message }`）、`statuses.loginUrl`（`src/types.ts` `PlatformSessionStatus` 无此字段）。 |
 | **影响** | 排期、显式物料沉淀、AI 工具中枢尚未可用；草稿版本历史已由 MVP 裁决移出范围；文档与实现存在落差，易被误读为「已实现」。 |
 | **目标解决时间** | N/A – 源文档未提供（见 `.context/domain/source/development_plan.md` 阶段划分） |
 | **解决方案** | 按 criterion §6 的 **SSoT-first** 顺序：先补 `src/types.ts` 契约 → 再补 `src/ops-rpc.ts` 方法契约 → 再实现 Adapter / 领域服务 → 最后接客户端 UI 与测试。 |
@@ -315,16 +315,16 @@
 | **解决方案** | 按 criterion §6 SSoT-first：在契约提案中统一为**单一「未找到」码**（建议保留 `ops/not-found`，将 `workbench.prefillDraft` 的 `ops/draft-not-found` 并入），并同步 `api_strategy.md` §2.3、`cross_cutting_concepts.md` 与调用方；**不在资产侧擅自改契约或删码**。 |
 | **估算工作量** | N/A – 源文档未提供 |
 
-### TD-012: BrowserOS 动作白名单契约与实现不一致（**安全边界缺口**）
+### TD-012: BrowserOS 能力开关契约与实现尚未对齐（**安全边界缺口**）
 
 | 属性 | 值 |
 |------|-----|
 | **类型** | 安全契约债务 / 实现债务 |
 | **严重性** | **高** |
-| **描述** | criterion §4「最小权限」声明 BrowserOS 驱动**仅允许** `tabs / navigate / snapshot / act` 白名单动作、禁用 shell/cmd（`criterion.md` §4），且该断言在 `security_policy.md`、`constraints.md`、`context_view.md`、`system_design.md`、`container_component_view.md`（组件表与容器图两处）、`risks_and_debt.md` RISK-002 缓解措施中共约 8 处复述。实现侧：`src/browser/browseros-bridge.ts` 的 `EXPECTED_TOOLS = ['tabs','navigate','snapshot','act','read','grep','wait']`（比白名单多 3 个），`src/browser/browser-driver.ts` 调用 `upload`，`src/browser/browseros-ops.ts` 调用 `read` / `wait`；`src/` 内**无任何动作白名单校验实现**（`grep 白名单/whitelist/allowedTools` 为空）。 |
-| **影响** | 最小权限边界在文档层是"封闭白名单"、实现层是开放集合：AI 按 criterion 实施会误判既有能力合法，安全审查也无法据此定位越界动作。 |
+| **描述** | criterion §4「最小权限」现行口径为**能力开关模型**（默认八项 `tabs/navigate/snapshot/act/read/grep/wait/upload`、其余默认关闭可手动开启、`shell`/`cmd` 若暴露同样由用户管理），由 TAD §3.12 定义契约。实现侧：`src/browser/browseros-bridge.ts` 的 `EXPECTED_TOOLS` 现为固定 7 项（缺 `upload`），`src/browser/browser-driver.ts` 调用 `upload`；`src/` 内**尚无能力开关与统一执行检查实现**（无 `browserosCapabilities` 配置字段、无 `browseros.capabilities` 方法、无 `browser/capability-disabled` 等错误码）。 |
+| **影响** | 能力开关是当前最小权限权威口径，但实现层仍是「开放集合 + 无宿主侧检查」；AI 按 criterion/TAD 实施会误判能力开关已生效，安全审查也无法据此定位越界调用。 |
 | **目标解决时间** | N/A – 源文档未提供 |
-| **解决方案** | 按 criterion §6 / §7.1 SSoT-first，**同轮定稿**：① 改 criterion §4 权威口径（确认 `read`/`grep`/`wait`/`upload` 是否纳入允许集，还是收紧为仅四动作）；② 对齐 `browseros-bridge.ts` 的 `EXPECTED_TOOLS` 与 `browser-driver.ts` / `browseros-ops.ts` 调用点，并补宿主侧白名单校验；③ 同步上述 8 处复述文案。⛔ **不得只改资产文案**（会造成文档-实现继续分叉）。 |
+| **解决方案** | 按 criterion §6 / §7.1 SSoT-first：① 在 `src/types.ts` + `src/config-store.ts` 落 `browserosCapabilities` 字段与默认八项解析（`Set.has` + `hasOwnProperty` 空值短路）；② 在 `browseros-bridge.ts` 的 `callTool` 统一入口集中检查「存在/启用/连接可用」，Adapter 禁止绕过；③ 在 `src/ops-rpc.ts` 落 `browseros.capabilities` 方法与 `browser/capability-disabled` / `browser/tool-unavailable` / `browser/not-connected` 三个错误码；④ 同步测试覆盖默认八项、显式关闭重启保持、禁用拒绝、两层开关同时满足。 |
 | **估算工作量** | N/A – 源文档未提供 |
 
 ### TD-013: criterion 文件权限约束无实现落点
@@ -351,6 +351,18 @@
 | **解决方案** | 补客户端消费测试：对 `callOpsRpc`（`POST /api/ops` 请求构造、错误码透传）与 `unwrapRpcResult`（`ok/result/error` 解包、失败抛出）建立用例，并可加一条「宿主响应形状 ↔ 客户端解包」契约用例。属测试/实现变更，须走提案。 |
 | **估算工作量** | N/A – 源文档未提供 |
 
+### TD-015: `PlatformId` 含 `xiaohongshu`（9 值）但适配器未注册
+
+| 属性 | 值 |
+|------|-----|
+| **类型** | 契约 / 实现债务 |
+| **严重性** | 中 |
+| **描述** | 源文档 §4.1（v1.4.4）与 criterion §5.5 的 `PlatformId` 已含 `xiaohongshu`（9 值），但 `src/adapters/registry.ts` 构造函数只注册 8 个适配器（`WeChatArticleAdapter` / `BilibiliVideoAdapter` / `ChannelsVideoAdapter` / `DouyinVideoAdapter` / `YouTubeAdapter` / `TikTokAdapter` / `TwitterXAdapter` / `ProductHuntAdapter`），`src/adapters/` 无 `XiaohongshuAdapter`。 |
+| **影响** | `AdapterRegistry.get('xiaohongshu')` 返回空；`workbench.prefillDraft` 对 `xiaohongshu` 命中 `ops/platform-unsupported`。契约（枚举 9 值）与实现（8 个适配器）存在「枚举声明 vs 适配器注册」落差。 |
+| **目标解决时间** | N/A – 源文档未提供（需先确认 `xiaohongshu` 是否属 Phase 0/1 交付范围） |
+| **解决方案** | 二选一：① 若近期不需 `xiaohongshu`，维持现状并保留本债务条目（不改契约枚举，避免与 criterion §5.5 冲突）；② 若需支持，新增 `XiaohongshuAdapter`（`src/adapters/`）并经 `AdapterRegistry` 注册、补测试。二者均属**新增能力 / 实现变更**，须走 SSoT-first 提案。 |
+| **估算工作量** | N/A – 源文档未提供 |
+
 > ⚠️ 本文档**只记录债务，不在架构资产内修改实现**。生成资产已忠实于源文档契约；
 > 修复须由实现侧按 criterion §6 的顺序完成。
 
@@ -362,7 +374,7 @@
 |----|------|------|--------------|--------|------|---------|
 | RISK-001 | 风险 | 状态真实性被绕过 | 极高 | N/A | 已由契约守卫缓解 | 2026-10-16 |
 | RISK-002 | 风险 | 误发布 / 不可控群发 | 高 | N/A | 已由能力移除缓解 | 2026-10-16 |
-| RISK-003 | 风险 | 会话状态假阳性 | 高 | N/A | 已由统一实例缓解 | 2026-10-16 |
+| RISK-003 | 风险 | 会话状态假阳性 | 高 | N/A | 未缓解 / 待修复（Cookie 探测分支待提案移除） | 2026-10-16 |
 | RISK-004 | 风险 | 配置切换竞态跨库覆盖 | 高 | N/A | 已由目录固定缓解 | 2026-10-16 |
 | RISK-005 | 风险 | 存储不可用误报 | 中 | N/A | 已由前置校验缓解 | 2026-10-16 |
 | RISK-006 | 风险 | 指标汇总以偏概全 | 中 | N/A | 已由可空口径缓解 | 2026-10-16 |
@@ -383,9 +395,10 @@
 | TD-009 | 技术债 | `ops_generate_review` 以字面量 `doc_review` 冒充文档编号（**虚报成功**） | **高** | N/A | **待处理（优先）** | 2026-10-16 |
 | TD-010 | 技术债 | `calendar/` 与 `metrics/` 持久化契约未落地 | 中 | N/A | 待处理 | 2026-10-16 |
 | TD-011 | 技术债 | 错误码 `ops/not-found` 与 `ops/draft-not-found` 语义重复 | 低 | N/A | 待处理 | 2026-10-16 |
-| TD-012 | 技术债 | BrowserOS 动作白名单契约与实现不一致（安全边界缺口） | 高 | N/A | 待处理 | 2026-10-16 |
+| TD-012 | 技术债 | BrowserOS 能力开关契约与实现尚未对齐（安全边界缺口） | 高 | N/A | 待处理 | 2026-10-16 |
 | TD-013 | 技术债 | criterion 文件权限约束无实现落点 | 中 | N/A | 待处理 | 2026-10-16 |
 | TD-014 | 技术债 | 客户端 RPC 消费无测试覆盖（契约同步机制未闭环） | 中 | N/A | 待处理 | 2026-10-16 |
+| TD-015 | 技术债 | `PlatformId` 含 `xiaohongshu`（9 值）但适配器未注册 | 中 | N/A | 待处理 | 2026-10-17 |
 
 ---
 

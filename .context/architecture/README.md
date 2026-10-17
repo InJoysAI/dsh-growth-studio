@@ -1,9 +1,9 @@
 # .context/architecture/ — 架构上下文
 
 > **Metadata**
-> - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.3.0）
+> - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.4.4）
 > - **Generated At**: `2026-10-16 09:44`
-> - **Updated At**: `2026-10-16 16:46`
+> - **Updated At**: `2026-10-17 08:51`
 > - **Generator**: `Context-Agent v1.0`
 
 ---
@@ -12,7 +12,7 @@
 
 | 文件 | 内容概要 |
 |------|---------|
-| `source/technical_architecture.md` | 技术架构设计说明书 v1.3.0：5 层架构（客户端视图层 / 宿主 RPC 网关层 / 业务领域服务层 / 外部 MCP 集成层 / 本地持久化基础设施层）、`POST /api/ops` RPC 信封契约、领域实体与状态机、统一 BrowserOS 实例方案、仅预填的人机协同发布闭环、Injoys 分阶段同步策略、设计令牌约束与安全治理 |
+| `source/technical_architecture.md` | 技术架构设计说明书 v1.4.4：5 层架构（客户端视图层 / 宿主 RPC 网关层 / 业务领域服务层 / 外部 MCP 集成层 / 本地持久化基础设施层）、`POST /api/ops` RPC 信封契约、领域实体与状态机、统一 BrowserOS 实例方案、仅预填的人机协同发布闭环、Injoys 分阶段同步策略、设计令牌约束与安全治理 |
 
 > 本项目 `docs/` 下**没有** `docs/architecture.md`；上述文件为唯一权威架构输入。
 > ⚠️ **若下方总结与 `source/` 冲突，以 `source/` 目录中的源文档为准。**
@@ -51,7 +51,7 @@
 | 文件 | 用途 |
 |------|------|
 | `constraints.md` | **约束条件** —— 技术/组织/合规约束、技术标准、SSoT 契约先行、**四条架构铁律**与"绝对禁止的技术引入"清单 |
-| `risks_and_debt.md` | **技术风险与技术债务** —— 12 条风险（含风险矩阵与缓解措施）、14 项技术债（含 TD-007「`workbench.overview` 未实现部分缺失汇总语义」、TD-008「生成路径未授权写入 Injoys 文档」、TD-009「`ops_generate_review` 假文档编号」、TD-012「BrowserOS 动作白名单契约与实现不一致」等高严重性条目）、追踪看板 |
+| `risks_and_debt.md` | **技术风险与技术债务** —— 12 条风险（含风险矩阵与缓解措施）、15 项技术债（含 TD-007「`workbench.overview` 未实现部分缺失汇总语义」、TD-008「生成路径未授权写入 Injoys 文档」、TD-009「`ops_generate_review` 假文档编号」、TD-012「BrowserOS 能力开关契约与实现尚未对齐」、TD-015「`PlatformId` 含 `xiaohongshu` 但适配器未注册」等高严重性条目）、追踪看板 |
 | `introduction_and_goals.md` | **介绍与目标** —— 业务驱动力、Top 5 质量目标与取舍取向、6 个质量场景、利益相关者矩阵、阶段范围 |
 
 ### 架构决策记录 (ADR)
@@ -66,6 +66,7 @@
 | `adr_006_product_switch_context_only.md` | 产品切换仅切换生成上下文，**不做数据隔离** |
 | `adr_007_manual_refresh_no_persistent_connection.md` | 手动刷新 + 局部替换 + in-flight 去重，**无持久连接** |
 | `adr_008_version_snapshot_storage.md` | MVP 只保留当前草稿；不提供历史版本与快照（原文件名保留追溯） |
+| `adr_009_browseros_capability_management.md` | BrowserOS 能力开关取代固定动作白名单（默认八项、全部可开关、宿主统一检查） |
 
 ---
 
@@ -88,7 +89,7 @@
 > ⚠️ **总结与源文档冲突时，以 `source/` 为准。**
 > ⚠️ **约束冲突时，以 `../criterion.md` 为准。**
 > ⚠️ 源文档**未提供**的信息已如实标注 `N/A – 源文档未提供`，**未编造**内容填充模板。
-> 📌 是否已生成见 `../context-manifest.json` 的 `generated_files.architecture`（当前 21 项）；`pending_generation` 现仅含 `openspec` 两项。
+> 📌 是否已生成见 `../context-manifest.json` 的 `generated_files.architecture`（当前 22 项）；`pending_generation` 现为 `{}`（已全部生成）。
 
 > 📌 `deployment_view.md` **未生成**：本项目为宿主内单机插件，无云基础设施 / 容器编排 / CI 环境分层，
 > 部署拓扑已并入 `system_design.md` §部署拓扑（源文档无依据支撑独立部署视图，不生成空壳）。

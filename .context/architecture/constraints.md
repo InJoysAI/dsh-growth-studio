@@ -1,9 +1,9 @@
 # 架构约束 (Constraints)
 
 > **Metadata**
-> - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.3.0）
+> - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.4.4）
 > - **Generated At**: `2026-10-16 09:44`
-> - **Updated At**: `2026-10-16 11:05`
+> - **Updated At**: `2026-10-17 08:51`
 > - **Generator**: `Context-Agent v1.0`
 
 > ⚠️ **约束的权威来源是 `.context/criterion.md`**。本文为其结构化摘录与背景说明。
@@ -21,7 +21,7 @@
 | **UI 框架** | **React 18** + esbuild 打包 | criterion §3.1 |
 | **数据层** | **禁止数据库 / ORM / Schema 迁移** —— 本地 JSON 文件 | 个人开发者单机场景；criterion §7.3 |
 | **RPC 协议** | **自研信封** `POST /api/ops`，**非** REST / OpenAPI / gRPC | 非 schema 驱动，无跨语言外部消费方，Codegen 无收益 |
-| **动作白名单** | BrowserOS 仅允许 `tabs / navigate / snapshot / act`；**禁用 shell/cmd** | 最小权限；criterion §4 |
+| **BrowserOS 能力开关** | 复用现有工具清单；默认八项 `tabs/navigate/snapshot/act/read/grep/wait/upload`，其余实际暴露工具默认关闭、可手动开启；`shell`/`cmd` 若暴露同样由用户管理 | 最小权限；criterion §4 / TAD §3.12 |
 | **会话模型** | **统一 BrowserOS 实例**；禁止探取日用 Chrome Cookie 库 | 实例一致性 + WAL 完整性 + 隐私 |
 | **刷新机制** | 手动触发 + 局部替换 + in-flight 去重；**禁止 WebSocket / SSE / 后台轮询** | 避免宿主内常驻连接 |
 | **样式方案** | 必须使用 DSH 设计令牌 `var(--dsw-alias-*)` | 主题一致性；criterion §3.1 |

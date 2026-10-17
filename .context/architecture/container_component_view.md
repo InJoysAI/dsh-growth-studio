@@ -1,9 +1,9 @@
 # 容器与组件视图 (Container and Component View)
 
 > **Metadata**
-> - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.3.0 §1.1、§2、§3）
+> - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.4.4 §1.1、§2、§3）
 > - **Generated At**: `2026-10-16 09:44`
-> - **Updated At**: `2026-10-16 11:53`
+> - **Updated At**: `2026-10-17 08:51`
 > - **Generator**: `Context-Agent v1.0`
 
 > ⚠️ 本项目的「容器」不是 Docker 容器，而是 **C4 语义下的运行时单元**（客户端 / 宿主进程 / 外部服务 / 本地存储）。
@@ -24,7 +24,7 @@ C4Container
         Container(domain, "业务领域服务层", "Node.js / TypeScript + Cordis 4.x", "Draft / Calendar / Metrics / Session / ToolHub / Content / Feedback 服务")
         Container(adapters, "平台适配器层", "TypeScript (Adapter Pattern)", "按平台解耦的预填与采集差异")
         Container(injoys, "InjoysClient", "TypeScript", "JSON-RPC 2.0 客户端代理 + 热更新 + 按目标隔离缓存")
-        Container(bos, "BrowserOSClient", "TypeScript", "浏览器控制驱动（动作白名单）")
+        Container(bos, "BrowserOSClient", "TypeScript", "浏览器控制驱动（能力开关 + 统一执行检查）")
         ContainerDb(cfg, "ConfigStore", "本地 JSON", "ops-manager/config.json")
         ContainerDb(store, "DraftStore", "本地 JSON", "growth-studio/drafts/（仅当前草稿）")
     }
@@ -43,7 +43,7 @@ C4Container
     Rel(domain, injoys, "调用", "进程内调用")
     Rel(domain, bos, "调用", "进程内调用")
     Rel(injoys, injoys_mcp, "knowledge / spreadsheet / document", "JSON-RPC 2.0 / HTTPS")
-    Rel(bos, bos_mcp, "tabs / navigate / snapshot / act", "MCP")
+    Rel(bos, bos_mcp, "默认八项能力 + 可开关扩展", "MCP")
     Rel(bos_mcp, platforms, "在真实会话中操作平台后台", "CDP")
     Rel(ui, dsh, "槽位注入 settings.section", "Cordis slots")
 ```
@@ -59,7 +59,7 @@ C4Container
 | **业务领域服务层** | Node.js / TypeScript + Cordis 4.x | 领域逻辑；平台分支**禁止**出现在此层 | `src/` |
 | **平台适配器层** | TypeScript | 按平台解耦（8 个已注册适配器） | `src/adapters/` |
 | **InjoysClient** | TypeScript | JSON-RPC 2.0 / HTTP；热更新（`updateConfig`）；按目标隔离缓存 | `src/injoys/` |
-| **BrowserOSClient** | TypeScript | 会话哨兵与浏览器驱动；动作白名单 | `src/browser/` |
+| **BrowserOSClient** | TypeScript | 会话哨兵与浏览器驱动；能力开关 + 统一执行检查 | `src/browser/` |
 | **ConfigStore** | 本地 JSON | 配置读写；`resolveDshHome` 路径解析 | `src/config-store.ts` |
 | **DraftStore** | 本地 JSON | 草稿持久化；原子写 + 串行写锁 + 乐观锁 | `src/storage/draft-store.ts` |
 
@@ -178,7 +178,7 @@ C4Component
 | 宿主 RPC | **手写 TypeScript 契约**（非 OpenAPI） | `src/ops-rpc.ts` + `src/types.ts` |
 | 客户端消费方 | 手写 JS | `plugin-src/management-rpc.mjs`、`plugin-src/client/ops-page.js` |
 | Injoys | JSON-RPC 2.0 | 源文档 §3.10、§5.3 |
-| BrowserOS | MCP 动作白名单 | `tabs` / `navigate` / `snapshot` / `act` |
+| BrowserOS | MCP 能力开关 | 默认八项，其余默认关闭可手动开启 |
 | 领域类型 | TypeScript 权威定义 | `src/types.ts`（criterion §5.5） |
 
 > **无 OpenAPI / gRPC / TypeSpec**：协议为自研信封、无 schema 源可生成，客户端为 JavaScript 不共享 TS 类型，Codegen 无收益（criterion §7.2）。

@@ -1,9 +1,9 @@
 # 数据架构 (Data Architecture)
 
 > **Metadata**
-> - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.3.0 §4、§5.3）
+> - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.4.4 §4、§5.3）
 > - **Generated At**: `2026-10-16 09:44`
-> - **Updated At**: `2026-10-16 11:05`
+> - **Updated At**: `2026-10-17 08:51`
 > - **Generator**: `Context-Agent v1.0`
 
 > ⚠️ **权威定义在 `src/types.ts`**（criterion §5.5）。若本文与源文档冲突，**以源文档为准**。
@@ -26,6 +26,7 @@ erDiagram
     CALENDAR_ITEM }o--o| INJOYS_ROW : "externalRowId 导出/导入"
     PLATFORM_METRICS }o--|| PLATFORM : "属于平台账号"
     METRICS_SNAPSHOT ||--o{ PLATFORM_METRICS : "按日归档"
+    USER_FEEDBACK }o--|| PLATFORM : "按平台归属"
 ```
 
 ### 核心实体
@@ -35,6 +36,7 @@ erDiagram
 | **`CalendarItem`** | 排期项（本地持久化单一排期行） | `documentId` → `ContentDraft`（可空）；`externalRowId` ↔ Injoys 表格行 |
 | **`ContentDraft`** | 本地持久化草稿实体 | MVP 只保留当前内容；按渠道持有 `prefillResults` / `publishedUrls` |
 | **`PlatformMetrics`** | 跨平台真实指标（**可空语义**） | 属于平台账号，**全局共享**（不随产品切换） |
+| **`UserFeedbackItem`** | 受众反馈条目（评论抓取后聚类提炼，PRD §5.6） | 被 `workbench.overview.feedbackItems` 聚合引用 |
 | **`OpsConfig`** | 插件配置 | 独立于业务实体 |
 
 ---
@@ -132,6 +134,22 @@ export interface PlatformMetrics {
   views: number            // 兼容性字段: impressions ?? plays ?? 0
 }
 ```
+
+### `UserFeedbackItem`
+
+```typescript
+export interface UserFeedbackItem {
+  id: string
+  platform: PlatformId
+  category: 'bug' | 'feature_request' | 'praise' | 'complaint' | 'question'
+  rawComment: string      // 原始评论摘录，用于追溯
+  summary: string         // 提炼后的需求摘要
+  priority: 'low' | 'medium' | 'high'
+  addressedInVersion?: string  // 已在哪个版本处理
+}
+```
+
+> 源文档 §4.1 定义（v1.4.1 补齐）；`workbench.overview.feedbackItems` 引用。实现侧 `src/types.ts` 已落地该类型（`category` 五值 / `priority` 三值一致），被 `src/feedback/issue-extractor.ts`、`src/injoys/client.ts` 消费。
 
 > ⚠️ **`windowStart` / `windowEnd` 状态说明（源文档先有、实现待补）**：
 > 这两个字段由**源文档 §4.1 定义**（用于表达「采集时刻 ≠ 指标所属周期」），

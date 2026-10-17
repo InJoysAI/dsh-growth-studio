@@ -4,11 +4,13 @@
 >
 > | 属性 | 值 |
 > | :--- | :--- |
-> | **文档版本** | v1.4.3 |
+> | **文档版本** | v1.4.4 |
 > | **对应 PRD 基线** | `.context/domain/source/product_requirements.md` **v1.2.2**（MVP 简化裁决版 Approved Baseline） |
 > | **状态** | 评审整改版 |
 > | **初次编写** | 2026-10-13 |
-> | **本次修订** | 2026-10-17（用户裁决 A-1～A-3；追加 BrowserOS 能力管理方案；补齐 PRD↔TAD 契约缺口；收窄 P2-2/P2-6 文案、明确 P2-3 Profile 归属、补 P2-5 映射表；修正映射表目标/现状混用与旧指标卡名） |
+> | **本次修订** | 2026-10-17（用户裁决 A-1～A-3；追加 BrowserOS 能力管理方案；补齐 PRD↔TAD 契约缺口；收窄 P2-2/P2-6 文案、明确 P2-3 Profile 归属、补 P2-5 映射表；修正映射表目标/现状混用与旧指标卡名；补齐 PlatformId 9 值与 expectedVersion） |
+>
+> **v1.4.4 的修订（2026-10-17，U1/U2 契约补齐）**：§4.1 `PlatformId` 补 `xiaohongshu`（9 值，与 criterion §5.5 对齐）；§3.2.3 `SaveDraftRequest` 补可选 `expectedVersion?: number`（乐观锁，与 `ops/concurrency-conflict` 冲突响应一致）。
 >
 > **v1.4.3 的修订（2026-10-17，P2-5 映射表收口）**：§3.13 映射表将「领域服务/外部依赖/主数据位置」三列明确为**目标口径**，并在「当前实现差距」逐条写清现状（`ops_inspect_sessions` 未注册、`ops_draft_article`/`ops_draft_launch_kit` 存在未授权 Injoys 写入、`ops_discover_trends` 用本地模板未接真实搜索、`ops_generate_review` 假编号回退等）；同步 §3.1 指标卡注释由「互动与线索转化」改为「互动与关注增长」。
 >
@@ -281,6 +283,8 @@ DSH Desktop 客户端通过 Cordis `slots` 注入扩展机制工作：
 * **请求参数**：
   ```typescript
   interface SaveDraftRequest {
+    /** 乐观锁：期望的当前版本号，用于并发控制（criterion §3.5）。缺省时不校验；与当前版本不一致返回 ops/concurrency-conflict */
+    expectedVersion?: number
     draft: {
       id?: string
       title: string
@@ -992,6 +996,7 @@ export type PlatformId =
   | 'wechat_channels'
   | 'bilibili'
   | 'douyin'
+  | 'xiaohongshu'
   | 'youtube'
   | 'twitter_x'
   | 'product_hunt'

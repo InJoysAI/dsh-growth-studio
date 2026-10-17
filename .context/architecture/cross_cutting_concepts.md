@@ -1,9 +1,9 @@
 # 跨切面概念 (Cross-cutting Concepts)
 
 > **Metadata**
-> - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.3.0 §3.9、§5.5、§六）
+> - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.4.4 §3.9、§5.5、§六）
 > - **Generated At**: `2026-10-16 09:44`
-> - **Updated At**: `2026-10-16 11:53`
+> - **Updated At**: `2026-10-17 08:51`
 > - **Generator**: `Context-Agent v1.0`
 
 > 源文档未定义完整的可观测性体系（无 Prometheus / Jaeger / 日志级别规范）。
@@ -40,6 +40,9 @@ interface RpcEnvelopeResponse<T = unknown> {
 | `config/invalid-drafts-dir` | 前置目录校验失败 | 配置服务（**单独使用**） |
 | `calendar/invalid-transition` | 越级 / 回退 / 写 `published` | 排期服务 |
 | `tools/disabled` | 工具被白名单禁用 | 工具沙箱 |
+| `browser/capability-disabled` | BrowserOS 工具存在但能力开关关闭 | BrowserOS 调用统一入口 |
+| `browser/tool-unavailable` | BrowserOS 工具未暴露 | BrowserOS 调用统一入口 |
+| `browser/not-connected` | BrowserOS 未连接 / 未接入 | BrowserOS 调用统一入口 |
 | `ops/unknown-method` | 方法名未登记 | 方法路由 |
 | `ops/not-found` | 按 ID 未找到草稿 | `drafts.get` |
 | `ops/concurrency-conflict` | 乐观锁版本冲突 | `drafts.save` |
@@ -186,6 +189,7 @@ interface TelemetryEntry {
 | 类型 | 存储位置 | 更新方式 |
 |------|---------|---------|
 | **应用配置（`OpsConfig`）** | `$DSH_HOME/ops-manager/config.json` | **热更新**（`config.save` 后立即生效，无需重启） |
+| **BrowserOS 能力开关（`browserosCapabilities`）** | 同上（可选字段） | 默认八项；用户显式保存优先、重启不重置；缺失时按默认集合解析 |
 | **Injoys 令牌** | 同上（⛔ **无内置默认值**） | 用户配置或环境变量 `INJOYS_MCP_TOKEN` 回退 |
 | **Injoys 端点** | 同上 | 用户配置或环境变量 `INJOYS_MCP_ENDPOINT` 回退 |
 | **草稿目录** | 同上（`draftsDir`） | 改后**立即生效**；改动前须**校验可写** |

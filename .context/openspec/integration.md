@@ -35,6 +35,7 @@
   - `.context/architecture/adr_006_product_switch_context_only.md`
   - `.context/architecture/adr_007_manual_refresh_no_persistent_connection.md`
   - `.context/architecture/adr_008_version_snapshot_storage.md`
+  - `.context/architecture/adr_009_browseros_capability_management.md`
 - Domain (8 个文件):
   - `.context/domain/README.md`
   - `.context/domain/business_rules.md`

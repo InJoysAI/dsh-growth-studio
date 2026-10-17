@@ -1,9 +1,9 @@
 # 安全策略 (Security Policy)
 
 > **Metadata**
-> - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.3.0 §5.2、§5.3、§六）
+> - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.4.4 §5.2、§5.3、§六）
 > - **Generated At**: `2026-10-16 09:44`
-> - **Updated At**: `2026-10-16 11:05`
+> - **Updated At**: `2026-10-17 08:51`
 > - **Generator**: `Context-Agent v1.0`
 
 > **NFR/Security 权威说明**：架构文档为安全策略的**权威来源**。PRD 中若含安全 / NFR 内容，仅作为补充引用，**不覆盖**架构决策。
@@ -49,7 +49,7 @@
 | 方案 | 用途 | 说明 |
 |------|------|------|
 | **Bearer Token** | Injoys MCP | 须校验 HTTP 状态码与 `result.isError` |
-| **BrowserOS MCP** | 浏览器执行 | 本地实例，动作白名单控制（非认证） |
+| **BrowserOS MCP** | 浏览器执行 | 本地实例，能力开关控制（非认证） |
 | **无 mTLS / API Key** | N/A | 无服务网格、无内部服务间调用 |
 
 ---
@@ -66,7 +66,7 @@
 |------|------|---------|
 | **工具白名单** | `enabled === false` 的工具必须拒绝执行 | **宿主侧**（不依赖前端隐藏按钮） |
 | **发布能力** | 发布类工具**不存在于 catalog**，无法构造调用 | 宿主侧（能力缺失即最强约束） |
-| **BrowserOS 动作白名单** | 仅允许 `tabs / navigate / snapshot / act` | 宿主侧；**禁用 shell/cmd** |
+| **BrowserOS 能力开关** | 默认八项启用、其余默认关闭可手动开启；调用前集中检查「存在/启用/连接可用」 | 宿主侧（统一入口，禁止绕过） |
 | **渠道成员校验** | 回填 `platform` 必须属于该草稿的 `channelVariants` | 宿主侧；否则 `drafts/unknown-channel`，**不写盘、不递增版本** |
 | **状态写入授权** | `published` 只能经 `drafts.updatePublishUrl` 写入 | 宿主侧契约守卫 |
 | **服务端治理字段** | `drafts.save` 必须**忽略**调用方传入的 `publishedUrls` | 宿主侧 |
@@ -105,7 +105,7 @@
 |---------|---------|------|
 | **Injoys Token** | 配置文件存储，**文件系统权限仅限当前操作系统用户** | 源文档 §六.1 |
 | **草稿内容** | 同上（本地用户目录） | 源文档 §六.1 |
-| **平台 Cookie / 会话** | **不落本插件**，由 BrowserOS 实例 Profile 持有 | 源文档 §5.1.2、§六.2 |
+| **平台 Cookie / 会话** | **不落本插件**，由 BrowserOS 实例 Profile 持有（⚠️ `reuseHostBrowserProfile` 为待废弃历史配置，见 §5.1.3） | 源文档 §5.1.2、§5.1.3、§六.2 |
 
 ---
 
@@ -158,6 +158,9 @@
 | **四态返回** | 严格返回 `unknown` / `needs_login` / `authenticated` / `no_publish_permission` |
 | **严禁** | 退化为 boolean（criterion §5.5） |
 | **理由** | 杜绝「工作台显示就绪但实际未登录」的假阳性 —— 假就绪会让用户在预填失败后才发现，浪费一轮操作 |
+| **Profile 归属（§5.1.3）** | 复用**当前连接的 BrowserOS 实例**；Profile 创建/路径/隔离由 BrowserOS 或宿主管理，插件不自行读取日用浏览器 Cookie、不切换 Profile |
+
+> ⚠️ **实现偏差（已登记，见源文档 §5.1.3）**：`src/ops-rpc.ts` 的 `browser.sessions` 在 `reuseHostBrowserProfile`（默认 true）开启时仍走读取本机浏览器 Cookie 的探测分支，**不能把 Cookie 存在当成 BrowserOS 已认证证据**；须后续提案移除该分支，`reuseHostBrowserProfile` 经兼容方案退出。
 
 ---
 

@@ -1,9 +1,9 @@
 # API 策略与接口契约 (API Strategy)
 
 > **Metadata**
-> - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.3.0 §2.2、§3）
+> - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.4.4 §2.2、§3）
 > - **Generated At**: `2026-10-16 09:44`
-> - **Updated At**: `2026-10-16 14:04`
+> - **Updated At**: `2026-10-17 08:51`
 > - **Generator**: `Context-Agent v1.0`
 
 > ⚠️ 本文是源文档 §3 的**结构化总结**。契约的**权威定义在 `src/ops-rpc.ts` + `src/types.ts`**（criterion §7.1，手写 TS 契约）。
@@ -115,6 +115,9 @@ interface RpcEnvelopeResponse {
 | `config/invalid-drafts-dir` | `config.save` 前置目录准备/可写性校验失败 | `config.save` |
 | `calendar/invalid-transition` | 越级 / 回退 / 经本接口写 `published` | `calendar.updateStatus` |
 | `tools/disabled` | 工具在白名单中为 `enabled === false`（**宿主侧**强制） | `tools.executeSandbox` |
+| `browser/capability-disabled` | BrowserOS 工具存在但能力开关关闭（§3.12） | BrowserOS 调用统一入口 |
+| `browser/tool-unavailable` | BrowserOS 工具未暴露（连接未提供） | BrowserOS 调用统一入口 |
+| `browser/not-connected` | BrowserOS 未连接 / 未接入 | BrowserOS 调用统一入口 |
 | `ops/unknown-method` | 方法名未登记（网关方法路由兜底） | 全部 |
 | `ops/not-found` | 按 ID 未找到草稿 | `drafts.get` |
 | `ops/concurrency-conflict` | `expectedVersion` 与当前版本不一致（乐观锁冲突，附 `currentVersion`） | `drafts.save` |
@@ -162,7 +165,7 @@ interface WorkbenchOverviewRequest {
 | `overviewMetrics.measuredPlatforms` | `PlatformId[]` | 本窗口**成功采集**的平台 |
 | `overviewMetrics.unmeasuredPlatforms` | `PlatformId[]` | 采集失败 / 不支持的平台 |
 | `overviewMetrics.comparison` | `{ period, *DeltaPercent }` | 环比（`period` 无历史时为 `null`） |
-| `statuses` | `Array<{ id, state, isReady, ... }>` | 平台就绪状态（`state === 'authenticated'` 才算 ready） |
+| `statuses` | `Array<{ id, state, isReady, loginUrl?, ... }>` | 平台就绪状态（`state === 'authenticated'` 才算 ready；`loginUrl` 供 needs_login 时「去登录 ↗」） |
 | `calendarItems` / `trends` / `feedbackItems` | — | 聚合数据 |
 | `injoysConnected` | `boolean` | Injoys 连通性 |
 
@@ -426,7 +429,7 @@ interface SaveDraftRequest {
 - 调用方应据 `details.currentVersion` 重新拉取草稿、合并后再以新版本重试，**不得覆盖式盲写**；
 - 字段位置、可选性与冲突载荷的**权威形状**以 criterion §7.1 的 TS 契约（`src/ops-rpc.ts` + `src/types.ts`）为准。
 
-> **来源说明（需同步源文档）**：源文档 TAD §3.2.3 的 `SaveDraftRequest` 片段**未包含** `expectedVersion`（本资产此前忠实复制，故同样遗漏）。此处依 criterion §3.5 的「`version` / `expectedVersion` 乐观锁」MUST 与 §7.1 权威实现补齐。源文档 `.context/architecture/source/technical_architecture.md` 亦应经 `context-update` 同步该字段与冲突响应；否则后续重生成**存在再次遗漏该字段的风险**。
+> **来源说明**：源文档 TAD §3.2.3 已包含 `expectedVersion`（可选乐观锁字段）与 `ops/concurrency-conflict` 冲突响应载荷（TAD v1.4.x 补齐）；本资产与源文档已一致。字段位置、可选性与冲突载荷的**权威形状**仍以 criterion §7.1 的 TS 契约（`src/ops-rpc.ts` + `src/types.ts`）为准。
 
 **`published` 守卫（服务端强制）**
 
@@ -541,6 +544,7 @@ interface BrowserSessionsResponse {
     state: SessionState      // 'unknown' | 'needs_login' | 'authenticated' | 'no_publish_permission'
     isReady: boolean
     accountName?: string
+    loginUrl?: string        // 登录入口外链；needs_login 时供「去登录 ↗」（PRD §5.2.1 / §六.3）
     lastCheckedAt: string
     message: string
   }>
@@ -608,8 +612,9 @@ interface OpsConfig {
     token: string     // ⛔ 无内置默认值；仅来自用户配置或 INJOYS_MCP_TOKEN
   }
   draftsDir: string   // 缺省 $DSH_HOME/growth-studio/drafts/
-  reuseHostBrowserProfile: boolean
+  reuseHostBrowserProfile: boolean   // ⛔ 待废弃（§5.1.3 Cookie 探测偏差）
   autoSyncToInjoys: boolean
+  browserosCapabilities?: Partial<Record<string, boolean>>  // 能力开关（默认八项，见 §3.12）
 }
 ```
 
@@ -644,10 +649,10 @@ interface ConfigGetValue extends OpsConfig {
 #### `injoys.test`
 
 ```typescript
-// → { connected: boolean; latencyMs: number; message: string }
+// → { connected: boolean; latencyMs: number; documentCount: number | null; message: string }
 ```
 
-- 执行 `knowledge.list` 探活并返回延迟与文档数；
+- 执行 `knowledge.list` 探活并返回延迟与文档数（`documentCount` 为文档数；未配置令牌或探活失败时为 `null`，不得按 0 伪造）；
 - **未配置令牌**时**不得发出请求并谎报「认证失败」**，须返回明确的「尚未配置令牌」提示。
 
 ---
@@ -691,6 +696,59 @@ interface SetupScheduleParams {
 
 ---
 
+### 3.9 BrowserOS 能力管理 `browseros.capabilities` `[Phase 0 首版]`
+
+> 对应源文档 TAD §3.12。能力开关只决定「哪些 BrowserOS 底层工具可调用」，**不等于**允许自动发布或外传 Cookie。
+
+```typescript
+interface BrowserOsCapabilityDescriptor {
+  name: string               // 实际暴露的工具名（未暴露不列出、不承诺）
+  description: string        // 现有元数据能提供的描述；无则空串，不伪造
+  enabled: boolean           // 用户开关（默认值解析见源文档 TAD §3.12.2）
+  available: boolean         // 连接实时解析结果（与 enabled 独立）
+  unavailableReason?: string // available === false 时填
+}
+
+// browseros.capabilities（只读）
+// → { capabilities: BrowserOsCapabilityDescriptor[]; connected: boolean }
+```
+
+- 默认八项（默认启用集，非上限）：`tabs / navigate / snapshot / act / read / grep / wait / upload`；其余实际暴露工具默认关闭、可手动开启；不存在永久禁用项（`shell`/`cmd` 若暴露同样由用户管理）。
+- 配置读写走 `config.save`（`OpsConfig.browserosCapabilities`，见 §3.6）；本接口**不承接写操作**。
+- 错误码：`browser/capability-disabled`（工具存在但开关关）、`browser/tool-unavailable`（工具未暴露）、`browser/not-connected`（未连接）。
+- 统一执行检查：所有 BrowserOS 调用必经 `BrowserOsMcpClient.callTool` 单一入口，Adapter 禁止绕过；经 `ops_*` 调用时「运营工具开关 + 引擎能力开关」**两层同时满足**。
+- 热更新：保存后对后续新发起调用生效；在途单次调用不中断；复合操作中未发出的后续调用按最新配置检查。
+
+> **实现状态**：`browseros.capabilities` 为**文档契约**，`src/` 当前无此方法，**未实现**（见 §4「已定义但尚未实现」清单与 `risks_and_debt.md` TD-001）。
+
+---
+
+### 3.10 `ops_*` 工具 ↔ RPC 方法映射（追溯关系）
+
+> 对应源文档 TAD §3.13。`ops_*` 是 AI 调用入口，RPC 是客户端调用入口；可共享领域服务、不必互相调用。
+> 「领域服务 / 外部依赖 / 主数据位置」三列为**目标口径**，不代表当前实现已具备；现状以「当前实现差距」为准。
+
+| 工具（AI 入口） | 对应 RPC | 目标领域服务 | 目标外部依赖 | 目标主数据 | 当前实现差距 | 阶段 |
+|---|---|---|---|---|---|---|
+| `ops_plan_calendar` | `workbench.generateCalendar`（§3.3） | CalendarEngine | Injoys 读取/显式导出 | 本地 calendar | RPC 未实现 | Phase 0 |
+| `ops_discover_trends` | 无 | TrendsDiscoverer | 真实搜索 | — | 本地固定模板，未接搜索 | Phase 0 原型 |
+| `ops_keyword_research` | 无 | — | — | — | 未注册、无实现 | 未定 |
+| `ops_draft_article` | `workbench.generateArticleDraft`（§3.1） | ContentStudioEngine | Injoys 读取 | 本地 drafts | 无条件写 Injoys（TD-008） | Phase 0 |
+| `ops_draft_video_meta` | `workbench.generateVideoMeta`（§3.1） | ContentStudioEngine | — | 本地 drafts | 工具无条件写 Injoys（TD-008）；RPC 只存本地 | Phase 0 |
+| `ops_draft_launch_kit` | 无 | OverseasManager | Injoys 读取 | 本地草稿 | 无条件 saveLaunchKitDocument | Phase 2 |
+| `ops_generate_hooks` | 无 | ContentStudioEngine | — | 本地草稿 | 未注册、无实现 | 未定 |
+| `ops_push_drafts` | `workbench.prefillDraft`（§3.1，单草稿） | BrowserDriver/Adapter | BrowserOS | 平台草稿箱 | 批量入口无 RPC | Phase 0 |
+| `ops_fetch_metrics` | 与 `workbench.overview` 共用采集 | MetricsCollector | BrowserOS | 本地 metrics | overview 缺部分缺失汇总（TD-007） | Phase 0 |
+| `ops_generate_review` | 无 | ReviewReporter | Injoys 读取 | 本地指标快照 | 假编号回退（TD-009） | Phase 1 |
+| `ops_fetch_comments` | 无 | CommentsCrawler | BrowserOS | — | 无 RPC | Phase 1 |
+| `ops_extract_feedback` | 无 | IssueExtractor | Injoys 需求池 | — | 无 RPC | Phase 1 |
+| `ops_setup_schedule` | 无（宿主工具） | schedule-bridge | DSH 自动化任务中心 | — | 工具调用面 | Phase 0 |
+| `ops_inspect_sessions` | `browser.sessions`（§3.4） | SessionGuard | BrowserOS | — | 工具名未注册；RPC 已实现（含 Cookie 探测偏差） | Phase 0 |
+
+> **口径**：`目标外部依赖` 仅表示调用/读取的外部能力，**不代表主数据位置，也不代表自动写入授权**（Injoys 写入须显式触发）。
+
+---
+
 ## 4. 方法实现状态
 
 > 依据 criterion §5.4 的当前实现基线。**本文档定义 ≠ 已实现**。
@@ -714,6 +772,7 @@ interface SetupScheduleParams {
 - `workbench.generateCalendar`、`calendar.list`、`calendar.updateStatus`、`workbench.exportCalendar`、`workbench.importCalendar`
 - `workbench.sinkToInjoysDoc`
 - `tools.catalog`、`tools.toggle`、`tools.executeSandbox`、`tools.telemetry`
+- `browseros.capabilities`（BrowserOS 能力管理，§3.9；`src/` 无此方法）
 - `browser.login.startQr` / `pollQr` / `openHeadful` / `cancel`（Phase 2 愿景，**需 BrowserOS CDP PoC 验证**）
 
 > **客户端当前仅接入** `config.get`、`config.save`、`injoys.test`、`browser.sessions`；

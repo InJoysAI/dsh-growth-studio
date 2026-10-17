@@ -1,9 +1,9 @@
 # 上下文视图 (Context View)
 
 > **Metadata**
-> - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.3.0 §1.1、§5.1、§5.3）
+> - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.4.4 §1.1、§5.1、§5.3）
 > - **Generated At**: `2026-10-16 09:44`
-> - **Updated At**: `2026-10-16 13:56`
+> - **Updated At**: `2026-10-17 08:51`
 > - **Generator**: `Context-Agent v1.0`
 
 ---
@@ -63,7 +63,7 @@ C4Context
 
 | 系统 | 关键约束 |
 |------|---------|
-| **BrowserOS** | 动作白名单仅 `tabs / navigate / snapshot / act`；**禁用 shell/cmd**；会话数据**零外发** |
+| **BrowserOS** | 能力开关：默认八项 `tabs/navigate/snapshot/act/read/grep/wait/upload`、其余默认关闭可手动开启；会话数据**零外发** |
 | **Injoys** | 须校验 HTTP 状态码与 `result.isError`；令牌**无内置默认值**；未配置令牌时**不得谎报「认证失败」** |
 | **DSH 宿主** | RPC 网关强制校验信封；`ops_setup_schedule` 走**宿主工具调用**而非 RPC 方法 |
 | **内容平台** | 预填**止步于平台原生「保存为草稿」**；⛔ 不得触发或越过正式发布 |

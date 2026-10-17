@@ -1,12 +1,12 @@
-# 实现缺陷登记：P0-1 / P0-2 / TD-011 / TD-014 / BrowserOS 会话探测
+# 实现缺陷登记：P0-1 / P0-2 / TD-011 / TD-014 / BrowserOS 会话探测 / PlatformId-Adapter 缺口
 
-- **登记日期**: 2026-10-16（§6 BrowserOS 会话探测追加于 2026-10-17）
+- **登记日期**: 2026-10-16（§6 BrowserOS 会话探测、§7 PlatformId-Adapter 缺口追加于 2026-10-17）
 - **范围**: `dsh-growth-studio` 插件的宿主侧实现、客户端契约测试与 `.context/` 契约的一致性
-- **状态**: **未修复**。本文件仅为登记与取证记录；`.context/` 侧已登记（`architecture/risks_and_debt.md` 的 **TD-008 / TD-009 / TD-011 / TD-014**，其中 TD-008 / TD-009 存在覆盖缺口，见 §5；§6 的 Cookie 探测偏差对应 **RISK-003**，但该风险当前标为「已由统一实例缓解」，与实现不符，需回看）。实现侧与测试侧尚未改动。
-- **修复前置**: 变更提案所需的 `openspec/config.yaml`、`openspec/proposal-roadmap.md` 已生成（见 §7）；§6 的 Cookie 探测偏差修复仍须走 SSoT-first 提案，不得仅改文档。
+- **状态**: **未修复**。本文件仅为登记与取证记录；`.context/` 侧已登记（`architecture/risks_and_debt.md` 的 **TD-008 / TD-009 / TD-011 / TD-014 / TD-015**，其中 TD-008 / TD-009 存在覆盖缺口，见 §5；§6 的 Cookie 探测偏差对应 **RISK-003**，该风险状态已改为「未缓解 / 待修复」）。实现侧与测试侧尚未改动。
+- **修复前置**: 变更提案所需的 `openspec/config.yaml`、`openspec/proposal-roadmap.md` 已生成（见 §8）；§6 的 Cookie 探测偏差修复仍须走 SSoT-first 提案，不得仅改文档。
 - **证据口径**: 所有 `文件:行号` 写于 2026-10-16 的仓库状态，后续改动可能使行号迁移，检索时以符号名（函数名 / 错误码字面量）为准。
 
-> 权威来源：工程约束以 `.context/criterion.md` 为准；技术事实以 `.context/architecture/source/technical_architecture.md`（TAD v1.4.3）为准。本文不重复定义契约，只记录"实现与契约的落差"。
+> 权威来源：工程约束以 `.context/criterion.md` 为准；技术事实以 `.context/architecture/source/technical_architecture.md`（TAD v1.4.4）为准。本文不重复定义契约，只记录"实现与契约的落差"。
 
 ---
 
@@ -200,10 +200,12 @@
 | §2 P0-2（`ops_generate_review` + `ops_draft_launch_kit` 2 处假编号） | `architecture/risks_and_debt.md` **TD-009** | 契约 / 实现债务 | 高 |
 | §3 TD-011 | `architecture/risks_and_debt.md` **TD-011** | 契约 / 代码债务 | 低 |
 | §4 TD-014（客户端消费测试缺口） | `architecture/risks_and_debt.md` **TD-014** | 测试债务 | 中 |
-| §6 BrowserOS 会话探测（读日用 Cookie 当已认证） | `architecture/risks_and_debt.md` **RISK-003**（状态当前误标「已缓解」） | 实现偏差 / 风险 | 高 |
+| §6 BrowserOS 会话探测（读日用 Cookie 当已认证） | `architecture/risks_and_debt.md` **RISK-003**（状态已改「未缓解/待修复」） | 实现偏差 / 风险 | 高 |
+| §7 PlatformId（9 值）vs AdapterRegistry（8 适配器） | `criterion.md` §5.5 注 + `risks_and_debt.md` **TD-015**（已单列登记） | 契约 / 实现缺口 | 中 |
 
 > ⚠️ **已知覆盖缺口**：TD-008 仅登记 4 处写入站点（漏 `ops_draft_launch_kit`）；TD-009 仅登记 `ops_generate_review` 一处假编号（漏 `ops_draft_launch_kit` / `saveLaunchKitDocument`）。两处需在下次 `.context` 维护时补登（并同步 Manifest 与 history）。
-> ⚠️ **新增覆盖缺口（§6）**：RISK-003 在 `risks_and_debt.md` 的状态为「已由统一实例缓解」，但实现侧 `browser.sessions`（`reuseHostBrowserProfile` 默认 true）仍在读取日用浏览器 Cookie 判定登录态，与「统一实例探测」目标不一致；需回看并补登为「未缓解/待修复」。
+> ⚠️ **新增覆盖缺口（§6）**：RISK-003 的状态已由「已由统一实例缓解」改为「未缓解 / 待修复（Cookie 探测分支待提案移除）」，与实现侧（`browser.sessions` 在 `reuseHostBrowserProfile` 默认 true 时读日用 Cookie）一致；关闭须另起提案移除实现分支。
+> ⚠️ **新增覆盖缺口（§7）**：`xiaohongshu` 适配器未注册，已单列登记为 `risks_and_debt.md` **TD-015**（待处理）。
 
 相关但不在本文范围（已另行登记）：
 
@@ -259,15 +261,49 @@
 
 ---
 
-## 7. 修复前置：OpenSpec 资产状态
+## 7. PlatformId（9 值）与 AdapterRegistry（8 个适配器）的缺口
+
+**结论：契约已扩为 9 值，但实现仍只注册 8 个适配器，`xiaohongshu` 无适配器。**
+
+### 契约（应当怎样）
+
+| 依据 | 原文要点 |
+|---|---|
+| `.context/architecture/source/technical_architecture.md` §4.1（v1.4.4） | `PlatformId` 已补 `xiaohongshu`，共 **9 值** |
+| `.context/criterion.md` §5.5 | `PlatformId` 9 值；注「`xiaohongshu` 已列入 `PlatformId` 但尚未注册适配器」 |
+
+### 实现（实际怎样）
+
+| 位置 | 行为 |
+|---|---|
+| `src/adapters/registry.ts:182-191` | 构造函数只 `register` 8 个适配器：`WeChatArticleAdapter` / `BilibiliVideoAdapter` / `ChannelsVideoAdapter` / `DouyinVideoAdapter` / `YouTubeAdapter` / `TikTokAdapter` / `TwitterXAdapter` / `ProductHuntAdapter` |
+| `src/adapters/` | **无** `XiaohongshuAdapter` |
+
+### 影响
+
+- `PlatformId` 已允许 `xiaohongshu`，但 `AdapterRegistry.get('xiaohongshu')` 会返回空；`workbench.prefillDraft` 对 `xiaohongshu` 会命中 `ops/platform-unsupported`（`src/ops-rpc.ts`）。
+- 契约与实现存在「枚举声明 vs 适配器注册」的落差，属**已知且已登记**（criterion §5.5 注、`risks_and_debt.md` TD-001 相关）。
+
+### 建议修复方向（SSoT-first）
+
+1. 已登记为 `risks_and_debt.md` **TD-015**；若 Phase 0/1 不需 `xiaohongshu`，保持现状即可（债务条目避免被误判为遗漏）。
+2. 若需支持：新增 `XiaohongshuAdapter`（`src/adapters/`），经 `AdapterRegistry` 注册，并补测试。属**新增能力**，须走 SSoT-first 提案。
+
+### 验收口径
+
+- `PlatformId` 与 `AdapterRegistry` 的注册集合一致（要么都 8、要么都 9），且 `workbench.prefillDraft` 对未注册平台的拒绝语义（`ops/platform-unsupported`）不改变。
+
+---
+
+## 8. 修复前置：OpenSpec 资产状态
 
 2026-10-16 已生成 `openspec/config.yaml` 与 `openspec/proposal-roadmap.md`（见 `context-manifest.json#last_openspec_project`）。故本报告 §1～§4 的修复可走提案；§6 的 Cookie 探测偏差修复**同样须走 SSoT-first 提案**（先改 `criterion.md` §7.1 契约 / 类型，再实现，再测试），不得仅改文档。
 
 ---
 
-## 8. 建议的修复顺序（提案内）
+## 9. 建议的修复顺序（提案内）
 
-按 `criterion §6` 的 SSoT-first 顺序，§1～§4 可并入**同一条**修复提案（同批接口 / 工具 / 客户端契约测试）；§6 的 Cookie 探测移除建议**单列一条提案**（安全边界，与能力开关提案解耦）：
+按 `criterion §6` 的 SSoT-first 顺序，§1～§4 可并入**同一条**修复提案（同批接口 / 工具 / 客户端契约测试）；§6 的 Cookie 探测移除建议**单列一条提案**（安全边界，与能力开关提案解耦）；§7 的 `xiaohongshu` 适配器缺口**单列**（新增能力，需先确认 Phase 范围）：
 
 ```
 §1～§4（写入边界 / 假编号 / 错误码 / 客户端测试）:
@@ -286,6 +322,9 @@
   src/config-store.ts（reuseHostBrowserProfile 兼容退出）
       ↓
   .context 资产回填（RISK-003 状态 + 新增 TD）+ Manifest / history 刷新
+
+§7（xiaohongshu 适配器缺口）:
+  先确认 Phase 范围 → 若需支持则新增 XiaohongshuAdapter + 注册 + 测试；否则登记债务
 ```
 
-优先级：P0-2（真 bug，可独立小修）≥ P0-1（越权写入，行为范围较大）> §6 会话探测偏差（安全/假阳性）> TD-011（设计一致性）> TD-014（补客户端消费测试；无契约变更，可随同批提案收口）。
+优先级：P0-2（真 bug，可独立小修）≥ P0-1（越权写入，行为范围较大）> §6 会话探测偏差（安全/假阳性）> §7 xiaohongshu 适配器缺口（新增能力/登记债务）> TD-011（设计一致性）> TD-014（补客户端消费测试；无契约变更，可随同批提案收口）。

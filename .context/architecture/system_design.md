@@ -1,9 +1,9 @@
 # 系统设计总览 (System Design)
 
 > **Metadata**
-> - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.3.0）
+> - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.4.4）
 > - **Generated At**: `2026-10-16 09:44`
-> - **Updated At**: `2026-10-16 13:56`
+> - **Updated At**: `2026-10-17 08:51`
 > - **Generator**: `Context-Agent v1.0`
 
 > ⚠️ 本文为源文档的**结构化总结**。若与 `.context/architecture/source/` 冲突，**以源文档为准**。
@@ -113,7 +113,7 @@ C4Context
 | | `OverseasStrategyManager` | 出海增长与时区策略 | Phase 2 |
 | **MCP 集成层** | `InjoysClient` | JSON-RPC 2.0 客户端代理 + 热更新 + 缓存隔离 | Phase 0 |
 | | `KBAdapter` / `SheetAdapter` / `DocAdapter` | `knowledge.list` / `spreadsheet.read|applyOperations` / `document.create` | Phase 0 |
-| | `BrowserOSClient` | 浏览器控制驱动（CDP/Playwright），动作白名单 | Phase 0 |
+| | `BrowserOSClient` | 浏览器控制驱动（CDP/Playwright），能力开关 + 统一执行检查 | Phase 0 |
 | **持久化基础设施层** | `ConfigStore` | `$DSH_HOME/ops-manager/config.json` | Phase 0 |
 | | `DraftStore` | `$DSH_HOME/growth-studio/drafts/`（只保留当前内容） | Phase 0 |
 
@@ -145,7 +145,7 @@ C4Context
 | 宿主 RPC 网关 | `POST /api/ops` | HTTP + 自研信封 `{ type:'client-request', rpcId, method:'ops', payload:{ method, payload } }` | **实现口径与文档差异**：入参字段名实现为 `payload`（源文档 §2.2 写作 `params`），以 criterion §5.4 为准 |
 | 工具调用面 | `ops_setup_schedule` | **宿主内工具调用**，非 RPC 方法 | 需 DSH 自动化任务中心能力，与工作台配置不同调用面 |
 | Injoys | `knowledge.list` / `spreadsheet.read` / `spreadsheet.applyOperations` / `document.create` | JSON-RPC 2.0 over HTTPS + `Authorization: Bearer {token}` | 须校验 HTTP 状态码与 `result.isError` |
-| BrowserOS | `tabs` / `navigate` / `snapshot` / `act` | MCP | **动作白名单**；禁用 shell/cmd |
+| BrowserOS | 默认八项 `tabs`/`navigate`/`snapshot`/`act`/`read`/`grep`/`wait`/`upload`，其余默认关闭可手动开启 | MCP | **能力开关**；统一入口集中检查 |
 | DSH 自动化任务 | Cron 注册（默认 `0 9 * * 1`, `Asia/Shanghai`） | 宿主能力 | 与「Phase 0 禁止后台轮询」不冲突 |
 
 > 完整方法契约见 `api_strategy.md`。
