@@ -20,9 +20,10 @@
 
 ### 修改功能
 
-- `src/ops-rpc.ts` 的 `workbench.overview` 改为消费上述契约与判定，响应补齐字段；`comparison` 在无历史基准来源时返回 `period: null` 与全 `null` delta（落盘基准属 `feat-storage-metrics-snapshot`）。
+- `src/ops-rpc.ts` 的 `workbench.overview` 改为消费上述契约与判定，响应补齐字段；`comparison` 在无历史基准来源时返回 `period: null` 且四个 delta（`impressionsDeltaPercent` / `playsDeltaPercent` / `engagementsDeltaPercent` / `followersDeltaPercent`）均为 `null`（键名以 `.context/architecture/source/technical_architecture.md` §3.1 定义为准；落盘基准属 `feat-storage-metrics-snapshot`）。
 - `src/ops-rpc.ts` 移除硬编码热点样例数据，`trends` 如实返回空数组。
 - `totalEngagements` 在点赞 / 评论 / 转发 / 收藏任一子项为 `null` 时为 `null`。
+- `workbench.overview` 透传请求参数 `metricsWindow`（默认 `7d`）给采集器：`windowStart` / `windowEnd` 描述**请求窗口**而非数据周期；平台数值贡献只在可证实属于该窗口时计入，无法证实者保持未知，不得把今日 / 累计值标成 `7d` / `30d` 冒充窗口增量。
 
 ### 技术实现
 
@@ -34,9 +35,9 @@
 ### 不在本次范围（Out of Scope）
 
 - 指标历史快照的落盘实现（`feat-storage-metrics-snapshot`，本提案只定义 `comparison` 契约并如实返回 `null`）。
-- `weeklyPipeline` 的真实排期数据接入（Phase 0 无排期存储；本提案只补字段与从当前 `calendarItems` 派生的形状，真实数据由 Phase 1 的 `feat-calendar-generate-list` 接入）。
+- `weeklyPipeline` 的真实排期**主数据接入**与本地持久化（归 Phase 1 的 `feat-calendar-generate-list`；本提案只补字段并从**既有 Injoys 读取得到的 `calendarItems`** 派生本周计数——该列表**可能非空**，本提案不假设其恒空，也不新增数据源）。
 - 驾驶舱 UI 呈现（`feat-client-dashboard`，Phase 3）。
-- 采集侧 Adapter 能力扩展（平台采集失败本身的修复不在本提案范围）。
+- 采集侧 Adapter 能力扩展（平台采集失败本身的修复、以及页面筛选 / 解析能力以使数值可证属于窗口，均不在本提案范围；本提案只落清窗口真实性口径，不据此把未验证周期的数据标成指定窗口）。
 
 ## Impact
 
@@ -64,7 +65,7 @@
 
 - **首次使用时全部环比 delta 为 `null` 被误报为缺陷**：依 RISK-007 应急预案，`null` 属**预期行为**（历史快照尚未积累），UI 应显示「暂无环比」而非 0%；测试以此为准。
 - **移除硬编码热点后 `trends` 变空**：驾驶舱热点区短期内展示为空。空值优于假数据（`.context/criterion.md` §3.2）；真实热点来源属外部依赖（PRD 未指定渠道），未提供时如实返回空。
-- **`weeklyPipeline` 暂为派生零值结构**：Phase 0 无本地排期主数据，字段按当前 `calendarItems` 派生；真实数据由 Phase 1 接入，本提案不宣称已具备排期聚合。
+- **`weeklyPipeline` 为「本周派生结构」而非完整排期聚合**：`calendarItems` 来自既有 Injoys 读取、**可能非空**；本提案只统计本周（自然周、周一起算）行，跨周与远端历史行不计入；**零结构以筛选后的本周集合为准**（原始列表为空，或原始列表非空但全部落在上周 / 下周时得全 `0`），原始列表非空不得被无条件清空。本地排期黄金主数据接入由 Phase 1 承接，本提案不宣称已具备完整排期聚合。
 
 ### 验证标准
 
@@ -95,6 +96,9 @@
 | architecture | `.context/architecture/risks_and_debt.md` | TD-007（高，本提案直接偿还）、TD-005（`views` 兼容字段误用，中）、RISK-006、RISK-007 |
 | architecture | `.context/architecture/api_strategy.md` | §3.1 `workbench.overview` 契约与「部分缺失汇总规则」权威口径 |
 | architecture | `.context/architecture/data_architecture.md` | `PlatformMetrics` 注（`windowStart` / `windowEnd`）与窗口字段 |
-| domain | `.context/domain/business_rules.md` | BR-050（指标真实性与可空语义，MUST）、BR-051（曝光/播放区分口径，MUST）、BR-052（互动与关注增长汇总，SHOULD） |
-| domain | `.context/domain/testing_strategy.md` | 模块 5 场景 4 / 5（BR-050 / BR-051，含 RISK-006 覆盖） |
-| domain | `.context/domain/edge_cases.md` | §4「指标与数据异常」的用户可见行为（采集失败 → 暂无数据、应采未全成功 → 汇总暂无数据、平台真实 `0` 为有效值、历史不足 → 环比为空），即 spec 中 `null` 值显示语义的依据 |
+| domain | `.context/domain/business_rules.md` | BR-050（指标真实性与可空语义，MUST）、BR-051（曝光/播放区分口径，MUST）、BR-052（互动与关注增长汇总，SHOULD）、BR-053（本周排期履约与阶段拆分，SHOULD）、BR-060（热点雷达——本提案只去伪造，真实来源不属本次） |
+| domain | `.context/domain/testing_strategy.md` | 模块 5 场景 4 / 5（BR-050 / BR-051，含 RISK-006 覆盖）与场景 6（历史不足环比为空，BR-052 / RISK-007） |
+| domain | `.context/domain/edge_cases.md` | §4「指标与数据异常」（采集失败 → 暂无数据、应采未全成功 → 汇总暂无数据、平台真实 `0` 为有效值、历史不足 → 环比为空）与 §7「界面状态文案」（指标缺失显示「暂无数据」不显示为 `0`），即 spec 中 `null` 值显示语义的依据 |
+| architecture (source) | `.context/architecture/source/technical_architecture.md` | §3.1 `workbench.overview` 的权威定义：`comparison` 精确键名与 `period` 取值、窗口增量口径（不是历史总量）、`weeklyPipeline` 自然周（周一起算）与 `prefilled + published` 完成态 |
+
+> 范围说明：评论抓取无结果（`.context/domain/edge_cases.md` §4）对应 BR-054 的 Phase 1 评论与需求反哺闭环，**不在本次指标汇总修复范围**；`feedbackItems` 仅保留既有字段形状，本提案不扩采集。

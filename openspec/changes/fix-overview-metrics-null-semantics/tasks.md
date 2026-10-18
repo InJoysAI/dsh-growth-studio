@@ -10,10 +10,11 @@
   - 判定依据：`workbench.overview` 响应补齐字段属宿主 RPC 方法契约变更；数据层/IPC 层/共享层未启用（criterion §2、§7.1），无迁移与 codegen
 - [ ] 1.2 在 `src/types.ts` 新增 `OverviewMetrics` 契约类型
   - 含 `measuredPlatforms` / `unmeasuredPlatforms` / `totalEngagements` / `totalFavorites` / `comparison` / `weeklyPipeline`
-  - `comparison` 形状：`{ period: string | null; totalImpressionsDeltaPercent: number | null; totalPlaysDeltaPercent: number | null; totalEngagementsDeltaPercent: number | null; totalFollowersDeltaPercent: number | null }`
+  - `comparison` 形状：`{ period: '7d' | '30d' | null; impressionsDeltaPercent: number | null; playsDeltaPercent: number | null; engagementsDeltaPercent: number | null; followersDeltaPercent: number | null }`
+    - 键名与 `period` 取值以权威源 `.context/architecture/source/technical_architecture.md` §3.1 `comparison` 定义为准，**不得**自行更名（如 `total*DeltaPercent`）或放宽 `period` 为宽泛 `string | null`；本提案不改变源契约迎合新命名
   - `weeklyPipeline` 形状：`{ total: number; completed: number; byStatus: Record<ItemStatus, number> }`（`completed` 为 `prefilled + published`）
   - 汇总字段类型一律为 `number | null`（不得为必填数字）
-- [ ] 1.3 在 `src/types.ts` 的 `PlatformMetrics` 补 `windowStart` / `windowEnd`（ISO 8601，本指标所属统计窗口，区别于 `capturedAt`）
+- [ ] 1.3 在 `src/types.ts` 的 `PlatformMetrics` 补 `windowStart` / `windowEnd`（ISO 8601，由请求窗口推导的**请求窗口**边界，区别于 `capturedAt` 采集时刻）
   - 契约来源：`.context/architecture/data_architecture.md` `PlatformMetrics` 注；TD-007 解决方案 ①
 - [ ] 1.4 运行契约校验：`pnpm typecheck`（无 codegen，§7.2「生成命令 = 无」）
 
@@ -36,11 +37,18 @@
 - [ ] 3.5 实现 `totalEngagements` = 点赞 + 评论 + 转发 + 收藏；四项汇总任一为 `null` 时整体 `null`
 - [ ] 3.6 实现曝光 / 播放口径：只消费 `impressions` / `plays`；不得以兼容字段 `views` 作为缺失指标的真实值（TD-005）
 - [ ] 3.7 实现 `comparison`：无历史基准来源时 `period` 与各 delta 均为 `null`（落盘基准属 `feat-storage-metrics-snapshot`，本提案不实现）
-- [ ] 3.8 实现 `weeklyPipeline`：由当前 `calendarItems` 派生 `total` / `completed` / `byStatus`；无数据时为 `0` 结构，不得以估算值填充
+- [ ] 3.8 实现 `weeklyPipeline`：由当前 `calendarItems` 派生 `total` / `completed` / `byStatus`
+  - **来源事实**：`calendarItems` 来自既有 Injoys Spreadsheet 读取（`src/injoys/client.ts` 的 `listCalendarItems`），**可能非空**（远端已有历史行），不得假设 Phase 0 必然为空
+  - **本周范围**：只统计**本周（自然周，周一起算）**的排期项，跨周的历史行不计入；时间口径沿用宿主既有约定（若需用户时区，先查现有配置，不自行引入系统时区依赖）
+  - **零结构判定以「筛选后的本周集合」为准**：当且仅当筛选后本周集合为空（原始列表为空，**或原始列表非空但全部落在上周 / 下周**）时结果为全 `0`；原始列表非空**不得被无条件清空**，也不得跳过本周筛选直接按原始列表计数
+  - 不得以估算值填充；本地排期黄金主数据接入仍归 Phase 1 `feat-calendar-generate-list`（B2），本提案不接新数据源
 - [ ] 3.9 在 `src/analytics/metrics-collector.ts` 为采集结果（含 `live` 与 `unmeasured` 路径）填充 `windowStart` / `windowEnd`
-  - 窗口由 `metricsWindow`（`7d` / `30d`）与采集发起时刻推导；`capturedAt` 与窗口相互独立，不得互相代替
-  - 契约形状为必填 `string`（`.context/architecture/data_architecture.md` 的 `PlatformMetrics` 定义），故 **`live` 与 `unmeasured` 两条路径均按同一口径推导为非空 ISO 8601 值**（与 `capturedAt` 同源生成）；`unmeasured`（无客户端、指标全 `null`）路径同样填非空窗口，禁止两路径静默不一致，也不得因指标全 `null` 而返回 `null`
+  - 契约形状为必填 `string`（`.context/architecture/data_architecture.md` 的 `PlatformMetrics` 定义），故 **`live` 与 `unmeasured` 两条路径均按同一时刻推导为非空 ISO 8601 值**（与 `capturedAt` 同源生成）；`unmeasured`（无客户端、指标全 `null`）路径同样填非空窗口，禁止两路径静默不一致，也不得因指标全 `null` 而返回 `null`
+  - **请求窗口 ≠ 可证实数据周期**：`fetchPlatformMetrics` MUST 接收并透传调用方的 `metricsWindow`（默认 `7d`），停止忽略 `timeRange`；窗口边界由该请求窗口 + 采集发起时刻推导，`capturedAt` 与窗口相互独立、不得互相代替
+  - 平台数值贡献 MUST 仅在**可证实属于请求窗口**时计入汇总；无法证实的数据 MUST 保持未知（`null` 贡献）并沿用既有说明字段，**不得**把「今日 / 累计」值标成 `7d` / `30d` 冒充窗口增量；`metricsWindow` 为 `30d` 时不得以标签宣称已真实支持 30d
+  - 采集侧页面筛选 / 解析能力的扩展不在本提案范围（归采集能力提案）；本提案不新增错误码，也不因无法证实而整包拒绝 `workbench.overview`
 - [ ] 3.10 在 `src/ops-rpc.ts` 的 `workbench.overview` 接入 `overview-aggregator`，移除原内联累加逻辑
+  - 透传请求参数 `metricsWindow`（未传时默认 `7d`）给 `metricsCollector.fetchPlatformMetrics`，**移除**现有硬编码 `'7d'`（`src/ops-rpc.ts` 的 `workbench.overview` 分支）
 
 ## 4. 测试
 
@@ -50,17 +58,26 @@
   - [ ] 4.1.3 「互动总量口径」：四项任一为 `null` 时 `totalEngagements` 为 `null`；四项齐全时为四项之和
     - `favorites` / `followerDelta` 等可选字段的 `undefined` 与 `null` **等价处理**：缺失即视为未知，不得回退为 `0`；须显式断言该边界
   - [ ] 4.1.4 「曝光/播放口径」：视频渠道只贡献 `plays`；`impressions` / `plays` 均 `null` 时不得以 `views`（值为 `0`）计入
-  - [ ] 4.1.5 「窗口字段」：`windowStart` / `windowEnd` 由 `metricsWindow` + 采集发起时刻推导为非空 ISO 8601 值，且不与 `capturedAt` 相互代替
-    - 覆盖 `live` 与 `unmeasured` 两条路径：均产出非空窗口字段，取值口径一致
+  - [ ] 4.1.5 「本周排期进度」：固定时钟构造**上周 / 本周 / 下周**三类排期项，仅本周（自然周、周一起算）行计入 `total` / `byStatus`
+    - `byStatus` MUST 覆盖 `ItemStatus` 全部五态；`completed` MUST 为 `prefilled + published` 且精确断言
+    - **筛选后本周集合为空 → 全 `0`**：分别断言「原始列表为空」与「原始列表非空但全部为上周 / 下周行」两种情况均得 `total = 0` / `completed = 0` / `byStatus` 各态为 `0`；非空原始列表不得被无条件清空
+    - 加入本周行后，仅本周行参与计数（上周 / 下周行仍不计入）
 - [ ] 4.2 集成 / RPC 测试
   - [ ] 4.2.1 `workbench.overview` 响应包含新增字段且既有字段未破坏（扩展现有 `tests/ops-manager.spec.ts` 的概要断言）
+    - `comparison` MUST 按权威键名逐字断言（`period` / `impressionsDeltaPercent` / `playsDeltaPercent` / `engagementsDeltaPercent` / `followersDeltaPercent`），无历史时 `period` 为 `null` 且各 delta 为 `null`
   - [ ] 4.2.2 `workbench.overview` 响应不含硬编码样例热点数据（`trends` 为空数组）
 - [ ] 4.3 静态校验
   - [ ] 4.3.1 `grep` 校验：**校验范围仅限业务汇总逻辑**（`src/analytics/overview-aggregator.ts` 与 `workbench.overview` 分支）不得以 `views` 作为缺失指标的真实值
-    - 排除项（不在本条校验范围，须零误报）：`src/analytics/metrics-collector.ts` 对 `views` 的**兼容形状填充**；`src/analytics/review-reporter.ts` 对 `views` 的存量消费（TD-005 已登记债务，归复盘路径提案管辖）
+    - 排除项（不在本条校验范围，须零误报）：`src/analytics/metrics-collector.ts` 对 `views` 的**兼容形状填充**；`src/analytics/review-reporter.ts` 对 `views` 的存量消费（**复盘路径存量债务，当前路线图未确认专门承接提案**，本提案不关闭该债务，也不据此扩改复盘代码）
   - [ ] 4.3.2 测试隔离：用例不写入开发者真实 `$DSH_HOME`（`tests/setup-isolation.ts` 模块作用域隔离，criterion §3.5）
   - [ ] 4.3.3 运行 `pnpm typecheck`
   - [ ] 4.3.4 运行 `pnpm test`
+
+- [ ] 4.4 采集器窗口字段测试（在 `MetricsCollector` 实际采集路径验证，与 4.1 纯函数测试分开、不可互相替代）
+  - [ ] 4.4.1 `live` 与无客户端 `unmeasured` 两条路径均产出非空 ISO 8601 `windowStart` / `windowEnd`，取值口径一致，且不与 `capturedAt` 相互代替
+  - [ ] 4.4.2 固定时钟分别校验 `7d` / `30d` 窗口的精确边界（ISO 可解析），并断言 `capturedAt` 保持采集时刻
+  - [ ] 4.4.3 请求窗口穿透：以桩请求 `30d` 时 `workbench.overview` 与采集器均按 `30d` 取窗口（mock 路径可验证）；未传时默认 `7d`
+  - [ ] 4.4.4 mock 构造与 fixtures 满足新增必填类型（同步补 `windowStart` / `windowEnd`），不新增真实采集能力
 
 > note: 本提案无手动测试脚本需求（无 HTTP 端点新增 / 无 SQL）；验收以单元测试 + `pnpm test` 为准，不提供 curl / SQL 示例。
 
