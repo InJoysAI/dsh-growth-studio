@@ -43,7 +43,8 @@
 
 - **Decision: `PlatformMetrics` 增加 `windowStart` / `windowEnd`，由收集器填充**
   - 解决「采集时刻 ≠ 指标所属周期」歧义（`data_architecture.md` 明确二者是两个独立概念）。
-  - 窗口由 `metricsWindow`（`7d` / `30d`）与 `capturedAt` 推导；`capturedAt` 字段保持不变。
+  - 窗口由 `metricsWindow`（`7d` / `30d`）与采集发起时刻推导；`capturedAt` 字段保持不变。
+  - 契约形状为**必填 `string`**（`data_architecture.md` 的 `PlatformMetrics` 定义，非可空），故 `live` 与 `unmeasured`（无客户端、指标全 `null`）路径**均**推导为非空 ISO 8601 窗口值，与 `capturedAt` 同源生成；不因指标全 `null` 而把窗口置 `null`，两路径口径一致。
 
 - **Decision: 移除硬编码热点样例数据，`trends` 返回空数组**
   - 真实热点来源属外部依赖（PRD 未指定渠道），未提供时如实返回空优于假数据（criterion §3.2）。

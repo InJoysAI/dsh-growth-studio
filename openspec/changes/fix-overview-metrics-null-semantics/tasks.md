@@ -38,7 +38,8 @@
 - [ ] 3.7 实现 `comparison`：无历史基准来源时 `period` 与各 delta 均为 `null`（落盘基准属 `feat-storage-metrics-snapshot`，本提案不实现）
 - [ ] 3.8 实现 `weeklyPipeline`：由当前 `calendarItems` 派生 `total` / `completed` / `byStatus`；无数据时为 `0` 结构，不得以估算值填充
 - [ ] 3.9 在 `src/analytics/metrics-collector.ts` 为采集结果（含 `live` 与 `unmeasured` 路径）填充 `windowStart` / `windowEnd`
-  - 窗口由 `metricsWindow`（`7d` / `30d`）与 `capturedAt` 推导；`capturedAt` 与窗口相互独立，不得互相代替
+  - 窗口由 `metricsWindow`（`7d` / `30d`）与采集发起时刻推导；`capturedAt` 与窗口相互独立，不得互相代替
+  - 契约形状为必填 `string`（`.context/architecture/data_architecture.md` 的 `PlatformMetrics` 定义），故 **`live` 与 `unmeasured` 两条路径均按同一口径推导为非空 ISO 8601 值**（与 `capturedAt` 同源生成）；`unmeasured`（无客户端、指标全 `null`）路径同样填非空窗口，禁止两路径静默不一致，也不得因指标全 `null` 而返回 `null`
 - [ ] 3.10 在 `src/ops-rpc.ts` 的 `workbench.overview` 接入 `overview-aggregator`，移除原内联累加逻辑
 
 ## 4. 测试
@@ -47,13 +48,16 @@
   - [ ] 4.1.1 「部分缺失 → `null`」：应采 2 平台仅 1 个成功时，汇总值为 `null` 且 `measuredPlatforms` / `unmeasuredPlatforms` 正确填充
   - [ ] 4.1.2 「真实 0 参与求和」：平台真实返回 `0` 时计入求和，与 `null` 严格区分
   - [ ] 4.1.3 「互动总量口径」：四项任一为 `null` 时 `totalEngagements` 为 `null`；四项齐全时为四项之和
+    - `favorites` / `followerDelta` 等可选字段的 `undefined` 与 `null` **等价处理**：缺失即视为未知，不得回退为 `0`；须显式断言该边界
   - [ ] 4.1.4 「曝光/播放口径」：视频渠道只贡献 `plays`；`impressions` / `plays` 均 `null` 时不得以 `views`（值为 `0`）计入
-  - [ ] 4.1.5 「窗口字段」：`windowStart` / `windowEnd` 由 `metricsWindow` 推导，且不与 `capturedAt` 相互代替
+  - [ ] 4.1.5 「窗口字段」：`windowStart` / `windowEnd` 由 `metricsWindow` + 采集发起时刻推导为非空 ISO 8601 值，且不与 `capturedAt` 相互代替
+    - 覆盖 `live` 与 `unmeasured` 两条路径：均产出非空窗口字段，取值口径一致
 - [ ] 4.2 集成 / RPC 测试
   - [ ] 4.2.1 `workbench.overview` 响应包含新增字段且既有字段未破坏（扩展现有 `tests/ops-manager.spec.ts` 的概要断言）
   - [ ] 4.2.2 `workbench.overview` 响应不含硬编码样例热点数据（`trends` 为空数组）
 - [ ] 4.3 静态校验
-  - [ ] 4.3.1 `grep` 校验 `src/` 内业务逻辑不以 `views` 作为缺失指标真实值（`views` 仅保留兼容形状）
+  - [ ] 4.3.1 `grep` 校验：**校验范围仅限业务汇总逻辑**（`src/analytics/overview-aggregator.ts` 与 `workbench.overview` 分支）不得以 `views` 作为缺失指标的真实值
+    - 排除项（不在本条校验范围，须零误报）：`src/analytics/metrics-collector.ts` 对 `views` 的**兼容形状填充**；`src/analytics/review-reporter.ts` 对 `views` 的存量消费（TD-005 已登记债务，归复盘路径提案管辖）
   - [ ] 4.3.2 测试隔离：用例不写入开发者真实 `$DSH_HOME`（`tests/setup-isolation.ts` 模块作用域隔离，criterion §3.5）
   - [ ] 4.3.3 运行 `pnpm typecheck`
   - [ ] 4.3.4 运行 `pnpm test`

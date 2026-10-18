@@ -97,3 +97,4 @@
 | architecture | `.context/architecture/data_architecture.md` | `PlatformMetrics` 注（`windowStart` / `windowEnd`）与窗口字段 |
 | domain | `.context/domain/business_rules.md` | BR-050（指标真实性与可空语义，MUST）、BR-051（曝光/播放区分口径，MUST）、BR-052（互动与关注增长汇总，SHOULD） |
 | domain | `.context/domain/testing_strategy.md` | 模块 5 场景 4 / 5（BR-050 / BR-051，含 RISK-006 覆盖） |
+| domain | `.context/domain/edge_cases.md` | §4「指标与数据异常」的用户可见行为（采集失败 → 暂无数据、应采未全成功 → 汇总暂无数据、平台真实 `0` 为有效值、历史不足 → 环比为空），即 spec 中 `null` 值显示语义的依据 |
