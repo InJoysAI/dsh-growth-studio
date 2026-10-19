@@ -355,7 +355,7 @@ Adapter / 领域服务实现
 | IPC 层 | 未启用 | 架构文档 §1.1：客户端视图层与宿主经「宿主 RPC 协议网关层」以 HTTP POST 通信，插件为宿主内进程，不存在原生/前端跨边界 IPC |
 | 共享层 | 未启用 | 依赖 API 层与 IPC 层同时启用；本项目仅 API 层启用 |
 
-> 若未来引入独立服务端或跨语言消费方，应重新执行 `.agent/workflows/context-init.md` 的 SSoT 选型。
+> 若未来引入独立服务端或跨语言消费方，应重新执行 `.agents/workflows/context-init.md` 的 SSoT 选型。
 
 ---
 
