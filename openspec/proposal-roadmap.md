@@ -191,5 +191,5 @@ graph LR
 
 ---
 
-> 💡 创建单个提案时使用：`.agent/workflows/context-openspec.md proposal <change-id> [roadmap-doc]`
+> 💡 创建单个提案时使用：`.agents/workflows/context-openspec.md proposal <change-id> [roadmap-doc]`
 > 💡 本形态下 `roadmap-doc` 可指定对应的 Phase 文件；不指定时也会按总纲索引自动读取。

@@ -44,7 +44,7 @@
 - `openspec/changes/` — 进行中的变更提案
 - `openspec/specs/` — 当前规范
 
-若其中部分文件不存在，请以 `.context/context-manifest.json` 的 `pending_generation` 判断各阶段状态：分域总结与 `.context/openspec/integration.md` 可能已生成，此时通常仅缺 `openspec/config.yaml`、`openspec/proposal-roadmap.md`（分别由 `.agent/workflows/context-openspec.md project` 与 `plan` 子命令生成）。
+若其中部分文件不存在，请以 `.context/context-manifest.json` 的 `pending_generation` 判断各阶段状态：分域总结与 `.context/openspec/integration.md` 可能已生成，此时通常仅缺 `openspec/config.yaml`、`openspec/proposal-roadmap.md`（分别由 `.agents/workflows/context-openspec.md project` 与 `plan` 子命令生成）。
 
 ### 工作流命令（`.agents/workflows/`）
 
@@ -60,7 +60,7 @@
 
 ### 规则
 
-- 功能变更先创建提案（`.agent/workflows/context-openspec.md proposal <change-id>`），再实施。
+- 功能变更先创建提案（`.agents/workflows/context-openspec.md proposal <change-id>`），再实施。
 - 数据层 / API / IPC 变更：先改 `.context/criterion.md` §7.1 中对应层的契约，再运行 §7.2 记录的生成与校验命令。
 - 不要手工修改 `.context/*/source/`、`openspec/config.yaml` 和 `design/context-dev/`；源文档变更请走 `context-update`。
 - 约束冲突时以 `.context/criterion.md` 为准。

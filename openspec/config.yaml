@@ -1,7 +1,7 @@
 # Generated from: .context/context-manifest.json + listed Context assets
 # Context-SHA256: 2b48bd6e9a8f4a97379d878c80c02663adf6e7b71f468013aae3726afeb89ae4
 # Context-SHA256-Algo: path-nl-content-then-join-hex  # algorithm: design/context-dev/openspec/project/AGENTS.md
-# DO NOT EDIT: regenerate with .agent/workflows/context-openspec.md project
+# DO NOT EDIT: regenerate with .agents/workflows/context-openspec.md project
 # Sources (29) = .context/{criterion.md, architecture/{adr_001_unified_browseros_session, adr_002_prefill_only_human_in_the_loop, adr_003_custom_rpc_envelope, adr_004_local_primary_injoys_export, adr_005_five_state_lifecycle, adr_006_product_switch_context_only, adr_007_manual_refresh_no_persistent_connection, adr_008_version_snapshot_storage, adr_009_browseros_capability_management, api_strategy, constraints, container_component_view, context_view, cross_cutting_concepts, data_architecture, introduction_and_goals, risks_and_debt, runtime_view, security_policy, system_design, tech_stack}.md, domain/{business_rules, data_strategy, edge_cases, market_insights, risks_and_debt, testing_strategy, user_journeys}.md}
 schema: spec-driven
 
