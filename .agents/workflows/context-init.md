@@ -1,5 +1,5 @@
 ---
-description: Initialize project Context (archive sources + skeleton)
+description: Initialize project Context (move/copy sources + skeleton)
 ---
 
 # Context Initialization (delegated, archive-only)
@@ -16,10 +16,11 @@ description: Initialize project Context (archive sources + skeleton)
    - Target project path
    - PRD document path
    - Architecture document path
+   - Source handling: **move (mv, recommended) or copy** — you will be asked; move keeps a single copy under `.context/*/source/` so you never maintain duplicate PRD/TAD/UI/DB docs
 
 3. Optional helper (hash + manifest hint):
 ```bash
 ./design/context-dev/scripts/context-gen.sh -i
 ```
 
-Note: Context summarization + Specflow setup (creating `openspec/` directories + generating config/roadmap/proposals) is handled by `.agent/workflows/context-openspec.md`.
+Note: Context summarization + Specflow setup (creating `openspec/` directories + generating config/roadmap/proposals) is handled by `.agents/workflows/context-openspec.md`.
