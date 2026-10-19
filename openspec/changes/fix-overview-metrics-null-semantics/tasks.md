@@ -83,8 +83,8 @@
 
 ## 5. 文档与资产一致性
 
-- [ ] 5.1 核对 `.context/architecture/api_strategy.md` §3.1 的请求 / 响应示例与本实现一致；如有差异，**经 `.agent/workflows/context-update.md` 流程同步 `.context/` 资产**（禁止手工编辑 `.context/`）
-- [ ] 5.2 实现完成后按 `.agent/workflows/context-update.md` 刷新 `.context/architecture/risks_and_debt.md` 的 TD-007 状态与 `.context/context-manifest.json`（不得手工编辑）
+- [ ] 5.1 核对 `.context/architecture/api_strategy.md` §3.1 的请求 / 响应示例与本实现一致；如有差异，**经 `.agents/workflows/context-update.md` 流程同步 `.context/` 资产**（禁止手工编辑 `.context/`）
+- [ ] 5.2 实现完成后按 `.agents/workflows/context-update.md` 刷新 `.context/architecture/risks_and_debt.md` 的 TD-007 状态与 `.context/context-manifest.json`（不得手工编辑）
 - [ ] 5.3 确认 `openspec/specs/`、`openspec/config.yaml`、`openspec/proposal-roadmap*.md` 无需手工改动（由 `/context-*` 工作流维护）
 
 ## 6. 验证与收口

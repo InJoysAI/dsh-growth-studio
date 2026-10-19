@@ -92,7 +92,7 @@ Read the following files for specification validation (if present per `CONTEXT_A
 - `.context/architecture/security_policy.md` — Validate security requirements
 - `.context/domain/user_journeys.md` — Verify user flows
 
-### When Implementing Changes (`.agent/workflows/context-start.md`)
+### When Implementing Changes (`.agents/workflows/context-start.md`)
 
 1. **Follow Constraints**:
    - Strictly follow MUST/MUST NOT rules in `.context/criterion.md`

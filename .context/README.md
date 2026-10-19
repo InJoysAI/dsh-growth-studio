@@ -7,7 +7,7 @@
 > - **Generator**: `Context-Dev-Agent v1.0`
 
 > **用途**: 为 AI 代理提供 `dsh-growth-studio`（Growth Studio）项目的结构化上下文资产。
-> **权威性**: 工程约束以 `.context/criterion.md` 为准；源文档细节以各 `source/` 归档副本为准（只读，变更走 `.agent/workflows/context-update.md`）。
+> **权威性**: 工程约束以 `.context/criterion.md` 为准；源文档细节以各 `source/` 归档副本为准（只读，变更走 `.agents/workflows/context-update.md`）。
 
 ---
 

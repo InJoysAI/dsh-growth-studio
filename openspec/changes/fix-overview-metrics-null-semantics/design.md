@@ -68,7 +68,7 @@
 - 无数据迁移。契约为**向后兼容的字段新增**：既有响应字段全部保留。
 - 落地顺序（SSoT-first）：`src/types.ts` → `src/ops-rpc.ts` → `src/analytics/` → 测试 → `pnpm typecheck` + `pnpm test`。
 - 无 Codegen（criterion §7.2「生成命令 = 无」）。
-- 实现后按 `.agent/workflows/context-update.md` 刷新 `.context/` 资产（TD-007 状态、`context-manifest.json`），不得手工编辑 `.context/`。
+- 实现后按 `.agents/workflows/context-update.md` 刷新 `.context/` 资产（TD-007 状态、`context-manifest.json`），不得手工编辑 `.context/`。
 
 ## Open Questions
 
