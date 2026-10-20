@@ -10,7 +10,7 @@
 - **文档与实现落差**：读者按 `data_architecture.md` 的布局表会误以为指标历史已落盘（TD-010「影响」明文记录）。
 - **环比基准取自次级留存**：`.context/domain/data_strategy.md`「环比走势」的数据源为「本地保存的历史指标快照」，未落盘则该数据源为空集。
 
-前置依赖 `fix-overview-metrics-null-semantics`（A1）已归档：`PlatformMetrics` 窗口字段、`comparison` 契约键名与「部分缺失 → `null`」判定已落地，环比基准现在才有正确的消费方。前置 `fix-storage-file-permissions` 提供统一落盘封装的权限位（`mode: 0o600` / `0o700`），本提案的快照写入必须复用该封装，不得自设第二套落盘口径。
+前置依赖 `fix-overview-metrics-null-semantics`（A1）已归档：`PlatformMetrics` 窗口字段、`comparison` 契约键名与「部分缺失 → `null`」判定已落地，环比基准现在才有正确的消费方。前置 `fix-storage-file-permissions`（A7）亦已归档：统一落盘封装（含 `mode: 0o600` / `0o700` 权限位）落地为 `src/storage/local-fs.ts`，本提案的快照写入必须复用该封装，不得自设第二套落盘口径。
 
 ## What Changes
 
@@ -57,12 +57,12 @@
   - `src/types.ts`（快照行契约类型）
   - `src/ops-rpc.ts`（`workbench.overview` 采集成功后追加快照、`comparison` 消费基准）
   - `src/tools/index.ts`（`ops_fetch_metrics` 采集成功后追加快照，并校正工具描述提及本地 `metrics/` 落盘）
-- **不修改（由前置提案 `fix-storage-file-permissions` 提供）**：
-  - `src/storage/draft-store.ts` / `src/config-store.ts` 的权限位（`mode: 0o600` / `0o700`）改动归前置提案；本提案仅**调用**其统一落盘封装（原子写 + 写锁 + 目录准备 / 可写性校验 + `DraftStorageError` → `drafts/storage-unavailable`），不重复修改这两文件。若实施需从中抽取可导出写盘原语供 `metrics-store.ts` 调用，属前置提案的实现细节，不在本提案 diff 范围。
+- **不修改（由前置提案 `fix-storage-file-permissions` 提供，已归档 2026-10-20）**：
+  - `src/storage/draft-store.ts` / `src/config-store.ts` 的权限位（`mode: 0o600` / `0o700`）已由前置提案落地；本提案仅**调用**统一落盘封装，不重复修改这两文件。封装的实际落点：`src/storage/local-fs.ts` 导出 `FILE_MODE` / `DIR_MODE` / `mkdirWithMode`（目录 `0o700`）/ `writeJsonAtomic`（临时文件 + `rename` 原子写、文件 `0o600`）/ `createFileWriteLocks()`（按绝对文件路径的串行写锁）；`ensureDirectory` / `verifyDirectoryWritable` / `DraftStorageError` 与 `drafts/storage-unavailable` 映射仍由 `draft-store.ts` 导出，`metrics-store.ts` 在写失败时以 `DraftStorageError` 包装（沿用 A7 归档提案确定的封装分工）。
 
 ### 依赖关系
 
-- **依赖**：`fix-overview-metrics-null-semantics`（已完成，`comparison` 契约与汇总判定的消费方）；`fix-storage-file-permissions`（**显式前置**，统一落盘封装的 `mode` 权限位；须先于本提案完成）。
+- **依赖**：`fix-overview-metrics-null-semantics`（已完成，`comparison` 契约与汇总判定的消费方）；`fix-storage-file-permissions`（**显式前置**，统一落盘封装的 `mode` 权限位；已归档 2026-10-20，前置已满足）。
 - **被依赖**：`feat-client-dashboard`（Phase 3 驾驶舱消费 `comparison`）。
 - **约束**：快照写入须经统一落盘封装，复用 `drafts/storage-unavailable` 类错误映射口径；不得绕过 `config-store` / `draft-store` 模块直接操作文件（criterion §3.5）。
 
@@ -73,7 +73,6 @@
 - **不可证数据冒充窗口基准**：落盘可证性门确保只有 `source !== 'unmeasured'` 且 `windowScope === 'verified'` 的结果进入快照，避免未来由累计口径历史算出环比。
 - **快照写入失败影响采集返回**：写盘失败须如实报错（统一 `drafts/storage-unavailable` 失败信封，不回滚已发生的采集副作用），不得静默吞掉后继续宣称「已落盘」；这是新增的存储写入口，必须纳入统一 RPC 错误边界。
 - **同日多次采集的并发回写**：按绝对文件路径的串行写锁 + 临时文件 `rename` 原子替换，避免并发覆盖既有快照行。
-- **前置提案未完成即实施的风险**：`fix-storage-file-permissions` 是显式硬前置，须先落地统一落盘封装的权限位；本提案不重复修改 `draft-store.ts` / `config-store.ts`，避免两提案重叠改同一文件。
 - **可证性门致生产空盘（须知）**：当前生产 `live` 采集结果 `windowScope` 均为 `'unverified'`（`api_strategy.md` §3.1「窗口真实性说明」），本提案落地后生产路径暂不会写出快照、`comparison` 在生产上仍五键 `null`，直到采集侧产出 `windowScope: 'verified'` 的窗口化数据（属采集能力提案，本提案 Out）。正向路径由测试夹具证明，验收不依赖 live 页面产出非空 `comparison`。
 
 ### 验证标准
@@ -104,7 +103,7 @@
 | Scope | 资产路径 | 关联说明 |
 |-------|---------|---------|
 | criterion | `.context/criterion.md` | §4「环比基准」与指标真实性口径、§3.5 落盘约束（原子写、写锁、目录固定、统一错误码、权限位）、§6 SSoT-first、§5.5 `PlatformMetrics` |
-| architecture | `.context/architecture/risks_and_debt.md` | TD-010（`metrics/` 持久化契约未落地，本提案偿还其 metrics 部分）、TD-013（权限位，前置提案提供）、RISK-007（环比基准不可用误读） |
+| architecture | `.context/architecture/risks_and_debt.md` | TD-010（`metrics/` 持久化契约未落地，本提案偿还其 metrics 部分）、TD-013（权限位，已由 `fix-storage-file-permissions` 修复，本提案消费其封装）、RISK-007（环比基准不可用误读） |
 | architecture | `.context/architecture/data_architecture.md` | `metrics/{YYYY-MM-DD}.json` 布局（`PlatformMetrics[]`，按 `(platform, capturedAt)` 追加，供环比）与「指标快照按日分文件」分区策略 |
 | architecture | `.context/architecture/api_strategy.md` | §3.1「环比基准来源」权威口径（上一个等长窗口、历史不足 → `null`）与 `workbench.overview` 契约 |
 | architecture | `.context/architecture/adr_008_version_snapshot_storage.md` | 草稿版本快照取消但「运营指标历史仍保留，用于环比」的边界裁决 |

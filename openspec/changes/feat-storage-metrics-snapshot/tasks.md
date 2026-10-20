@@ -4,7 +4,7 @@
 > 依据 `.context/criterion.md` §6 的 SSoT-first 顺序执行：类型契约（`src/types.ts`）→ 存储 / 领域实现（`src/storage/` + `src/analytics/`）→ 宿主 RPC 与工具接入（`src/ops-rpc.ts` / `src/tools/index.ts`）→ 测试。
 > 本项目 API 层为「手写 TypeScript 契约」，§7.2 记录的**生成命令为「无」**（自研 RPC 信封，无 schema 源，无 Codegen；一致性由 `pnpm typecheck` + `pnpm test` 保证），故不含 codegen 步骤。
 > 对应路线图条目：`openspec/proposal-roadmap-Phase-0.md` 提案 2 / `openspec/proposal-roadmap.md` 索引行 `feat-storage-metrics-snapshot`。
-> **前置**：`fix-storage-file-permissions`（统一落盘封装的 `mode` 权限位）须先完成；本提案复用其封装，不自设第二套落盘口径。3.2 依赖 A7 的统一落盘封装落地后方可实施。
+> **前置**：`fix-storage-file-permissions`（统一落盘封装的 `mode` 权限位）——**已归档（2026-10-20），前置已满足**：统一落盘封装落地为 `src/storage/local-fs.ts`。本提案复用该封装，不自设第二套落盘口径。
 > **测试隔离**：新增测试写盘一律经 `tests/setup-isolation.ts` 全局兜底（`vitest.config.ts` `setupFiles`），不写开发者真实 `$DSH_HOME`。
 
 ## 1. Roadmap 对齐
@@ -26,8 +26,8 @@
 - [ ] 3.2 新增 `src/storage/metrics-store.ts`：`$DSH_HOME/growth-studio/metrics/{YYYY-MM-DD}.json` 读写服务
   - 目录不存在则创建；按日文件名；采集成功后按 `(platform, capturedAt)` 追加，同日重复追加不丢弃既有记录
   - **落盘可证性门**：仅 `source !== 'unmeasured'` 且 `windowScope === 'verified'` 的结果落盘；`unverified` / `unmeasured` 不写入快照（快照行保持纯 `PlatformMetrics[]`，不新增字段）
-  - 复用前置提案 `fix-storage-file-permissions` 的统一落盘封装：临时文件 + `rename` 原子写、按绝对文件路径的串行写锁、目录 `0o700` / 文件 `0o600`；本任务**不修改** `draft-store.ts` / `config-store.ts`（其权限位改动归前置提案）
-  - 写盘失败抛出可映射为 `drafts/storage-unavailable` 的存储错误，不得吞异常
+  - 复用前置提案 `fix-storage-file-permissions` 已落地的统一落盘封装 `src/storage/local-fs.ts`：`mkdirWithMode`（目录 `0o700`）、`writeJsonAtomic`（临时文件 + `rename` 原子写、文件 `0o600`）、`createFileWriteLocks()`（按绝对文件路径的串行写锁，实例生命周期持有一套）；目录可写性校验复用 `draft-store.ts` 导出的 `ensureDirectory` / `verifyDirectoryWritable`。本任务**不修改** `draft-store.ts` / `config-store.ts`（其权限位已由前置提案落地）
+  - 写盘失败以 `draft-store.ts` 导出的 `DraftStorageError` 包装后抛出（经统一 RPC 错误边界映射 `drafts/storage-unavailable`，见 A7 归档提案的封装分工约定），不得吞异常
   - 目录在单次操作内固定（操作开始时经 `resolveDshHome()` 解析 `$DSH_HOME/growth-studio/metrics` 并贯穿，不在 `await` 后重解析；**不绑定 `draftsDir`**）
 - [ ] 3.3 在采集成功路径接入快照写入
   - `src/ops-rpc.ts` 的 `workbench.overview` 与 `src/tools/index.ts` 的 `ops_fetch_metrics` 在采集完成后追加快照写入

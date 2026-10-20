@@ -19,8 +19,8 @@
 ## Decisions
 
 - **Decision: 快照写入复用统一落盘封装，不新增第二套存储路径**
-  - `draft-store.ts` 已具备原子写（临时文件 + `rename`）、按绝对文件路径的串行写锁、目录准备 / 可写性校验与 `DraftStorageError` → `drafts/storage-unavailable` 映射；`fix-storage-file-permissions` 在同一封装内补 `mode: 0o600` / `0o700`。
-  - 指标快照直接复用该封装（新增 `metrics-store.ts` 调用同一写盘原语），避免出现两套权限位 / 错误映射口径。
+  - 前置 `fix-storage-file-permissions`（已归档 2026-10-20）已把封装落地为 `src/storage/local-fs.ts`（叶子模块）：`FILE_MODE = 0o600` / `DIR_MODE = 0o700`、`mkdirWithMode`（目录创建）、`writeJsonAtomic`（临时文件 + `rename` 原子写）、`createFileWriteLocks()`（按绝对文件路径的串行写锁，每实例一套）。
+  - 目录准备 / 可写性校验（`ensureDirectory` / `verifyDirectoryWritable`）与 `DraftStorageError` → `drafts/storage-unavailable` 映射仍由 `draft-store.ts` 导出；指标快照直接复用这两处（`metrics-store.ts` 写失败以 `DraftStorageError` 包装，沿用 A7 归档提案确定的封装分工），避免出现两套权限位 / 错误映射口径。
   - Alternatives considered：在 `metrics-store.ts` 内独立实现写盘与错误映射（被否：重复校验、易与 draft-store 口径漂移，违反 criterion §3.5「绕过 config-store / draft-store 模块直接操作」的约束精神）。
 
 - **Decision: 追加语义以「读-改-写」实现，同日文件只增不改**
@@ -61,7 +61,7 @@
 
 ## Migration Plan
 
-无数据迁移。`metrics/` 目录首次写入时创建；不回填历史、不迁移既有数据。前置提案 `fix-storage-file-permissions` 落地后本提案直接复用其封装。
+无数据迁移。`metrics/` 目录首次写入时创建；不回填历史、不迁移既有数据。前置提案 `fix-storage-file-permissions` 已归档（2026-10-20），本提案直接复用其落地的 `src/storage/local-fs.ts` 封装。
 
 ## Open Questions
 

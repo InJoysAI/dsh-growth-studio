@@ -138,7 +138,7 @@
 | Scope | 关联资产 | 关联说明 |
 |-------|---------|----------|
 | criterion | `.context/criterion.md` | §4 环比基准与 `metrics/` 权威口径、§3.5 落盘约束 |
-| architecture | `.context/architecture/risks_and_debt.md` | TD-010（metrics 部分）、TD-013（权限位，前置提案提供）、RISK-007；相关 RISK-004 / RISK-005 / RISK-010 |
+| architecture | `.context/architecture/risks_and_debt.md` | TD-010（metrics 部分）、TD-013（权限位，已由 `fix-storage-file-permissions` 修复，本提案消费其封装）、RISK-007；相关 RISK-004 / RISK-005 / RISK-010 |
 | architecture | `.context/architecture/data_architecture.md` | `metrics/{YYYY-MM-DD}.json` 布局 |
 | architecture | `.context/architecture/api_strategy.md` | §3.1「环比基准来源」与「指标口径」 |
 | architecture (source) | `.context/architecture/source/technical_architecture.md` | §3.1 环比基准来源与 `comparison` 键名、§5.3 本地布局 |
@@ -189,7 +189,7 @@
 **依赖**:
 - 前置: `fix-overview-metrics-null-semantics`、`fix-storage-file-permissions`
 - 被依赖: `feat-client-dashboard`
-- 约束: 快照写入须经**统一落盘封装**（其 `mode` 权限位由 `fix-storage-file-permissions` 提供），复用 `drafts/storage-unavailable` 类错误映射口径；故本提案须待权限封装落地后再实施
+- 约束: 快照写入须经**统一落盘封装**（其 `mode` 权限位由 `fix-storage-file-permissions` 提供，该前置已归档 2026-10-20、封装落地为 `src/storage/local-fs.ts`），复用 `drafts/storage-unavailable` 类错误映射口径
 
 ---
 
