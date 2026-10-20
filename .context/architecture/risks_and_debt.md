@@ -378,6 +378,18 @@
 | **解决方案** | 二选一：① 若近期不需 `xiaohongshu`，维持现状并保留本债务条目（不改契约枚举，避免与 criterion §5.5 冲突）；② 若需支持，新增 `XiaohongshuAdapter`（`src/adapters/`）并经 `AdapterRegistry` 注册、补测试。二者均属**新增能力 / 实现变更**，须走 SSoT-first 提案。 |
 | **估算工作量** | N/A – 源文档未提供 |
 
+### TD-016: `ConfigStore.save()` 吞掉配置文件写盘失败，`config.save` 虚报成功
+
+| 属性 | 值 |
+|------|-----|
+| **类型** | 实现债务 / 错误传播 |
+| **严重性** | 高 |
+| **描述** | `src/config-store.ts` 的 `save()` 原以 `try { mkdirSync; writeFileSync(tmp); renameSync } catch { /* Ignore disk persistence failures */ }` 吞掉配置文件落盘异常，`src/ops-rpc.ts` 的 `config.save` case 随后照常返回 `{ ok:true, value:{ success:true, config } }`。用户在配置页看到「保存成功」，实际 `config.json` 未落盘，重启后配置（含明文 Injoys 令牌）整体回退——违反 criterion §3.2 MUST「错误不得吞没」与 MUST NOT「虚报成功」。 |
+| **影响** | 配置写入失败对用户完全不可见，令牌/草稿目录/自动同步开关的丢失只能在重启后才发现；同时使 RISK-005「存储不可用被误报为成功」的缓解措施 ③ 无实现落点。 |
+| **目标解决时间** | 已解决（2026-10-20） |
+| **解决方案** | 由提案 `fix-config-save-error-swallow` 修复：`save()` 移除吞错 `catch`，落盘异常如实抛出；`config.save` case 将其包装为 `DraftStorageError`（`details.dir` 取 `ConfigStore.getConfigDir()`）交既有**统一 RPC 错误边界**映射为 `ok:false` + `drafts/storage-unavailable`；`injoys.updateConfig` 提前到 `save()` 之前，保证失败路径下 `InjoysClient` 与 `inMemory` 一致。契约同轮同步 `api_strategy.md` §2.3 / §3.6 / §3.7 与 `cross_cutting_concepts.md`。 |
+| **估算工作量** | 0.75 人日（规划估算） |
+
 > ⚠️ 本文档**只记录债务，不在架构资产内修改实现**。生成资产已忠实于源文档契约；
 > 修复须由实现侧按 criterion §6 的顺序完成。
 
@@ -414,6 +426,7 @@
 | TD-013 | 技术债 | criterion 文件权限约束无实现落点 | 中 | N/A | 待处理 | 2026-10-16 |
 | TD-014 | 技术债 | 客户端 RPC 消费无测试覆盖（契约同步机制未闭环） | 中 | N/A | 待处理 | 2026-10-16 |
 | TD-015 | 技术债 | `PlatformId` 含 `xiaohongshu`（9 值）但适配器未注册 | 中 | N/A | 待处理 | 2026-10-17 |
+| TD-016 | 技术债 | `ConfigStore.save()` 吞掉配置文件写盘失败，`config.save` 虚报成功（**违反 criterion §3.2 错误不得吞没**） | **高** | N/A | **已修复（2026-10-20，`fix-config-save-error-swallow`）** | 2026-10-20 |
 
 ---
 

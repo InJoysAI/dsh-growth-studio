@@ -147,12 +147,26 @@ export function registerOpsRpc(
               }
             }
 
-            await configStore.save(toSave)
+            // Hot-update BEFORE persisting: `updateConfig` only mutates in-memory endpoint/token
+            // and never throws, so the runtime client stays consistent with `inMemory` even when
+            // the disk write below fails (criterion §3.2 MUST: config changes take effect at once).
             if (toSave.injoys) {
               injoys.updateConfig({
                 endpoint: toSave.injoys.endpoint,
                 token: toSave.injoys.token,
               })
+            }
+
+            try {
+              await configStore.save(toSave)
+            } catch (err) {
+              // Wrapped here, not in `config-store.ts`: that module must not import
+              // `storage/draft-store.ts` (draft-store already imports it → cycle).
+              throw new DraftStorageError(
+                '配置文件保存失败：配置目录不可写或路径被占用，请检查后重试。',
+                configStore.getConfigDir() ?? 'ops-manager',
+                { cause: err },
+              )
             }
             result = {
               ok: true,

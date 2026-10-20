@@ -111,14 +111,15 @@
     "ordering": "ascending_by_synced_at"
   },
   "last_context_sync": {
-    "synced_at": "2026-10-20T09:58:58+08:00",
-    "source": "context-update add ui",
-    "workflow": "add",
-    "authority": "context-update",
+    "synced_at": "2026-10-20T17:35:00+08:00",
+    "source": "openspec/changes/fix-config-save-error-swallow/",
+    "workflow": "context-start",
+    "authority": "proposal",
     "mode": "apply",
     "updated_context_files": [
-      ".context/ui/source/ui-design-direction.md",
-      ".context/AGENTS.md",
+      ".context/architecture/api_strategy.md",
+      ".context/architecture/cross_cutting_concepts.md",
+      ".context/architecture/risks_and_debt.md",
       ".context/history/context-sync.jsonl",
       ".context/context-manifest.json"
     ],

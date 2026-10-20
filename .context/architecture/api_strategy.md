@@ -111,7 +111,7 @@ interface RpcEnvelopeResponse {
 | `drafts/published-requires-url` | `drafts.save` 传入 `status: 'published'` | `drafts.save` |
 | `drafts/invalid-published-url` | 回填 URL 不是合法 `http(s)`（须用 **URL 解析器**校验） | `drafts.updatePublishUrl` |
 | `drafts/unknown-channel` | 回填 `platform` 不属于该草稿的 `channelVariants`（**不写盘、不递增版本**） | `drafts.updatePublishUrl` |
-| `drafts/storage-unavailable` | 目录不可写或创建失败（**统一 RPC 错误边界**映射，覆盖**所有**写入口） | 全部写入口 |
+| `drafts/storage-unavailable` | 目录不可写 / 创建失败 / **配置文件写盘失败**（**统一 RPC 错误边界**映射，覆盖**所有**写入口） | 全部写入口 |
 | `config/invalid-drafts-dir` | `config.save` 前置目录准备/可写性校验失败 | `config.save` |
 | `calendar/invalid-transition` | 越级 / 回退 / 经本接口写 `published` | `calendar.updateStatus` |
 | `tools/disabled` | 工具在白名单中为 `enabled === false`（**宿主侧**强制） | `tools.executeSandbox` |
@@ -652,7 +652,8 @@ interface ConfigGetValue extends OpsConfig {
 // → { success: boolean; config: OpsConfig }
 ```
 
-- 持久化后**实时热更新**运行中的 `InjoysClient`（`endpoint` / `token`），**无需重启**；
+- **热更新先于持久化**：`draftsDir` 前置校验通过后、**配置文件写盘之前**完成 `InjoysClient` 热更新（`endpoint` / `token`），**无需重启**；写盘失败时仍保留已合并的内存态并返回失败信封，**不回滚**（保证运行中配置与用户刚提交的表单一致，不出现「界面显示新配置但真实调用仍走旧令牌」的分裂态）；
+- **配置文件写盘失败 → 失败信封**：`config.save` 落盘失败（目录不可写 / 创建失败 / 路径被文件占用）时返回 `ok:false` + `error.code='drafts/storage-unavailable'`（经**统一 RPC 错误边界**映射），`error.message` 为面向用户的中文说明、不拼接 `errno` / 调用栈，`details.dir` 指向 `ops-manager` 配置目录；**不得**返回 `ok:true` 或 `ops/internal-error`；`ok:false` 时响应**不含** `value.success`；
 - **响应体含明文 `token`**：`config` 为完整 `OpsConfig`，适用 `criterion §3.4`「令牌返回边界」的本机回填例外（与 `config.get` 同一授权），**不得**向本机 DSH 客户端之外回传；
 - 保存 `injoys` 配置后须清理**按目标隔离的缓存**，避免跨服务状态污染；
 - 修改 `draftsDir` 后**立即生效**，无需重启（详见 §3.7）；
@@ -680,7 +681,7 @@ interface ConfigGetValue extends OpsConfig {
 - **配置页切换提示文案**（实现时照此展示，须同时覆盖三件事实）：
   > 新目录对后续操作生效；正在进行的保存仍写入原目录。旧草稿不会自动迁移。
 - **已存在于旧目录的草稿不做自动迁移**（避免大目录复制与部分失败风险）；
-- **写入失败必须如实抛错，且错误码统一**：目录不可写或创建失败返回 `drafts/storage-unavailable`，**不得**吞掉异常后谎报保存成功。该映射须在**统一 RPC 错误边界**完成，使 `drafts.save`、`drafts.updatePublishUrl`、预填回写等**所有写入口**返回同一错误码，而不是让部分入口漏出 `ops/internal-error`；
+- **写入失败必须如实抛错，且错误码统一**：目录不可写 / 创建失败 / **配置文件写盘失败**返回 `drafts/storage-unavailable`，**不得**吞掉异常后谎报保存成功。该映射须在**统一 RPC 错误边界**完成，使 `drafts.save`、`drafts.updatePublishUrl`、预填回写、`config.save` 等**所有写入口**返回同一错误码，而不是让部分入口漏出 `ops/internal-error`；
 - 配置前置校验失败仍**单独使用** `config/invalid-drafts-dir`；
 - **未来可选增强（本轮不实现）**：若需帮助用户定位某次保存**实际落到哪里**，优先在写入类响应中返回本次真实使用的 `storageDirectory`（字符串），而**不是**布尔标记 —— 它同时覆盖「目录已切换」与「目录未变」两种情形。该字段属**契约变更**，须先更新本节与 `src/types.ts` 再实现。
 

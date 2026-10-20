@@ -36,7 +36,7 @@ interface RpcEnvelopeResponse<T = unknown> {
 | `drafts/published-requires-url` | `drafts.save` 传入 `published` | 发布守卫 |
 | `drafts/invalid-published-url` | URL 非法 | 发布守卫 |
 | `drafts/unknown-channel` | 渠道不属于该草稿 | 发布守卫 |
-| `drafts/storage-unavailable` | 目录不可写 / 创建失败 | **统一 RPC 错误边界** |
+| `drafts/storage-unavailable` | 目录不可写 / 创建失败 / 配置文件写盘失败 | **统一 RPC 错误边界** |
 | `config/invalid-drafts-dir` | 前置目录校验失败 | 配置服务（**单独使用**） |
 | `calendar/invalid-transition` | 越级 / 回退 / 写 `published` | 排期服务 |
 | `tools/disabled` | 工具被白名单禁用 | 工具沙箱 |
