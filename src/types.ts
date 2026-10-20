@@ -158,8 +158,8 @@ export interface PlatformMetrics {
   platform: PlatformId
   capturedAt: string
   /**
-   * Bounds of the REQUESTED statistics window (ISO 8601, half-open
-   * `[windowStart, windowEnd)`), derived from `metricsWindow` + capture start.
+   * Bounds of the REQUESTED statistics window (ISO 8601, closed interval
+   * `[windowStart, windowEnd]`), derived from `metricsWindow` + capture start.
    * NOT the same concept as `capturedAt` (the scrape moment), and not proof that
    * the numbers below belong to that window (architecture §3.1「指标口径」).
    */

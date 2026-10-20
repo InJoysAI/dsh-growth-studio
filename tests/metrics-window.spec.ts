@@ -94,6 +94,14 @@ describe('MetricsCollector window fields', () => {
     expect(row!.plays).toBe(296)
     expect(row!.likes).toBe(27)
 
+    // ...and the success path fills the same window contract as every other path.
+    // Asserted explicitly so swapping the bounds here cannot slip through.
+    expect(row!.windowStart).toBe('2026-10-13T00:00:00.000Z')
+    expect(row!.windowEnd).toBe('2026-10-20T00:00:00.000Z')
+    expect(row!.capturedAt).toBe('2026-10-20T00:00:00.000Z')
+    // Bounds are a closed interval: start is strictly before end.
+    expect(Date.parse(row!.windowStart)).toBeLessThan(Date.parse(row!.windowEnd))
+
     // ...but an all-time dashboard figure is not a 7d increment, so it is marked
     // unverified and carries the reason for the withheld contribution.
     expect(row!.windowScope).toBe('unverified')
@@ -111,6 +119,35 @@ describe('MetricsCollector window fields', () => {
     expect(overview.totalPlays).toBeNull()
     expect(overview.measuredPlatforms).toEqual([])
     expect(overview.unmeasuredPlatforms).toEqual(['bilibili'])
+  })
+
+  it('derives the 30d window on the live success path too', async () => {
+    // Same logged-in tab, but a 30d request: the success path must honour the
+    // requested window instead of always reporting 7d.
+    const dashboardText = '播放量 296 评论 2 点赞 27 分享 1 收藏 13'
+    const client = {
+      callTool: async (name: string) => {
+        if (name === 'tabs') {
+          return {
+            content: [
+              { type: 'text', text: '[2] https://member.bilibili.com/platform/home (B站)' },
+            ],
+          }
+        }
+        if (name === 'read') {
+          return { content: [{ type: 'text', text: dashboardText }] }
+        }
+        return { content: [{ type: 'text', text: '' }] }
+      },
+    }
+    const collector = new MetricsCollector({ browserOsClient: client, now: () => NOW })
+    const [row] = await collector.fetchPlatformMetrics(['bilibili'], '30d')
+
+    expect(row!.source).toBe('live')
+    expect(row!.windowStart).toBe('2026-09-20T00:00:00.000Z')
+    expect(row!.windowEnd).toBe('2026-10-20T00:00:00.000Z')
+    expect(row!.capturedAt).toBe('2026-10-20T00:00:00.000Z')
+    expect(Date.parse(row!.windowStart)).toBeLessThan(Date.parse(row!.windowEnd))
   })
 
   it('marks mock rows as window-verified', async () => {

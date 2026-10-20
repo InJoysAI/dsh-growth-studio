@@ -122,8 +122,8 @@ export class MetricsCollector {
   }
 
   /**
-   * Bounds of the requested statistics window, as a half-open ISO 8601 range
-   * ending at the capture start.
+   * Bounds of the requested statistics window, as a closed ISO 8601 range
+   * `[windowStart, windowEnd]` ending at the capture start (architecture §3.1).
    */
   private resolveWindow(
     timeRange: '7d' | '30d',

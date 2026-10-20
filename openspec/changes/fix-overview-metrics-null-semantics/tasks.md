@@ -16,6 +16,7 @@
   - 汇总字段类型一律为 `number | null`（不得为必填数字）
 - [x] 1.3 在 `src/types.ts` 的 `PlatformMetrics` 补 `windowStart` / `windowEnd`（ISO 8601，由请求窗口推导的**请求窗口**边界，区别于 `capturedAt` 采集时刻）
   - 契约来源：`.context/architecture/data_architecture.md` `PlatformMetrics` 注；TD-007 解决方案 ①
+  - 核查修正（第二轮）：实现注释曾擅自把窗口写作「半开区间 `[windowStart, windowEnd)`」，与权威源 `.context/architecture/source/technical_architecture.md` §4.1（「闭区间」）及 `data_architecture.md`（「闭区间」）不一致。已改为「闭区间 `[windowStart, windowEnd]`」（`src/types.ts` 与 `src/analytics/metrics-collector.ts` 的 `resolveWindow` 注释各一处）；未变更 Context 契约定义。
 - [x] 1.4 运行契约校验：`pnpm typecheck`（无 codegen，§7.2「生成命令 = 无」）
 
 ## 2. 宿主 RPC 契约层（`src/ops-rpc.ts`）
@@ -75,7 +76,8 @@
 
 - [x] 4.4 采集器窗口字段测试（在 `MetricsCollector` 实际采集路径验证，与 4.1 纯函数测试分开、不可互相替代）
   - [x] 4.4.1 `live` 与无客户端 `unmeasured` 两条路径均产出非空 ISO 8601 `windowStart` / `windowEnd`，取值口径一致，且不与 `capturedAt` 相互代替
-    - 核查修正：原用例实际走 `unmeasured` 出口（空页签列表），未覆盖 `found` 分支。已补 `tests/metrics-window.spec.ts` 的 found-branch 用例（桩 `tabs` 返回已登录 B 站页签 + 可解析仪表盘文本），断言 `source === 'live'`、数值保留（`plays === 296`）、`windowScope === 'unverified'`、`note` 含「累计」，并端到端断言送入 `aggregateOverviewMetrics` 后 `totalPlays === null`；已做变异验证（把标记改回 `'verified'` 时该用例失败）。原用例更名为 "marks rows unverified when no logged-in tab is open" 以名实相符。
+    - 核查修正（第一轮）：原用例实际走 `unmeasured` 出口（空页签列表），未覆盖 `found` 分支。已补 `tests/metrics-window.spec.ts` 的 found-branch 用例（桩 `tabs` 返回已登录 B 站页签 + 可解析仪表盘文本），断言 `source === 'live'`、数值保留（`plays === 296`）、`windowScope === 'unverified'`、`note` 含「累计」，并端到端断言送入 `aggregateOverviewMetrics` 后 `totalPlays === null`；已做变异验证（把标记改回 `'verified'` 时该用例失败）。原用例更名为 "marks rows unverified when no logged-in tab is open" 以名实相符。
+    - 核查修正（第二轮）：found-branch 用例此前未断言窗口字段——仅交换 live 成功分支的 `windowStart`/`windowEnd` 时 6 项测试仍全过。已在该用例补 `windowStart === '2026-10-13T00:00:00.000Z'`、`windowEnd === '2026-10-20T00:00:00.000Z'`、`capturedAt` 与「`start < end`」闭区间断言；并新增 "derives the 30d window on the live success path too" 覆盖 30d（`2026-09-20 → 2026-10-20`）。变异验证：交换 live 成功分支边界后 **2 failed / 5 passed**（此前为 6 passed），还原后 7 passed。
   - [x] 4.4.2 固定时钟分别校验 `7d` / `30d` 窗口的精确边界（ISO 可解析），并断言 `capturedAt` 保持采集时刻
   - [x] 4.4.3 请求窗口穿透：以桩请求 `30d` 时 `workbench.overview` 与采集器均按 `30d` 取窗口（mock 路径可验证）；未传时默认 `7d`
   - [x] 4.4.4 mock 构造与 fixtures 满足新增必填类型（同步补 `windowStart` / `windowEnd`），不新增真实采集能力
