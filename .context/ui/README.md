@@ -2,7 +2,7 @@
 
 > **Metadata**
 > - **Source**: `.context/ui/source/ui-design-direction.md`
-> - **Generated At**: `2026-10-21 00:55`
+> - **Generated At**: `2026-10-21 01:08`
 > - **Generator**: `Context-Agent v1.0`
 
 ---
@@ -33,13 +33,13 @@
 
 | 文件 | 用途 |
 |------|------|
-| [`design_system.md`](./design_system.md) | 视觉定位、令牌、槽位门禁、KPI/Tab 口径 |
-| [`atomic_components.md`](./atomic_components.md) | 原子→页面；Megaphone、导出/导入、复制/沉淀 |
+| [`design_system.md`](./design_system.md) | 视觉定位、令牌、槽位门禁、KPI 覆盖/环比 |
+| [`atomic_components.md`](./atomic_components.md) | 原子→页面；目录三项提示、MetricBox 互斥示例 |
 | [`layout_grid.md`](./layout_grid.md) | 1280 / 960 断点 |
 | [`design_tokens.json`](./design_tokens.json) | Alias + 四个授权点缀色 |
-| [`interaction_states.md`](./interaction_states.md) | SessionState / ItemStatus / 宿主回填 |
-| [`motion_tokens.md`](./motion_tokens.md) | 150–200ms、呼吸灯、Toast |
-| [`accessibility_checklist.md`](./accessibility_checklist.md) | 快捷键、四态文案、发布守卫 |
+| [`interaction_states.md`](./interaction_states.md) | 四态/五态、刷新去重、宿主回填 |
+| [`motion_tokens.md`](./motion_tokens.md) | 150–200ms、统一 cubic-bezier |
+| [`accessibility_checklist.md`](./accessibility_checklist.md) | 快捷键、目录提示、调试脱敏 |
 
 跳过：`handoff_checklist.md`（无 Figma）、`platform_guidelines.md`（非 iOS/Android）。
 

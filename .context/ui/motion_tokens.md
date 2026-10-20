@@ -2,7 +2,7 @@
 
 > **Metadata**
 > - **Source**: `.context/ui/source/ui-design-direction.md`
-> - **Generated At**: `2026-10-21 00:40`
+> - **Generated At**: `2026-10-21 01:08`
 > - **Generator**: `Context-Agent v1.0`
 
 ---
@@ -28,11 +28,8 @@
 
 | Token | 值 | 用途 |
 |-------|----|------|
-| ease-standard | `ease` | 卡片 Hover 过渡（源文档 §4.3 `.dim-ops-card`） |
-| ease-emphasized | `cubic-bezier(0.16, 1, 0.3, 1)` | 统一加速缓出曲线（源文档 §4.3 正文） |
+| ease-standard | `cubic-bezier(0.16, 1, 0.3, 1)` | 卡片 Hover、Toast 进入、其它微交互（源文档 §4.3 已统一，无 `ease` 例外） |
 | ease-in-out | `ease-in-out` | `dimStatusPulse` |
-
-> 源文档同时给出「统一 cubic-bezier」与卡片 `transition: … 180ms ease`。实现卡片 Hover 时以 §4.3 代码块为准（`ease` + 180ms）；其他微交互使用 `cubic-bezier(0.16, 1, 0.3, 1)`。
 
 ---
 

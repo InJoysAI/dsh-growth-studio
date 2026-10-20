@@ -143,11 +143,13 @@ graph TD
 
 ### 4.3 交互微动效规范 (Micro-animations Standard)
 
-- **持续时间**：统一采用 `150ms ~ 200ms` 的加速缓出曲线 `cubic-bezier(0.16, 1, 0.3, 1)`。
+- **持续时间**：统一采用 `150ms ~ 200ms` 的加速缓出曲线 `cubic-bezier(0.16, 1, 0.3, 1)`。卡片 Hover、Toast 进入动画与其它微交互**同一曲线**，不以 `ease` 作为卡片例外。
 - **卡片 Hover 响应**：
   ```css
   .dim-ops-card {
-    transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+    transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1),
+                box-shadow 180ms cubic-bezier(0.16, 1, 0.3, 1),
+                border-color 180ms cubic-bezier(0.16, 1, 0.3, 1);
   }
   .dim-ops-card:hover {
     transform: translateY(-2px);
@@ -165,7 +167,7 @@ graph TD
     animation: dimStatusPulse 2.4s ease-in-out infinite;
   }
   ```
-- **全局通知 Toast**：顶部滑入动画 `dimOpsSlideDown 200ms ease`，停留 5 秒后自动淡出消失。
+- **全局通知 Toast**：顶部滑入动画 `dimOpsSlideDown 200ms cubic-bezier(0.16, 1, 0.3, 1)`，停留 5 秒后自动淡出消失。预填成功的**常驻通知条**（DEC-UI-009）与 5 秒 Toast 是不同组件，不得共用自动淡出。
 
 ---
 
@@ -189,7 +191,7 @@ graph TD
 |-------------------|---------|--------------|
 | `Cmd + S` / `Ctrl + S` | 创作室编辑区 | 立即触发本地草稿即时保存 (`drafts.save`)，弹出轻量 Toast 提示「草稿已保存」 |
 | `Cmd + Enter` / `Ctrl + Enter` | 创作室编辑区 | 触发 BrowserOS「一键预填草稿箱」，执行前弹层提示二次防呆，执行中展示按钮 Loading |
-| `Cmd + R` / `Ctrl + R` | 全局工作台 | 触发「刷新大盘」，就地重新探活 BrowserOS 会话与拉取最新数据（阻止浏览器默认硬刷新） |
+| `Cmd + R` / `Ctrl + R` | 全局工作台 | 触发「刷新大盘」，就地重新探活 BrowserOS 会话与拉取最新数据（阻止浏览器默认硬刷新）。与卡片「原地探活」/「刷新大盘」按钮共用同一 in-flight 去重（见下） |
 | `Esc` | 抽屉 / 模态层 | 快速关闭右侧 AI 工具调试抽屉或快捷表单弹层 |
 
 ---
@@ -200,6 +202,13 @@ graph TD
 - **键名**：`ops.<area>.<name>`（例：`ops.header.refresh`、`ops.session.needs_login`）。
 - **取值优先级**：`ctx.i18n.text(key)` → 当前 locale 文件 → `locale/zh.json`。
 - **禁止**：在 JSX 组件深层写死用户可见文案。现有 `locale/zh.json` 仅含 `meta.title` / `meta.description`，工作台文案按本契约增量补键。
+
+### 4.7 刷新入口与 in-flight 去重 (Refresh Dedup)
+
+- **触发入口**（共用同一请求状态，不得各自发独立 RPC）：卡片「原地探活」、Header「🔄 刷新大盘」、`Cmd/Ctrl+R`。
+- **去重范围**：以**卡片 / 对应 RPC** 为键（如 `browser.sessions` 与 `workbench.overview` 各自一把 in-flight）。请求未完成时，任一入口的连续点击或快捷键**只执行一次**对应请求；完成后或失败后释放。
+- **快捷键防抖不能替代**跨入口在途去重。
+- **项目 Phase 0** 不自建 WebSocket / SSE，也不做后台定时轮询（criterion §3.4）。刷新仅用户手动触发 + 局部状态替换。
 
 ---
 
@@ -213,9 +222,14 @@ graph TD
     2. `needs_login`（需登录）— 告警橙 + **`去登录 ↗`**
     3. `authenticated`（已认证就绪）— 安全绿 + 呼吸灯
     4. `no_publish_permission`（无权限）— 告警橙（或已登记的宿主 error alias）+ 文字「无权限」，**禁止用「故障」替代**
-  - 数据区域展示核心指标（曝光/播放、互动与关注）；接口 `null` 显示「暂无数据」中性徽章，悬浮原因，**不得显示为 0**。
-  - 底部操作栏：「🔄 原地探活」无整页刷新；`needs_login` 才出现「去登录 ↗」。
-- **全局快捷行动组**（BR-083）：`+ 生成 7 天排期日历`、`✍ 新建多端物料`（切创作室并聚焦输入）、`🔄 刷新大盘`。
+  - 数据区域展示核心指标（曝光/播放、互动与关注）。客户端**只展示宿主汇总结果**，不在前端重算全网总量。
+  - 指标 `null` →「暂无数据」中性徽章 + 悬浮原因，**不得显示为 0**。平台真实 `0` 是有效值，须与 `null` 区分。
+  - **覆盖范围**：应采平台未全部成功时，汇总值为 `null`（不得只加总已成功平台冒充全网）；须展示宿主下发的 `measuredPlatforms` / `unmeasuredPlatforms`。
+  - **环比**：历史不足以覆盖完整对比窗口时 delta 为 `null`，展示「暂无环比」，禁止估算。
+  - **KPI-1 注释**（PRD §5.1.2）：副标题固定为「全网非去重曝光与播放累计人次」。
+  - 底部操作栏：「🔄 原地探活」无整页刷新；与全局刷新共用 in-flight 去重（§4.7）；`needs_login` 才出现「去登录 ↗」。
+- **Sticky KPI Ribbon**：四卡命名对齐 PRD §5.1.2。第 4 项「分发矩阵连通度」只统计 `authenticated`；**项目 Phase 0** 分母为 2。
+- **全局快捷行动组**（BR-083）：`+ 生成 7 天排期日历`、`✍ 新建多端物料`（切创作室并聚焦输入）、`🔄 刷新大盘`（走 §4.7 去重）。
 - **全网热点雷达 (Trends Radar)**：
   - 展示热点选题（标题、热度指数、建议渠道）。
   - 点击「采用此选题创作 ➔」：切至内容创作室，预填**标题与基调**（PRD §5.2.2）。
@@ -251,7 +265,11 @@ graph TD
 - **右侧调试抽屉 (Drawer Console)**：
   - 点击任一工具卡片展开右侧抽屉。
   - 上方：可视化参数输入表单（带校验与占位提示）。
-  - 下方：可折叠展示原始 JSON 请求报文、执行耗时（如 `1,240ms`）、返回值结构化渲染。
+  - 下方：可折叠展示**已脱敏**的请求/响应结构化视图、执行耗时（如 `1,240ms`）。
+  - **日志与遥测脱敏（criterion §4 / 安全策略）**：
+    - 令牌、Cookie **不得**进入调试展示、错误回显、日志或遥测。
+    - 完整正文 **不得**进入日志与遥测；工作台正文预览按业务需要显示，不等于记日志或上报遥测。
+  - **配置表单明文回填例外**仅适用于本机受信任 DSH 客户端的 `config.get` / `config.save` 显隐切换，**不授权**把明文 token 写入调试抽屉或日志。
 
 ### 5.5 舆情需求大盘 (Social Listening) `[UI 批次 1 基础指标 / 项目 Phase 1 聚类]`
 - **项目 Phase 0 基础指标**（PRD §5.6，仅公众号+B站）：播放/阅读量、点赞、评论、分享、收藏；采集失败为 `null` →「暂无数据」，禁止 0。
@@ -263,6 +281,7 @@ graph TD
 - **Injoys MCP 配置卡片**：Endpoint、Token 显隐、连通性测试。
 - **BrowserOS 能力管理**（PRD §5.7.1）：列出**当前连接实际暴露**的工具 + 启停开关；**默认八项**（`tabs` / `navigate` / `snapshot` / `act` / `read` / `grep` / `wait` / `upload`）是默认启用集，**不是上限**；其余实际暴露工具默认关、允许手动开；未暴露的不列出、不伪造。
 - **本地草稿目录**：可配置（默认 `$DSH_HOME/growth-studio/drafts/`）+ 健康度检查。`config.save` 改 `draftsDir` 前由宿主预检，失败返回 `config/invalid-drafts-dir`，界面展示错误、不得先报成功（BR-030 / criterion §3.2）。
+  - **切换成功后必须同时展示三项事实**（criterion §3.5，照原文）：「新目录对后续操作生效；正在进行的保存仍写入原目录。旧草稿不会自动迁移。」不得改写、合并或省略任一句。
 - **全局运营策略**：默认产品名、**调性基调**、保存即时生效（PRD §5.7）。
 
 ---
@@ -331,5 +350,6 @@ plugin-src/client/
 ### 7.3 2026-10-21 修订记录（非访谈建议）
 
 - [x] MUST 对齐：会话四态、内容五态、**项目 Phase 0** 两渠道、KPI 口径、导出/导入、复制/沉淀、Megaphone（宿主导航）、draftsDir 可配置、能力开关非上限、宿主写 `published`。
+- [x] 2026-10-21 规格补洞：目录切换三项必示提示；KPI 覆盖范围 / 暂无环比 / 非去重注释；刷新 in-flight 去重；调试抽屉脱敏；卡片缓动统一 cubic-bezier。
 
 

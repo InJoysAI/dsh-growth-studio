@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generated_at": "2026-10-21T00:58:06+08:00",
+  "generated_at": "2026-10-21T01:10:35+08:00",
   "generator": "Context-Agent v1.0",
   "generation_pipeline": {
     "root_assets": "Context-Dev-Agent v1.0",
@@ -37,7 +37,7 @@
       "path": ".context/ui/source/ui-design-direction.md",
       "archived_to": ".context/ui/source/ui-design-direction.md",
       "type": "ui_specification",
-      "content_hash": "f39cc09eada0119999340db9230db9727f9b2128dabd3090298a36a62545f4b7",
+      "content_hash": "4e2b624fe5070cc5644a1e174de2edbfc773bc5aa10ff6f0c914b59a01d4ecb3",
       "status": "archived"
     }
   },
@@ -117,21 +117,15 @@
     "ordering": "ascending_by_synced_at"
   },
   "last_context_sync": {
-    "synced_at": "2026-10-21T00:58:06+08:00",
+    "synced_at": "2026-10-21T01:10:35+08:00",
     "source": ".context/ui/source/ui-design-direction.md",
     "workflow": ".agents/workflows/context-check.md review scope ui",
-    "authority": "用户指令修复评审项（MUST 对齐 + P2-1~P2-5）",
+    "authority": "用户指令收口 F4 同步偏差",
     "mode": "apply",
     "updated_context_files": [
       ".context/ui/source/ui-design-direction.md",
-      ".context/ui/README.md",
-      ".context/ui/design_system.md",
-      ".context/ui/atomic_components.md",
-      ".context/ui/layout_grid.md",
-      ".context/ui/design_tokens.json",
-      ".context/ui/interaction_states.md",
-      ".context/ui/motion_tokens.md",
       ".context/ui/accessibility_checklist.md",
+      ".context/ui/atomic_components.md",
       ".context/history/context-sync.jsonl",
       ".context/context-manifest.json"
     ],

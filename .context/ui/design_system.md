@@ -2,7 +2,7 @@
 
 > **Metadata**
 > - **Source**: `.context/ui/source/ui-design-direction.md`
-> - **Generated At**: `2026-10-21 00:55`
+> - **Generated At**: `2026-10-21 01:08`
 > - **Generator**: `Context-Agent v1.0`
 
 ---
@@ -146,7 +146,9 @@ Hover（源文档 §4.3）：
 
 ```css
 .dim-ops-card {
-  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+  transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 180ms cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 180ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 .dim-ops-card:hover {
   transform: translateY(-2px);
@@ -168,7 +170,11 @@ Hover（源文档 §4.3）：
 
 ### MetricBox
 
-四个 Sticky KPI（PRD §5.1.2）：全网曝光/播放总量、互动与关注增长、排期履约流水、分发矩阵连通度。第 4 项只统计 `authenticated`；未交付渠道不计入。`null` →「暂无数据」，禁止 `0`。
+四个 Sticky KPI（PRD §5.1.2）：全网曝光/播放总量、互动与关注增长、排期履约流水、分发矩阵连通度。第 4 项只统计 `authenticated`；**项目 Phase 0** 分母为 2。客户端只展示宿主汇总，不在前端重算。
+
+- KPI-1 副标题：「全网非去重曝光与播放累计人次」。
+- 应采平台未全部成功 → 汇总值 `null`，展示 `measuredPlatforms` / `unmeasuredPlatforms`，禁止只加总已成功渠道。
+- 指标 `null` →「暂无数据」；真实 `0` 原样显示。环比窗口不足 →「暂无环比」，禁止估算。
 
 ### EmptyState
 

@@ -2,7 +2,7 @@
 
 > **Metadata**
 > - **Source**: `.context/ui/source/ui-design-direction.md`
-> - **Generated At**: `2026-10-21 00:55`
+> - **Generated At**: `2026-10-21 01:12`
 > - **Generator**: `Context-Agent v1.0`
 
 ---
@@ -63,12 +63,21 @@ plugin-src/client/workspaces/      六个 Tab（PRD 顺序）
 
 ### 指标卡 MetricBox
 
-KPI 命名对齐 PRD §5.1.2：全网曝光/播放总量、互动与关注增长、排期履约流水、分发矩阵连通度。
+KPI 命名对齐 PRD §5.1.2。数值与「暂无数据」**互斥**，同一状态不得并存。`128.4k` 仅为示意，不可作运行时回退。
 
 ```html
+<!-- 有值：真实 0 也走此分支 -->
 <section class="dim-ops-metric">
   <h3 class="dim-ops-metric__label">全网曝光/播放总量</h3>
-  <p class="dim-ops-metric__value">128.4k</p>
+  <p class="dim-ops-metric__caption">全网非去重曝光与播放累计人次</p>
+  <p class="dim-ops-metric__value"><!-- bound: data.value --></p>
+  <p class="dim-ops-metric__delta"><!-- bound: data.delta；null 时改为「暂无环比」 --></p>
+  <p class="dim-ops-metric__coverage"><!-- bound: measuredPlatforms / unmeasuredPlatforms --></p>
+</section>
+
+<!-- null 汇总（应采平台未全部成功或采集失败） -->
+<section class="dim-ops-metric">
+  <h3 class="dim-ops-metric__label">全网曝光/播放总量</h3>
   <span class="dim-ops-badge dim-ops-badge--neutral" title="尚未探活或平台未发布">暂无数据</span>
 </section>
 ```
@@ -95,7 +104,7 @@ Logo + 名称 + `SessionState`：`unknown` / `needs_login` / `authenticated` / `
 
 ### TopKpiRibbon
 
-MetricBox × 4（PRD §5.1.2）。第 4 项只统计 `authenticated`。
+MetricBox × 4（PRD §5.1.2）。第 4 项只统计 `authenticated`。覆盖范围、暂无环比、非去重注释见 MetricBox。
 
 ### 平台矩阵卡片
 
@@ -131,7 +140,7 @@ MVP **不提供**草稿历史 / 版本恢复。
 
 - Injoys MCP：Endpoint、Token 显隐、连通测试
 - BrowserOS：探活；能力管理列出**实际暴露**工具，默认八项不是上限
-- 草稿目录：**可配置** + 健康度；失败展示 `config/invalid-drafts-dir`
+- 草稿目录：**可配置** + 健康度；失败展示 `config/invalid-drafts-dir`。切换成功后**同时**展示三项事实：「新目录对后续操作生效；正在进行的保存仍写入原目录。旧草稿不会自动迁移。」
 - 全局策略：默认产品名、**调性基调**、保存即时生效
 
 ---
@@ -159,8 +168,8 @@ HeaderCockpit + Sticky KPI Ribbon + SegmentedTabs（PRD 顺序）+ Canvas。当�
 | 运营驾驶舱 | `OverviewCockpitTab.jsx` | 核心 | 两张卡片、SessionState、快捷行动组、热点采用 |
 | 排期日历流水 | `PipelineCalendarTab.jsx` | 基础看板 | `ItemStatus` 五态、导出/导入 |
 | 内容创作室 | `ContentStudioTab.jsx` | 核心 | 特性/受众/基调、复制/沉淀、宿主回填 |
-| AI 工具中枢 | `ToolsHubTab.jsx` | 场景卡片 + 抽屉 | 表单、JSON、耗时 |
+| AI 工具中枢 | `ToolsHubTab.jsx` | 场景卡片 + 抽屉 | 表单、脱敏后的 JSON、耗时；令牌/Cookie 不进抽屉/错误/日志/遥测；完整正文不进日志与遥测，预览按需 |
 | 舆情需求大盘 | `SocialListeningTab.jsx` | 基础指标 | 播放/阅读、点赞、评论、分享、收藏；null 容错 |
-| 引擎策略配置 | `SettingsGovernanceTab.jsx` | 核心 | draftsDir 可配、能力开关非上限；Megaphone 在宿主导航 chrome（`index.js`），非本页按钮 |
+| 引擎策略配置 | `SettingsGovernanceTab.jsx` | 核心 | draftsDir 可配 + 三项切换提示、能力开关非上限；Megaphone 在宿主导航 chrome（`index.js`） |
 
 现行 `ops-page.js` 在提案落地前仍是唯一实现面。
