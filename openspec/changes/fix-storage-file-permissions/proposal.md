@@ -22,7 +22,7 @@
   - `writeJsonAtomic(filePath, value)`：临时文件（以 `FILE_MODE` 创建、唯一后缀）+ `renameSync` 原子替换；
   - `createFileWriteLocks()` → `{ withFileLock(filePath, fn) }`：按**绝对文件路径**归属的串行写锁（每次调用返回独立锁集，保持 `DraftStore` 现有的「每实例一套锁」语义）。
 
-  权限位、目录创建、原子写与写锁四项在此**单点**定义；存储错误类型 `DraftStorageError` 与 `drafts/storage-unavailable` 映射仍由 `src/storage/draft-store.ts` 导出，各 store 在写失败时以该类型包装——即「统一落盘封装」= 本模块四项 + 该错误类型与映射口径。
+  权限位、目录创建、原子写与写锁四项在此**单点**定义；存储错误类型 `DraftStorageError` 与 `drafts/storage-unavailable` 映射仍由 `src/storage/draft-store.ts` 导出。失败包装位置**沿用既有分工**（不因本提案搬家）：草稿侧与后续新增 store 在写失败时以 `DraftStorageError` 包装；`ConfigStore` 继续抛原始 fs 错误，由 `config.save` 的 RPC 分支包装并附配置目录，再由统一 RPC 错误边界映射。即「统一落盘封装」= 本模块四项 + 既有错误类型与映射口径。
 
 ### 修改功能
 
@@ -32,7 +32,7 @@
 ### 技术实现
 
 - 权限位以 `mode` 选项传给 `writeFileSync` / `mkdirSync`，**不引入写后 `chmodSync`**：实际权限位是 `mode` 与 umask 的交集，umask 只可能使结果更严格，MUST 不会因此被放宽，故不为它增加一次系统调用与新的失败点。
-- 统一封装选为**叶子模块**（不 import 任何项目内模块）：`draft-store.ts` 已 import `config-store.ts`（`resolveDshHome` / `defaultDraftsDir`），若把封装放进 `draft-store.ts` 再供 `config-store.ts` 复用即产生循环依赖。
+- 统一封装选为**叶子模块**（不 import 任何项目内模块）：`draft-store.ts` 已 import `config-store.ts`（`resolveDshHome` / `defaultDraftsDir`），若把封装放进 `draft-store.ts` 再供 `config-store.ts` 复用即产生循环依赖。这是**本次选定的简单方案**，不是唯一可行的无环结构（调整路径工具依赖等同样可解），本提案不为其它结构做取舍评审。
 - 写锁抽入封装的必要性有具体消费方：`feat-storage-metrics-snapshot` 已在进行中，其 `tasks.md` 明确要求复用「临时文件 + `rename` 原子写、按绝对文件路径的串行写锁、目录 `0o700` / 文件 `0o600`」，且明确**不修改** `draft-store.ts` / `config-store.ts`。若本次只抽权限位与原子写，该提案将不得不在 `metrics-store.ts` 内自建第二套锁实现，正是它自己禁止的「第二套落盘口径」。锁的抽取为等价搬移（按路径归属、串行链、用后释放），不新增锁语义。
 - 按 SSoT-first（criterion §6）：本提案**不改** API 层契约（`src/types.ts` / `src/ops-rpc.ts` 的 RPC 方法与信封不变、不新增字段），无契约先行步骤；§7.2「生成命令 = 无」，一致性由 `pnpm typecheck` + `pnpm test` 保证。
 
@@ -78,20 +78,24 @@
 - **多用户主机读取（本提案要消除的对象）**：umask 宽松时草稿正文与含 Injoys 令牌的配置文件可被同机其他用户读取；显式 `mode` 后新写入不再依赖 umask。
 - **既有对象残留（已知未覆盖面）**：升级前已存在的 `drafts/`、`ops-manager/` 目录可能长期保持 `0755`（`mkdir` 不修正已存在目录）；既有文件在下一次保存时被收紧为 `0o600`，但不再被保存的 `config.json`（含令牌）会保持原权限。缓解与去向：记入本节，一次性收紧须另立迁移提案（本提案 Out of Scope）；验收只覆盖新建对象，不把残留当作已解决。
 - **`ConfigStore.save()` 的失败上报是既有前提，不是本提案的待偿债务**：Phase 0 提案 9 `fix-config-save-error-swallow` 已归档——`save()` 不再吞掉落盘失败，`config.save` 失败经统一 RPC 边界返回 `drafts/storage-unavailable`（TD-016 已修复）。本提案在该语义之上只做一件事：把 `mkdirSync` / `writeFileSync` + `renameSync` 换成统一落盘封装以取得权限位与原子写；**不得**因改用封装而重新吞掉失败。`config-store.ts` 仍不得 import `storage/draft-store.ts`（否则成环），故失败包装保持在 `config.save` case 处，与现状一致。
-- **umask 与权限断言的关系**：实际权限位为 `mode & ~umask`，umask 只可能更严格、不可能放宽，故 MUST 成立；权限位断言以「`(mode & 0o077) === 0`」为主判据，并在标准 umask 下追加精确 `0o600` / `0o700` 断言，避免异常 umask 下误报失败；`root` 运行与 `win32` 平台下权限位无意义，显式跳过并输出原因（沿用 `tests/ops-manager.spec.ts` 既有的 `permissionBitsEnforced` 探测口径）。
+- **umask 与权限断言的关系**：实际权限位为 `mode & ~umask`，umask 只可能更严格、不可能放宽，故 MUST 成立；权限位断言以「`(mode & 0o077) === 0`」为主判据（括号不可省），并在标准 umask 下追加精确 `0o600` / `0o700` 断言，避免异常 umask 下误报失败。
+- **权限断言的跳过边界（须分两类，不可一概跳过）**：①「创建位是否被正确设定」用 `stat` 读取即可判定，`root` 在支持 POSIX mode 的文件系统上同样能读出 `0600` / `0700`，故**不因 `root` 跳过**——否则 `root` CI 上漏设 `mode` 也会通过；②「只读目录下写入是否被拒绝」才受 `root` 绕过 DAC 影响，这类 EACCES 用例沿用 `tests/ops-manager.spec.ts` 既有的 `permissionBitsEnforced` 探测跳过口径（该探针检测的正是「只读目录下创建是否被拒」，用在本提案的创建位断言上属复用场景错误）。`win32` 或不支持 POSIX 权限位的文件系统按「未覆盖」显式声明跳过并输出原因，不得宣称跨平台 MUST 已完成。
 - **测试污染真实 `$DSH_HOME`（RISK-010，高）**：新用例须使用独立 `DSH_HOME` 或显式 `profileContext.home`，隔离在模块作用域生效（`tests/setup-isolation.ts`），用例内在 `finally` 恢复环境变量，不得写入开发者真实 `$DSH_HOME`。
-- **循环依赖**：封装若放进 `draft-store.ts`，`config-store.ts` 复用它即与既有的 `draft-store.ts → config-store.ts` 依赖成环；故置于不 import 项目内模块的叶子模块，由 `pnpm typecheck` 验证。
+- **循环依赖**：封装若放进 `draft-store.ts`，`config-store.ts` 复用它即与既有的 `draft-store.ts → config-store.ts` 依赖成环；故本提案置于不 import 项目内模块的叶子模块。核验方式是审查 `import` 语句（`pnpm typecheck` 只作类型校验，不证明无环）。
 - **写锁抽取的等价性**：`createFileWriteLocks()` 每次返回独立锁集，`DraftStore` 在实例化时持有一套，与抽取前「每实例一个 `Map`」语义一致；跨实例不共享锁的既有性质保持不变（不同库 / 不同 store 写同一路径的并发保护与今日相同，不因本次抽取而变化）。
+- **RISK-004（高）配置切换竞态导致跨库覆盖**：本提案把写锁搬入封装，改动的是「锁放在哪」，**不是**「锁的键与顺序」。触发条件是抽取时改了锁键、把读取 / 版本校验移出锁，或让跨 `await` 的复合 RPC 在 await 之后重新解析目录——后果是「从 A 库读取、写入 B 库」并覆盖 B 库同 ID 草稿。缓解：锁键保持绝对文件路径、串行链与 `finally` 释放原样搬移、三处调用点（`saveDraft` / `updatePrefillResult` / `markPublished`）的加锁范围不变、目录固定语义不变；回归由既有并发 / 目录切换用例承担（`.context/architecture/risks_and_debt.md` RISK-004 缓解措施 ①②④）。
 - **既有导出面与错误码不变**：`DraftStorageError`、`ensureDirectory`、`verifyDirectoryWritable` 仍由 `src/storage/draft-store.ts` 导出（`src/ops-rpc.ts`、`tests/ops-manager.spec.ts` 与 `src/index.ts` 的 `export *` 依赖该路径），`drafts/storage-unavailable` 映射不变。
-- **临时文件唯一性**：原子写的临时文件名改用随机后缀（原为 `${filePath}.tmp.${Date.now()}`），避免同一毫秒内跨实例写同一路径时临时文件互相覆盖；成功路径不残留 `.tmp.*`（有对应用例）。
+- **临时文件唯一性**：原子写的临时文件名改用随机后缀，避免同一毫秒内跨实例写同一路径时临时文件互相覆盖。两处既有基线命名并不相同：草稿侧为 `${filePath}.tmp.${Date.now()}`（时间戳，存在同毫秒碰撞面），配置侧为固定的 `${configPath}.tmp`（无后缀，同一路径并发写会直接覆盖临时文件）。统一到随机后缀后前者消除碰撞面、后者获得与草稿一致的行为；成功路径不残留 `.tmp.*`（有对应用例），失败残留仍保留原权限限制。
 
 ### 验证标准
 
 - ✅ 新建草稿文件权限为 `0o600`、新建草稿目录（`$DSH_HOME/growth-studio/drafts`，**不得预先创建**）权限为 `0o700`（单元测试断言 `stat().mode`；主判据 `(mode & 0o077) === 0`，标准 umask 下追加精确值）
-- ✅ 新建配置文件 `$DSH_HOME/ops-manager/config.json` 权限为 `0o600`（单元测试断言 `stat().mode`）
+- ✅ 新建配置文件 `$DSH_HOME/ops-manager/config.json` 权限为 `0o600`，且**首次创建的 `ops-manager/` 目录**权限为 `0o700`（单元测试：断言前确认该目录不存在，保存后分别断言目录与文件，`stat().mode`）
 - ✅ 预置为 `0644` 的既有草稿文件在保存后变为 `0o600`（单元测试；既有**目录**不被回改属已知范围外行为，按 `design.md` 决策 3 记录，不作为验收项）
-- ✅ `src/` 内本地落盘调用均设定模式，无遗漏（`grep -rn "writeFileSync\|mkdirSync\|appendFileSync\|copyFileSync\|createWriteStream" src/` 加 `fs/promises` 的 `writeFile` / `mkdir`；唯一排除项为 `src/browser/session-guard.ts` 的宿主 Cookie 临时副本，归 `fix-browser-session-cookie-probe`）
+- ✅ `src/` 内本地落盘调用均设定模式，无遗漏——由 `grep` **定位**候选点（含 `appendFileSync` / `copyFileSync` / `createWriteStream` 与 `node:fs/promises` 的 `writeFile` / `mkdir`，并追踪别名与动态 import）**加代码审查**确认结论；`grep` 字面量本身不构成穷尽性证明。唯一排除项为 `src/browser/session-guard.ts` 的宿主 Cookie 临时副本，归 `fix-browser-session-cookie-probe`
 - ✅ 写入成功路径不残留 `.tmp.*` 文件（单元测试）
+- ✅ 依赖方向不成环：以 `import` 审查证明（`config-store.ts` 不 import `storage/draft-store.ts`）；`pnpm typecheck` 只作类型校验，**不**作为环检测证据（TypeScript 可接受模块循环）
+- ✅ 测试未污染真实 `$DSH_HOME`：以既有隔离机制（`tests/setup-isolation.ts` 模块作用域赋值）与隔离哨兵用例证明；`git status` 只用于确认仓库内文件无意外变更，**不**能证明仓库外的真实 HOME 未被写入
 - ✅ `pnpm typecheck` + `pnpm test` 通过
 
 ### 提案大纲对齐（Roadmap Alignment）
@@ -113,7 +117,7 @@
 | Scope | 资产路径 | 关联说明 |
 |-------|---------|---------|
 | criterion | `.context/criterion.md` | §3.5「系统文件权限仅限当前操作系统用户」MUST 及落盘 MUST/MUST NOT 的权威来源；§3.2「错误不得吞没」与不虚报成功（本提案须保持、不得回退）；§3.4「令牌返回边界」（明文令牌落盘的邻近约束）；§6 SSoT-first 执行顺序 |
-| architecture | `.context/architecture/risks_and_debt.md` | TD-013（中）「criterion 文件权限约束无实现落点」——本提案偿还该条；TD-016（`config.save` 虚报成功，已由前置提案修复，本提案在其上补权限位）；RISK-005（含缓解措施 ③）；RISK-010（测试污染真实 `$DSH_HOME`） |
+| architecture | `.context/architecture/risks_and_debt.md` | TD-013（中）「criterion 文件权限约束无实现落点」——本提案偿还该条；TD-016（`config.save` 虚报成功，已由前置提案修复，本提案在其上补权限位）；RISK-004（高，写锁抽取须回归的跨库覆盖风险）；RISK-005（含缓解措施 ③）；RISK-010（测试污染真实 `$DSH_HOME`） |
 | architecture | `.context/architecture/constraints.md` | §架构铁律的四条定义（本提案触碰「存储」，须逐条声明保持方式） |
 | architecture | `.context/architecture/security_policy.md` | 「存储层加密」表：Injoys Token 与草稿内容的保护方式均为文件系统权限 |
 | architecture | `.context/architecture/data_architecture.md` | 「数据治理 / 文件权限」行；物理数据模型给出 `ops-manager/config.json` 与 `drafts/{id}.json` 两个落盘位置 |

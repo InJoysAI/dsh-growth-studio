@@ -564,7 +564,7 @@
 | Scope | 关联资产 | 关联说明 |
 |-------|---------|----------|
 | criterion | `.context/criterion.md` | §3.5 文件权限 MUST 与落盘 MUST/MUST NOT（原子写、写锁、统一错误码）；§3.2「错误不得吞没」与不虚报成功（前置提案 9 已落地，本提案须保持、不得回退）；§3.4 令牌返回边界 |
-| architecture | `.context/architecture/risks_and_debt.md` | TD-013（中，本提案偿还对象）；RISK-005（存储不可用被误报，含缓解措施 ③）；RISK-010（测试污染真实 `$DSH_HOME`） |
+| architecture | `.context/architecture/risks_and_debt.md` | TD-013（中，本提案偿还对象）；RISK-004（高，写锁抽取的跨库覆盖回归）；RISK-005（存储不可用被误报，含缓解措施 ③，已由提案 9 处置）；RISK-010（测试污染真实 `$DSH_HOME`） |
 | architecture | `.context/architecture/api_strategy.md` | §5.3「存储加密 N/A，依赖文件系统权限仅限当前 OS 用户」 |
 | architecture | `.context/architecture/constraints.md` | §架构铁律四条定义（本提案触碰「存储」，须逐条声明保持方式） |
 | architecture | `.context/architecture/security_policy.md` | 「存储层加密」表：Injoys Token 与草稿内容均以文件系统权限为唯一保护方式 |
@@ -586,8 +586,9 @@
 | TD-013（中）文件权限约束无实现落点 | umask 宽松时同机其他用户可读草稿正文与含令牌配置 | 本提案偿还：显式 `mode` 后不再依赖 umask，权限位在统一落盘封装单点定义 |
 | RISK-005（中）存储不可用被误报为成功 | 配置文件写盘失败曾被吞没后仍报成功 | **已由提案 9 解决**（`fix-config-save-error-swallow` 已归档，TD-016 已修复）。本提案**不重复该修复**，只须保证：改用统一落盘封装后 `config-store.ts` 仍如实抛出、不新增静默 `catch` |
 | RISK-010（高）测试污染真实 `$DSH_HOME` | 权限用例直接实例化 `ConfigStore` 会改写开发者真实配置 | 用例使用独立 `DSH_HOME` / 显式 `profileContext.home`，隔离在测试收集前生效（`tests/setup-isolation.ts`），并在 `finally` 恢复 |
+| **RISK-004**（高）配置切换竞态导致跨库覆盖 | 锁抽取时若改锁键、把读取 / 版本校验移出锁，或让目录在 `await` 后重新解析，会出现「从 A 库读取、写入 B 库」并覆盖 B 库同 ID 草稿 | 锁键保持绝对文件路径、串行链与 `finally` 释放原样搬移，三处调用点加锁范围与目录固定语义不变；由既有并发 / 目录切换用例回归（关键任务 1 与验证项「写锁抽取未改变语义」） |
 | 下游自建第二套落盘口径 | `metrics/` 需要写锁与权限位；封装若不提供写锁，下游将自建第二套锁，两套口径漂移 | 本提案把权限位、原子写与写锁一并抽入统一封装（关键任务 1）；下游提案自身承诺不修改 `draft-store.ts` / `config-store.ts`，本决定使其成立 |
-| 权限断言在 `root` / `win32` / 异常 umask 下失真 | 用例误报失败或空转通过（`mkdtemp` 目录本身即 `0700`） | 主判据用「组 / 其他用户位全为 0」，精确值仅在标准 umask 下追加断言；目录断言的目标目录不得预先创建；`root` / `win32` 显式跳过并输出原因 |
+| 权限断言在 `root` / `win32` / 异常 umask 下失真 | 用例误报失败或空转通过（`mkdtemp` 目录本身即 `0700`），或整体跳过后漏测 `mode` 仍通过 | 主判据用「组 / 其他用户位全为 0」`(mode & 0o077) === 0`，精确值仅在标准 umask 下追加断言；目录断言的目标目录不得预先创建；**`root` 不因身份跳过 `stat` 创建位断言**（创建位与身份无关），只有「只读目录下写入被拒」这类 EACCES 断言才用既有 `permissionBitsEnforced` 探针跳过；`win32` / 不支持 POSIX 权限位时按「未覆盖」如实声明并输出原因 |
 
 **验证标准**:
 

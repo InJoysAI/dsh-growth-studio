@@ -9,7 +9,7 @@
 - 配置 `$DSH_HOME/ops-manager/config.json`（含 Injoys 明文令牌，`security_policy.md`「存储层加密」以本权限为唯一保护手段）；
 - 草稿 `$DSH_HOME/growth-studio/drafts/{id}.json`（含未发布正文）。
 
-实际权限位是 `mode` 与进程 umask 的交集，umask 只可能使结果更严格、不可能放宽，因此 MUST NOT 出现比 `0o600` / `0o700` 更宽松的结果。判定主判据为组 / 其他用户位全为 0（`mode & 0o077 === 0`）。
+实际权限位是 `mode` 与进程 umask 的交集，umask 只可能使结果更严格、不可能放宽，因此 MUST NOT 出现比 `0o600` / `0o700` 更宽松的结果。判定主判据为组 / 其他用户位全为 0（`(mode & 0o077) === 0`）。
 
 **只约束新建对象**：本要求不适用于本次变更之前已存在的文件与目录——既有目录不会被修正（建目录操作不修改已存在目录的权限），既有文件在下一次保存时经原子替换落为 `0o600`。既有对象的权限收紧不在本要求内，MUST NOT 据此宣称该 MUST 已在全量对象上成立。本要求对应 roadmap 验收项「文件权限」与「目录权限」。
 
@@ -17,28 +17,28 @@
 
 - **GIVEN** 草稿存储目录已就绪
 - **WHEN** `DraftStore` 保存一份新草稿
-- **THEN** 生成的 `{id}.json` 权限位 MUST 满足 `mode & 0o077 === 0`，且在标准 umask 下 MUST 为 `0o600`（`stat().mode`）
+- **THEN** 生成的 `{id}.json` 权限位 MUST 满足 `(mode & 0o077) === 0`，且在标准 umask 下 MUST 为 `0o600`（`stat().mode`）
 - **AND** MUST NOT 让同机其他操作系统用户可读该文件
 
 #### Scenario: 新建草稿目录权限为 0o700
 
 - **GIVEN** 目标草稿存储目录尚不存在
 - **WHEN** 草稿落盘创建该目录
-- **THEN** 该目录权限位 MUST 满足 `mode & 0o077 === 0`，且在标准 umask 下 MUST 为 `0o700`（`stat().mode`）
+- **THEN** 该目录权限位 MUST 满足 `(mode & 0o077) === 0`，且在标准 umask 下 MUST 为 `0o700`（`stat().mode`）
 - **AND** MUST NOT 让同机其他操作系统用户可进入或列出该目录
 
 #### Scenario: 配置文件（含 Injoys 令牌）权限为 0o600
 
 - **GIVEN** 配置文件所在的 `ops-manager/` 目录尚未就绪
 - **WHEN** `ConfigStore.save()` 写入 `$DSH_HOME/ops-manager/config.json`
-- **THEN** 新建目录权限位与新建配置文件权限位 MUST 分别满足 `mode & 0o077 === 0`（标准 umask 下为 `0o700` / `0o600`）
+- **THEN** 新建目录权限位与新建配置文件权限位 MUST 分别满足 `(mode & 0o077) === 0`（标准 umask 下为 `0o700` / `0o600`）
 - **AND** 写入的配置对象含 Injoys 令牌字段时，该令牌 MUST 只落在这一权限位受限的文件内
 
 #### Scenario: 既有文件在下一次保存时被收紧
 
 - **GIVEN** 一份既有草稿文件的权限位宽于 `0o600`（例如 `0o644`）
 - **WHEN** 该草稿被再次保存
-- **THEN** 保存后的文件权限位 MUST 满足 `mode & 0o077 === 0`（标准 umask 下为 `0o600`）
+- **THEN** 保存后的文件权限位 MUST 满足 `(mode & 0o077) === 0`（标准 umask 下为 `0o600`）
 - **AND** 该结果 MUST 由「临时文件 + 原子替换」自然达成，MUST NOT 依赖对既有文件的额外 `chmod`
 
 #### Scenario: 更严格的 umask 不得使结果更宽松
@@ -55,7 +55,7 @@
 - MUST NOT 在各调用点重复定义权限位字面量；
 - MUST NOT 自建第二套原子写或第二套按绝对文件路径的串行写锁；
 - 复用该封装 MUST NOT 形成循环依赖；
-- 存储错误类型与 `drafts/storage-unavailable` 映射口径 MUST 保持单点，写失败 MUST 由各 store 以既有存储错误类型包装。
+- 存储错误类型与 `drafts/storage-unavailable` 映射口径 MUST 保持单点。失败包装位置按既有基线分工，MUST NOT 为统一起见把配置侧改为依赖草稿存储模块：草稿侧与后续新增 store 在写失败时以既有存储错误类型（`DraftStorageError`）包装；`ConfigStore` MUST 继续抛出原始 fs 错误，由 `config.save` 的 RPC 分支包装为 `DraftStorageError` 并附配置目录，再由统一 RPC 错误边界映射为 `drafts/storage-unavailable`（该分工须保持不变，见 `.context/architecture/api_strategy.md` §3.6 与 `openspec/specs/ops-config/spec.md` 的既有失败语义）。
 
 后续新增的本地落盘位置（`metrics/`、`calendar/`）MUST 复用同一封装取权限位、原子写与写锁（`feat-storage-metrics-snapshot` 已以「复用该封装、不得自设第二套落盘口径」为其显式前置条件，且其自身承诺不修改 `draft-store.ts` / `config-store.ts`）。
 
