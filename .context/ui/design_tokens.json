@@ -2,15 +2,12 @@
   "$schema": "https://design-tokens.github.io/community-group/format/",
   "_meta": {
     "source": ".context/ui/source/ui-design-direction.md",
-    "generated_at": "2026-10-21 00:15",
+    "generated_at": "2026-10-21 00:55",
     "generator": "Context-Agent v1.0",
-    "description": "三层 Design Token：Global 仅收录源文档给出的 Light/Dark 回退参考；Alias 绑定 DSH CSS 变量；Component 仅收录源文档写明的覆写。未给出的字号/间距/圆角保持 TODO。",
-    "conflicts": [
-      "criterion.md and architecture §5.4 use --dsw-alias-border-l1/l2 and accent hex #1677ff/#15803d/#b45309/#7c3aed; UI source uses --dsw-alias-border-default and --dsw-alias-status-* fallbacks. Implementation follows criterion; do not hardcode surface/text colors."
-    ]
+    "description": "三层 Design Token。Alias 绑定宿主 DSH 表面/文字/边框变量；点缀色仅架构 §5.4 四个授权 HEX。观测参考不得写入组件。"
   },
   "global": {
-    "_comment": "第一层：源文档 §4.2 的回退参考值，无语义。实现不得把这些 HEX 写进组件。",
+    "_comment": "观测参考（宿主 token 解析结果），不是可硬编码色板。点缀色为架构授权例外。",
     "color": {
       "light": {
         "bgLayer1": { "value": "#f8f9fb", "type": "color" },
@@ -18,13 +15,7 @@
         "bgLayer3": { "value": "#f0f2f5", "type": "color" },
         "labelPrimary": { "value": "#1f2329", "type": "color" },
         "labelSecondary": { "value": "#4e5969", "type": "color" },
-        "labelTertiary": { "value": "#86909c", "type": "color" },
-        "borderDefault": { "value": "#e5e6eb", "type": "color" },
-        "brandPrimary": { "value": "#1677ff", "type": "color" },
-        "statusSuccess": { "value": "#22c55e", "type": "color" },
-        "statusWarning": { "value": "#f59e0b", "type": "color" },
-        "statusError": { "value": "#ef4444", "type": "color" },
-        "statusNeutral": { "value": "#86909c", "type": "color" }
+        "labelTertiary": { "value": "#86909c", "type": "color" }
       },
       "dark": {
         "bgLayer1": { "value": "#111215", "type": "color" },
@@ -32,13 +23,13 @@
         "bgLayer3": { "value": "#22242a", "type": "color" },
         "labelPrimary": { "value": "#f5f6f7", "type": "color" },
         "labelSecondary": { "value": "#c5c8ce", "type": "color" },
-        "labelTertiary": { "value": "#7a808d", "type": "color" },
-        "borderDefault": { "value": "#2c2e36", "type": "color" },
-        "brandPrimary": { "value": "#3c89ff", "type": "color" },
-        "statusSuccess": { "value": "#34d399", "type": "color" },
-        "statusWarning": { "value": "#fbbf24", "type": "color" },
-        "statusError": { "value": "#f87171", "type": "color" },
-        "statusNeutral": { "value": "#6b7280", "type": "color" }
+        "labelTertiary": { "value": "#7a808d", "type": "color" }
+      },
+      "accent": {
+        "brand": { "value": "#1677ff", "type": "color" },
+        "success": { "value": "#15803d", "type": "color" },
+        "warning": { "value": "#b45309", "type": "color" },
+        "emphasis": { "value": "#7c3aed", "type": "color" }
       }
     },
     "spacing": {
@@ -55,7 +46,7 @@
     }
   },
   "alias": {
-    "_comment": "第二层：语义 Tokens，绑定宿主 DSH CSS 变量；深浅色由宿主主题切换。",
+    "_comment": "表面/文字/边框绑定宿主 CSS 变量；点缀色绑定授权 HEX。",
     "color": {
       "bg": {
         "layer1": { "value": "var(--dsw-alias-bg-layer-1)", "type": "color" },
@@ -68,26 +59,24 @@
         "tertiary": { "value": "var(--dsw-alias-label-tertiary)", "type": "color" }
       },
       "border": {
-        "default": { "value": "var(--dsw-alias-border-default)", "type": "color" }
+        "l1": { "value": "var(--dsw-alias-border-l1)", "type": "color" },
+        "l2": { "value": "var(--dsw-alias-border-l2)", "type": "color" }
       },
-      "brand": {
-        "primary": { "value": "var(--dsw-alias-brand-primary, #1677ff)", "type": "color" }
-      },
-      "status": {
-        "success": { "value": "var(--dsw-alias-status-success, #22c55e)", "type": "color" },
-        "warning": { "value": "var(--dsw-alias-status-warning, #f59e0b)", "type": "color" },
-        "error": { "value": "var(--dsw-alias-status-error, #ef4444)", "type": "color" },
-        "neutral": { "value": "var(--dsw-alias-status-neutral, #86909c)", "type": "color" }
+      "accent": {
+        "brand": { "value": "{global.color.accent.brand}", "type": "color" },
+        "success": { "value": "{global.color.accent.success}", "type": "color" },
+        "warning": { "value": "{global.color.accent.warning}", "type": "color" },
+        "emphasis": { "value": "{global.color.accent.emphasis}", "type": "color" }
       }
     }
   },
   "component": {
-    "_comment": "第三层：仅源文档写明的组件覆写",
+    "_comment": "仅源文档写明的组件覆写",
     "card": {
       "background": { "value": "{alias.color.bg.layer2}", "type": "color" },
-      "border": { "value": "{alias.color.border.default}", "type": "color" },
+      "border": { "value": "{alias.color.border.l2}", "type": "color" },
       "hover": {
-        "border": { "value": "{alias.color.brand.primary}", "type": "color" },
+        "border": { "value": "{alias.color.accent.brand}", "type": "color" },
         "shadow": { "value": "{global.shadow.cardHover}", "type": "shadow" },
         "transform": { "value": "translateY(-2px)", "type": "other" },
         "duration": { "value": "180ms", "type": "duration" }
@@ -95,25 +84,30 @@
     },
     "button": {
       "primary": {
-        "background": { "value": "{alias.color.brand.primary}", "type": "color" }
+        "background": { "value": "{alias.color.accent.brand}", "type": "color" }
+      },
+      "danger": {
+        "background": { "value": "{alias.color.accent.warning}", "type": "color" },
+        "_comment": "Danger/warning variant uses authorized amber #b45309 plus visible danger copy. Do not invent a red HEX; a dedicated error alias needs a proposal."
       }
     },
     "badge": {
-      "success": { "value": "{alias.color.status.success}", "type": "color" },
-      "warning": { "value": "{alias.color.status.warning}", "type": "color" },
-      "error": { "value": "{alias.color.status.error}", "type": "color" },
-      "neutral": { "value": "{alias.color.status.neutral}", "type": "color" }
+      "authenticated": { "value": "{alias.color.accent.success}", "type": "color" },
+      "needsLogin": { "value": "{alias.color.accent.warning}", "type": "color" },
+      "noPublishPermission": { "value": "{alias.color.accent.warning}", "type": "color" },
+      "unknown": { "value": "{alias.color.text.tertiary}", "type": "color" },
+      "neutral": { "value": "{alias.color.text.tertiary}", "type": "color" }
     },
     "input": {
       "background": { "value": "{alias.color.bg.layer3}", "type": "color" },
-      "border": { "value": "{alias.color.border.default}", "type": "color" }
+      "border": { "value": "{alias.color.border.l2}", "type": "color" }
     },
     "toast": {
       "enterDuration": { "value": "200ms", "type": "duration" },
       "persist": { "value": "5s", "type": "duration" }
     },
     "statusDot": {
-      "activeAnimation": { "value": "dimStatusPulse 2.4s ease-in-out infinite", "type": "other" }
+      "authenticatedAnimation": { "value": "dimStatusPulse 2.4s ease-in-out infinite", "type": "other" }
     }
   }
 }

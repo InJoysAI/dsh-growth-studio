@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generated_at": "2026-10-21T00:20:50+08:00",
+  "generated_at": "2026-10-21T00:58:06+08:00",
   "generator": "Context-Agent v1.0",
   "generation_pipeline": {
     "root_assets": "Context-Dev-Agent v1.0",
@@ -37,7 +37,7 @@
       "path": ".context/ui/source/ui-design-direction.md",
       "archived_to": ".context/ui/source/ui-design-direction.md",
       "type": "ui_specification",
-      "content_hash": "479e194290f802e31378e6f574b73abcd1eb78ad87dab78eb71989ea075408d5",
+      "content_hash": "f39cc09eada0119999340db9230db9727f9b2128dabd3090298a36a62545f4b7",
       "status": "archived"
     }
   },
@@ -117,21 +117,21 @@
     "ordering": "ascending_by_synced_at"
   },
   "last_context_sync": {
-    "synced_at": "2026-10-21T00:01:50+08:00",
-    "source": "openspec/changes/archive/2026-10-20-feat-storage-metrics-snapshot/",
-    "workflow": ".agents/workflows/context-update.md sync proposal feat-storage-metrics-snapshot --mode apply",
-    "change_id": "feat-storage-metrics-snapshot",
-    "authority": "proposal",
+    "synced_at": "2026-10-21T00:58:06+08:00",
+    "source": ".context/ui/source/ui-design-direction.md",
+    "workflow": ".agents/workflows/context-check.md review scope ui",
+    "authority": "用户指令修复评审项（MUST 对齐 + P2-1~P2-5）",
     "mode": "apply",
     "updated_context_files": [
-      ".context/architecture/source/technical_architecture.md",
-      ".context/architecture/api_strategy.md",
-      ".context/architecture/tech_stack.md",
-      ".context/domain/testing_strategy.md",
-      ".context/domain/edge_cases.md",
-      ".context/architecture/risks_and_debt.md",
-      ".context/architecture/data_architecture.md",
-      ".context/architecture/runtime_view.md",
+      ".context/ui/source/ui-design-direction.md",
+      ".context/ui/README.md",
+      ".context/ui/design_system.md",
+      ".context/ui/atomic_components.md",
+      ".context/ui/layout_grid.md",
+      ".context/ui/design_tokens.json",
+      ".context/ui/interaction_states.md",
+      ".context/ui/motion_tokens.md",
+      ".context/ui/accessibility_checklist.md",
       ".context/history/context-sync.jsonl",
       ".context/context-manifest.json"
     ],

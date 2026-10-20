@@ -2,7 +2,7 @@
 
 > **Metadata**
 > - **Source**: `.context/ui/source/ui-design-direction.md`
-> - **Generated At**: `2026-10-21 00:15`
+> - **Generated At**: `2026-10-21 00:40`
 > - **Generator**: `Context-Agent v1.0`
 
 ---
@@ -44,12 +44,12 @@
   50% { opacity: 0.55; transform: scale(0.92); }
 }
 
-.dim-status-dot[data-status="active"] {
+.dim-status-dot[data-status="authenticated"] {
   animation: dimStatusPulse 2.4s ease-in-out infinite;
 }
 ```
 
-卡片 Hover：`transform: translateY(-2px)` + 品牌边框 + `box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.08)`。
+卡片 Hover：`transform: translateY(-2px)` + `border-color: #1677ff` + `box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.08)`。
 
 Toast：顶部滑入动画名 `dimOpsSlideDown`（源文档未给出关键帧百分比，**TODO**：补 0%/100% transform/opacity）。
 

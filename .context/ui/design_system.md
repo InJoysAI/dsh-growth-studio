@@ -2,17 +2,17 @@
 
 > **Metadata**
 > - **Source**: `.context/ui/source/ui-design-direction.md`
-> - **Generated At**: `2026-10-21 00:15`
+> - **Generated At**: `2026-10-21 00:55`
 > - **Generator**: `Context-Agent v1.0`
 
 ---
 
-> **权威与冲突**
-> - 视觉/交互以 `source/ui-design-direction.md` 为准。
-> - 工程硬约束以 `.context/criterion.md` 为准：背景 / 边框 / 文字 **MUST** 使用 `var(--dsw-alias-*)`，**MUST NOT** 硬编码色值。
-> - 源文档 §4.2 将品牌/状态色写作 `var(--dsw-alias-brand-primary)` / `var(--dsw-alias-status-*)`，边框写作 `var(--dsw-alias-border-default)`。
-> - criterion §3.1 与架构 §5.4 的边框令牌为 `--dsw-alias-border-l1` / `--dsw-alias-border-l2`；交互点缀色是令牌化的**唯一例外**，权威取值为主操作蓝 `#1677ff`、安全绿 `#15803d`、告警橙 `#b45309`、活力紫 `#7c3aed`（与源文档 status 回退 `#22c55e` / `#f59e0b` / `#ef4444` 不一致）。
-> - **实现口径**：宿主已提供的 alias 一律绑定 CSS 变量；点缀色仅在宿主无对应 alias 时才使用架构 §5.4 例外色值。不得把未在宿主出现的 CSS 变量当成已存在，也不得把下表 Light/Dark 回退参考写成组件内硬编码。
+> **权威层级**
+> 1. 工程：`criterion.md`（槽位、令牌、禁止客户端写状态机）。
+> 2. 业务枚举/阶段：PRD / BR / `src/types.ts`。
+> 3. 视觉细节：`source/ui-design-direction.md`（2026-10-21 已按 MUST 修订）。
+>
+> **实施门禁**：当前入口仅为 `settings.section`（`id: 'ops'` / `order: 60`）。独立主视图与 `styles/*.css` 目录重构须先提案更新 criterion。边框走 `--dsw-alias-border-l1/l2`；点缀色仅 `#1677ff` / `#15803d` / `#b45309` / `#7c3aed`。
 
 ---
 
@@ -20,43 +20,41 @@
 
 | 项 | 决策 | 来源 |
 |----|------|------|
-| 承载形态 | DSH 独立工作台主视图（主侧边栏 / 主窗口级入口）；设置页保留引擎配置与快捷跳转 | DEC-UI-001 |
-| 风格 | Modern Pro SaaS（Linear / Raycast 质感）：高信息密度、精细边框微质感、深浅色自适应 | DEC-UI-002 |
-| 主布局 | 顶部 Sticky KPI & Engine Ribbon + 紧凑分段式 Tab + 主工作画布 | DEC-UI-003 |
-| 工程 | React 18 + esbuild JSX；按 Tab / 通用组件分目录；禁止单文件 `createElement` 堆砌 | DEC-UI-004 |
-| 文案 | 首版中文；全部静态/动态文案走字典或 `ctx.i18n.text`，禁止 JSX 深层写死 | DEC-UI-015 |
+| 承载形态 | **目标**独立主视图；**当前可实施** `settings.section`。设置主入口 **Megaphone** 图标 | DEC-UI-001、BR-080 |
+| 风格 | Modern Pro SaaS（Linear / Raycast）；精细边框；**不采纳毛玻璃** | DEC-UI-002 |
+| 主布局 | Sticky KPI Ribbon + 分段 Tab（顺序：驾驶舱 / 排期日历流水 / 创作室 / AI工具中枢 / 舆情需求大盘 / 引擎策略配置） | DEC-UI-003、PRD §四 |
+| 工程 | 现行 `ops-page.js` + `ops-styles.js`；JSX 分目录是目标重构 | DEC-UI-004、criterion §3.3 |
+| 文案 | `locale/*.json` 键 `ops.<area>.<name>`；`ctx.i18n.text` → 当前 locale → `zh.json` | DEC-UI-015 |
 
 ---
 
 ## 颜色系统
 
-实现时写 `var(--dsw-alias-*)`。下表「Light / Dark 回退参考」仅复述源文档 §4.2，**不是**可硬编码的色板。
+表面与文字只写 `var(--dsw-alias-*)`。点缀色只用架构 §5.4 四个授权 HEX。观测参考禁止写进组件。
 
 ### 表面与文字（必须走令牌）
 
-| 名称 | CSS 变量 | Light 回退参考 | Dark 回退参考 | 用途 |
-|------|---------|----------------|---------------|------|
-| 主背景底色 | `--dsw-alias-bg-layer-1` | `#f8f9fb` | `#111215` | 工作台外层容器底层背景 |
-| 工作区 / 卡片底色 | `--dsw-alias-bg-layer-2` | `#ffffff` | `#18191d` | 模块卡片、工作区主体 |
-| 浮层 / 高亮卡片 | `--dsw-alias-bg-layer-3` | `#f0f2f5` | `#22242a` | Hover 卡片、表单输入框、下拉菜单 |
-| 一级主文本 | `--dsw-alias-label-primary` | `#1f2329` | `#f5f6f7` | 卡片标题、核心指标数字、主导航 |
-| 二级正文 | `--dsw-alias-label-secondary` | `#4e5969` | `#c5c8ce` | 描述文案、表单标签、副标题 |
-| 三级弱化文本 | `--dsw-alias-label-tertiary` | `#86909c` | `#7a808d` | 占位符、辅助时间戳、空状态说明 |
-| 标准边框 | `--dsw-alias-border-default`（源文档） | `#e5e6eb` | `#2c2e36` | 卡片边框、分隔线、输入框边框 |
+| 名称 | CSS 变量 | 观测参考 Light / Dark | 用途 |
+|------|---------|----------------------|------|
+| 主背景底色 | `--dsw-alias-bg-layer-1` | `#f8f9fb` / `#111215` | 工作台外层容器 |
+| 工作区 / 卡片底色 | `--dsw-alias-bg-layer-2` | `#ffffff` / `#18191d` | 模块卡片、工作区 |
+| 浮层 / 输入底色 | `--dsw-alias-bg-layer-3` | `#f0f2f5` / `#22242a` | Hover、输入框、下拉 |
+| 一级主文本 | `--dsw-alias-label-primary` | `#1f2329` / `#f5f6f7` | 标题、指标数字、导航 |
+| 二级正文 | `--dsw-alias-label-secondary` | `#4e5969` / `#c5c8ce` | 描述、表单标签 |
+| 三级弱化文本 | `--dsw-alias-label-tertiary` | `#86909c` / `#7a808d` | 占位符、`unknown`、`null` 徽章 |
+| 边框 L1 | `--dsw-alias-border-l1` | 宿主主题 | 分割线、外层描边 |
+| 边框 L2 | `--dsw-alias-border-l2` | 宿主主题 | 卡片 / 输入框边框 |
 
-> **TODO（口径差）**：架构文档使用 `--dsw-alias-border-l1` / `--dsw-alias-border-l2`，未记录 `--dsw-alias-border-default`。实现前确认宿主实际暴露的边框 alias，优先绑定真实存在的变量。
+### 语义 / 点缀色（唯一允许的 HEX）
 
-### 语义 / 点缀色
+| 名称 | 值 | 适用场景 |
+|------|-----|---------|
+| 主操作蓝 | `#1677ff` | 主按钮、选中 Tab、链接、卡片 Hover 描边 |
+| 安全绿 | `#15803d` | `authenticated`、已预填、连接正常 |
+| 告警橙 | `#b45309` | `needs_login`、待回填 URL、`no_publish_permission`（加文字「无权限」） |
+| 活力紫 | `#7c3aed` | 强调点缀，不可替代状态语义 |
 
-| 名称 | 源文档 CSS 变量（含 fallback） | Light 回退参考 | Dark 回退参考 | 适用场景 |
-|------|------------------------------|----------------|---------------|---------|
-| 主品牌蓝 | `var(--dsw-alias-brand-primary, #1677ff)` | `#1677ff` | `#3c89ff` | 主行动按钮、选中 Tab、链接 |
-| 成功色（绿） | `var(--dsw-alias-status-success, #22c55e)` | `#22c55e` | `#34d399` | 平台就绪、连接正常、发布完成 |
-| 警告色（橙） | `var(--dsw-alias-status-warning, #f59e0b)` | `#f59e0b` | `#fbbf24` | 需要扫码登录、待补充 URL |
-| 危险色（红） | `var(--dsw-alias-status-error, #ef4444)` | `#ef4444` | `#f87171` | 连接失败、校验未通过、草稿异常 |
-| 中性无数据 | `var(--dsw-alias-status-neutral, #86909c)` | `#86909c` | `#6b7280` | `null`「暂无数据」中性徽章 |
-
-> **TODO（口径差）**：criterion / 架构 §5.4 点缀色为例外硬编码：`#1677ff` / `#15803d` / `#b45309` / `#7c3aed`，无独立「危险红 / 中性灰」条目。业务语义（绿=就绪、琥珀=待登录、灰=规划中 / 暂无数据）见 `domain/business_rules.md` BR-081 与源文档 DEC-UI-010。
+`null` / `unknown` 用 `--dsw-alias-label-tertiary`，**不要**造 `--dsw-alias-status-*` 或未授权红 HEX。
 
 ```css
 .dim-ops-workbench {
@@ -66,7 +64,7 @@
 
 .dim-ops-card {
   background: var(--dsw-alias-bg-layer-2);
-  border: 1px solid var(--dsw-alias-border-default);
+  border: 1px solid var(--dsw-alias-border-l2);
   color: var(--dsw-alias-label-primary);
 }
 ```
@@ -109,7 +107,7 @@
 
 ### Button
 
-变体（源文档 §6）：主 / 次 / 危险 / 图标。
+变体（源文档 §6）：主 / 次 / 告警（危险语义） / 图标。
 
 ```html
 <button class="dim-ops-btn dim-ops-btn--primary" type="button">一键预填至草稿箱</button>
@@ -118,7 +116,8 @@
 <button class="dim-ops-btn dim-ops-btn--icon" type="button" aria-label="刷新大盘">🔄</button>
 ```
 
-- 主按钮：品牌蓝；执行中展示 Loading，禁止连点。
+- 主按钮：`#1677ff`；执行中展示 Loading，禁止连点。
+- 告警/危险变体：背景或描边 `#b45309`，按钮文字必须含危险语义（如「危险操作」），**不得另造红 HEX**；独立红色须先提案登记宿主 error alias。
 - `Cmd/Ctrl+Enter` 触发预填前必须二次防呆弹层（DEC-UI-014）。
 - **严禁**出现「正式发布 / 群发」自动点击入口。
 
@@ -132,8 +131,8 @@
 />
 ```
 
-- 底色走 `--dsw-alias-bg-layer-3`，边框走标准边框令牌。
-- URL 回填必须用 URL 解析器校验，禁止宽松正则；失败走危险色与错误提示。
+- 底色走 `--dsw-alias-bg-layer-3`，边框走 `--dsw-alias-border-l2`。
+- URL 回填只调用 `drafts.updatePublishUrl`；宿主用 URL 解析器校验，禁止宽松正则。失败展示告警橙 + 错误文案。客户端不得本地写 `published`。
 
 ### Card
 
@@ -151,25 +150,25 @@ Hover（源文档 §4.3）：
 }
 .dim-ops-card:hover {
   transform: translateY(-2px);
-  border-color: var(--dsw-alias-brand-primary, #1677ff);
+  border-color: #1677ff;
   box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.08);
 }
 ```
 
 ### Badge / 状态灯
 
-四态：`已就绪` / `待扫码` / `未连接` / `故障`。`null` 指标使用中性「暂无数据」徽章，悬浮说明原因（例如「尚未探活或平台未发布」），**不得显示为 0**。
+会话四态（`SessionState`）：`unknown` / `needs_login` / `authenticated` / `no_publish_permission`。`null` 指标使用「暂无数据」徽章（`--dsw-alias-label-tertiary`），**不得显示为 0**。禁止用「故障」替代「无权限」。
 
 ```html
-<span class="dim-status-dot" data-status="active"></span>
+<span class="dim-status-dot" data-status="authenticated"></span>
 <span class="dim-ops-badge dim-ops-badge--neutral">暂无数据</span>
 ```
 
-`data-status="active"` 使用 `dimStatusPulse` 2.4s 呼吸（见 `motion_tokens.md`）。
+`data-status="authenticated"` 使用 `dimStatusPulse` 2.4s 呼吸（见 `motion_tokens.md`）。
 
 ### MetricBox
 
-四个 Sticky KPI：全网非去重曝光、真实互动与关注净增、本周排期履约流水、分发矩阵就绪度。`null` → 中性徽章，禁止用 `0` 占位。
+四个 Sticky KPI（PRD §5.1.2）：全网曝光/播放总量、互动与关注增长、排期履约流水、分发矩阵连通度。第 4 项只统计 `authenticated`；未交付渠道不计入。`null` →「暂无数据」，禁止 `0`。
 
 ### EmptyState
 
@@ -177,20 +176,22 @@ Hover（源文档 §4.3）：
 
 ### SegmentedTabs
 
-六个工作区：运营驾驶舱、内容创作室、排期流水线、AI 工具中枢、舆情大盘、引擎配置。选中态走主品牌蓝。
+六个工作区（顺序对齐 PRD）：运营驾驶舱、排期日历流水、内容创作室、AI工具中枢、舆情需求大盘、引擎策略配置。选中态走 `#1677ff`。
 
 ---
 
 ## 工作台骨架约束
 
 ```text
-HeaderCockpit: 产品名 / 当前产品选择 / Injoys MCP 连通 / BrowserOS n/n 就绪 / 刷新大盘 / 新建物料
+HeaderCockpit: 产品名 / 当前产品 / Injoys MCP / BrowserOS authenticated 计数（项目 Phase 0 为 2/2）
+设置导航 chrome（画布外）：Megaphone 矢量图标，由 `index.js` 注入 `settings.section`，不是 Header 内按钮
+快捷行动: + 生成 7 天排期日历 / 新建多端物料 / 刷新大盘
 Sticky KPI Ribbon: 4 张 MetricBox（≥1280 与 960–1279 为 4 列；<960 为 2×2）
-Segmented Tabs: 6 个工作区
+Segmented Tabs: 6 个工作区（PRD 顺序）
 Active Workspace Canvas: 当前 Tab 内容
 ```
 
-Phase 0 深度打通：驾驶舱 + 内容创作室 + 引擎配置；排期与 AI 工具中枢为基础看板 / 场景卡片（DEC-UI-012）。
+UI 批次 1（路线图项目 Phase 3 客户端首批）：驾驶舱 + 创作室 + 配置深打通；排期与 AI 工具中枢为基础看板。业务渠道 = 项目 Phase 0 公众号 + B 站。
 
 ---
 
@@ -198,8 +199,8 @@ Phase 0 深度打通：驾驶舱 + 内容创作室 + 引擎配置；排期与 AI
 
 当 AI 生成前端组件时：
 
-1. 颜色只绑 `var(--dsw-alias-*)`；不要把回退参考写成组件硬编码色值。
-2. `null` 指标渲染「暂无数据」，禁止 `0`。
-3. 预填成功只引导「去平台后台确认发布 ↗」，禁止自动发布控件。
-4. 文案走字典；快捷键与断点见 `accessibility_checklist.md`、`layout_grid.md`。
-5. 细节以 `source/ui-design-direction.md` 为准；与 criterion 冲突时工程实现服从 criterion。
+1. 表面/文字只绑 `var(--dsw-alias-*)`；点缀色只用四个授权 HEX。
+2. `null` →「暂无数据」，禁止 `0`。会话四态与内容五态用 `src/types.ts` 键值。
+3. 预填成功只引导人工发布；`published` 仅经宿主 `drafts.updatePublishUrl`。
+4. 文案走 `locale/*.json`；快捷键与断点见 `accessibility_checklist.md`、`layout_grid.md`。
+5. 独立主视图 / CSS 拆目录未授权前，实现面仍是 `settings.section` + `ops-styles.js`。

@@ -2,12 +2,12 @@
 
 > **Metadata**
 > - **Source**: `.context/ui/source/ui-design-direction.md`
-> - **Generated At**: `2026-10-21 00:15`
+> - **Generated At**: `2026-10-21 00:40`
 > - **Generator**: `Context-Agent v1.0`
 
 ---
 
-本工作台是 DSH Desktop 宽屏主视图，不是移动 App。断点服务 13/14 寸笔记本全屏、外接显示器与桌面分屏（DEC-UI-013 / 源文档 §4.4）。源文档**未定义**传统 12 列栅格的列数 / Margin / Gutter，下表不编造。
+本工作台按宽屏桌面密度设计，不是移动 App。**当前可实施入口仍是 `settings.section`**；独立主视图须先提案。断点服务 13/14 寸笔记本全屏、外接显示器与桌面分屏（DEC-UI-013 / 源文档 §4.4）。源文档**未定义**传统 12 列栅格的列数 / Margin / Gutter，下表不编造。
 
 ---
 

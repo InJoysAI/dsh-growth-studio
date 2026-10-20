@@ -2,24 +2,20 @@
 
 > **Metadata**
 > - **Source**: `.context/ui/source/ui-design-direction.md`
-> - **Generated At**: `2026-10-21 00:15`
+> - **Generated At**: `2026-10-21 00:55`
 > - **Generator**: `Context-Agent v1.0`
 
 ---
 
 ## 目录用途
 
-存储**可实施的 UI 约束**：令牌绑定、断点、原子组件分层、交互状态、动效与无障碍。  
-工程硬约束（禁止硬编码色值、禁止自动发布、`callOpsRpc`）以 `../criterion.md` 为准。
+存储**可实施的 UI 约束**。工程硬约束以 `../criterion.md` 为准；业务枚举/阶段以 PRD / BR / `src/types.ts` 为准。
 
-**读取优先级**：
+**读取优先级**：日常总结 → 提案时核对源文档 → 细节回 `source/`。
 
-1. 日常任务 → 读取下列总结文件（快速）
-2. 提案检查 → 读取总结 + 设计规范验证
-3. 遇到不确定 / 细节问题 → **回溯 `source/` 目录验证**
-
-> ⚠️ **若总结与源文档冲突，以 `source/` 目录中的源文档为准。**  
-> ⚠️ **若 UI 源文档与 criterion 冲突，实现服从 criterion**（尤其是色值令牌与发布守卫）。
+> ⚠️ 总结与源文档冲突，以 `source/` 为准。  
+> ⚠️ 源文档与 criterion 冲突，**实现服从 criterion**。  
+> ⚠️ 本文「UI 批次 1/2」≠ 路线图项目 Phase 0/1；客户端交付在项目 **Phase 3**。业务渠道范围仍按项目 Phase 0 = 公众号 + B 站。
 
 ---
 
@@ -27,58 +23,53 @@
 
 | 文件 | 类型 | 内容概要 |
 |------|------|---------|
-| `source/ui-design-direction.md` | UI 设计方向与交互规格（已定稿 2026-10-20） | DEC-UI-001~015、DSH token 绑定、断点、六 Tab 交互、微动效、快捷键、i18n、客户端目录 |
+| `source/ui-design-direction.md` | UI 规格（定稿 2026-10-20；MUST 对齐修订 2026-10-21） | DEC-UI-001~015、令牌、断点、六 Tab、快捷键、i18n、实施门禁 |
 
-本仓库无 `docs/UX_UI_Design_Guidelines.md`。无 Figma 切图 / 标注交付文档。
+无 `docs/UX_UI_Design_Guidelines.md`，无 Figma 交付。
 
 ---
 
 ## 已生成总结
 
-| 文件 | 用途 | 主要来源 |
-|------|------|---------|
-| [`design_system.md`](./design_system.md) | 视觉定位、颜色令牌、组件样式约束、与 criterion 的口径差 | §1、§3、§4.1–4.2、§6 |
-| [`atomic_components.md`](./atomic_components.md) | 原子 → 页面五层，对应 `plugin-src/client/` 规划目录 | DEC-UI-004、§5、§6 |
-| [`layout_grid.md`](./layout_grid.md) | 1280 / 960 断点、创作室分栏、KPI 2×2 | DEC-UI-013、§4.4 |
-| [`design_tokens.json`](./design_tokens.json) | Global 回退参考 → Alias CSS 变量 → Component 覆写 | §4.2、§4.3 |
-| [`interaction_states.md`](./interaction_states.md) | 卡片 Hover、四态灯、null/空状态、预填 Loading、五态看板 | DEC-UI-007~011、§5 |
-| [`motion_tokens.md`](./motion_tokens.md) | 150–200ms、180ms 卡片、2.4s 呼吸、Toast 5s | DEC-UI-011、§4.3 |
-| [`accessibility_checklist.md`](./accessibility_checklist.md) | 快捷键、空状态、null 文案；WCAG 未声明项为 TODO | DEC-UI-014、§4.5 |
-
-### 跳过（源文档未覆盖）
-
-| 文件 | 原因 |
+| 文件 | 用途 |
 |------|------|
-| `handoff_checklist.md` | 未出现 Figma / 切图 / 标注 / Handoff |
-| `platform_guidelines.md` | 「多端」指公众号 / B 站内容模拟器，不是 iOS vs Android |
+| [`design_system.md`](./design_system.md) | 视觉定位、令牌、槽位门禁、KPI/Tab 口径 |
+| [`atomic_components.md`](./atomic_components.md) | 原子→页面；Megaphone、导出/导入、复制/沉淀 |
+| [`layout_grid.md`](./layout_grid.md) | 1280 / 960 断点 |
+| [`design_tokens.json`](./design_tokens.json) | Alias + 四个授权点缀色 |
+| [`interaction_states.md`](./interaction_states.md) | SessionState / ItemStatus / 宿主回填 |
+| [`motion_tokens.md`](./motion_tokens.md) | 150–200ms、呼吸灯、Toast |
+| [`accessibility_checklist.md`](./accessibility_checklist.md) | 快捷键、四态文案、发布守卫 |
+
+跳过：`handoff_checklist.md`（无 Figma）、`platform_guidelines.md`（非 iOS/Android）。
 
 ---
 
-## 编号索引（源文档决策）
+## 编号索引
 
 | 编号 | 主题 |
 |------|------|
-| DEC-UI-001 | 独立工作台主视图 |
-| DEC-UI-002 | Modern Pro SaaS + DSH Token |
-| DEC-UI-003 | Sticky KPI Ribbon + Segmented Tabs |
-| DEC-UI-004 | JSX 原子组件分目录 |
-| DEC-UI-005 | 创作室左右分屏 + 模拟器 |
-| DEC-UI-006 | 五态看板 / 周日历双视图 |
-| DEC-UI-007 | 四态灯、原地探活、去登录、热点一键采用 |
-| DEC-UI-008 | AI 工具卡片 + 右侧调试抽屉 |
-| DEC-UI-009 | 仅预填 + URL 回填，禁止自动发布 |
-| DEC-UI-010 | 空状态三件套；null →「暂无数据」 |
+| DEC-UI-001 | 目标主视图；**当前** `settings.section`；Megaphone 在宿主导航 chrome |
+| DEC-UI-002 | Linear/Raycast；不采纳毛玻璃 |
+| DEC-UI-003 | Sticky Ribbon + PRD 顺序 Tab |
+| DEC-UI-004 | JSX 分目录为**目标**，须提案 |
+| DEC-UI-005 | 创作室分屏 + 模拟器 |
+| DEC-UI-006 | 五态看板 / 周日历 |
+| DEC-UI-007 | SessionState 四态、两渠道、热点采用 |
+| DEC-UI-008 | AI 卡片 + 抽屉 |
+| DEC-UI-009 | 仅预填；`drafts.updatePublishUrl` |
+| DEC-UI-010 | 空状态；null →「暂无数据」 |
 | DEC-UI-011 | 150–200ms 微动效 |
-| DEC-UI-012 | Phase 0：驾驶舱 + 创作室 + 配置优先 |
-| DEC-UI-013 | 960px 折叠断点 |
+| DEC-UI-012 | UI 批次 1：驾驶舱 + 创作室 + 配置 |
+| DEC-UI-013 | 960px 折叠 |
 | DEC-UI-014 | Cmd/Ctrl+S / Enter / R，Esc |
-| DEC-UI-015 | 中文打底 + 文案字典化 |
+| DEC-UI-015 | `locale/*.json` + `ops.<area>.<name>` |
 
 ---
 
 ## AI 引用指南
 
-1. 先读 `design_system.md` 与 `design_tokens.json`，颜色只绑 `var(--dsw-alias-*)`。
-2. 新 UI 必须能落到 `atomic_components.md` 的某一层，禁止把六 Tab 写回单文件。
-3. `null` 与未登录交互以 `interaction_states.md` 为准。
-4. 细节回源文档；发布与色值硬约束回 `criterion.md`。
+1. 颜色：表面/文字走 `var(--dsw-alias-*)`；点缀色只用四个授权 HEX。
+2. 枚举：`SessionState` 与 `ItemStatus` 以 `src/types.ts` 为准。
+3. `published` 只经宿主 `drafts.updatePublishUrl`。
+4. 未授权前不要注册主侧边栏槽位，也不要拆 `ops-styles.js`。

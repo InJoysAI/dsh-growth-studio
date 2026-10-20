@@ -1,9 +1,15 @@
 # Growth Studio (dsh-growth-studio) UI 设计方向与交互规格说明书
 
-> **文档状态**：已定稿（Finalized via Context Interview）  
+> **文档状态**：已定稿（Finalized via Context Interview；2026-10-21 按 PRD/BR/criterion MUST 口径修订冲突项）  
 > **定稿日期**：2026-10-20  
-> **依据规范**：`.context/criterion.md` §3.3、`.context/domain/source/product_requirements.md`  
+> **修订日期**：2026-10-21  
+> **依据规范**：`.context/criterion.md`、`.context/domain/source/product_requirements.md`、`.context/domain/business_rules.md`  
 > **目标**：为 DeepSeek Harness (DSH) 增长运营工作台建立统一、现代、具有 SaaS 质感的 UI 设计方向与前端交互规范。
+>
+> **权威层级（冲突时）**：
+> 1. 工程硬约束 → `.context/criterion.md`（槽位、令牌、禁止客户端写状态机）
+> 2. 业务枚举与阶段范围 → PRD / `business_rules.md` / `src/types.ts`
+> 3. 视觉与交互细节 → 本文（DEC-UI-*），但不得覆盖上两级 MUST
 
 ---
 
@@ -13,13 +19,16 @@
 
 | 约束维度 | 规则定义与要求 | 来源 |
 |---------|-------------|------|
-| **宿主环境** | DSH Desktop 渲染进程，基于 Cordis 扩展机制 (`window.__ModuleLoader__.load`) | criterion §3.3 |
+| **宿主环境** | DSH Desktop 渲染进程，基于 Cordis 扩展机制 (`window.__ModuleLoader__.load`) | criterion §3.1 / §3.3 |
+| **入口槽位** | **当前可实施入口仅为** `settings.section`（`id: 'ops'`，`order: 60`）。DEC-UI-001 的独立主视图是目标形态，**未获 criterion 授权前不得自行注册主侧边栏/主窗口槽位** | criterion §3.1 |
 | **前端框架** | React 18 + esbuild 构建打包，外部注入 React/ReactDOM | criterion §3.3 |
-| **样式与色彩** | **严禁硬编码任何色值**，必须严格绑定 DSH 设计令牌 `var(--dsw-alias-*)`，全面自适应深浅色模式 | criterion §3.3 (MUST NOT) |
+| **样式模块** | **当前准则指定** `plugin-src/client/ops-styles.js` 对齐 DSH 令牌。§6 的 `styles/*.css` + JSX 原子目录是目标重构，须先提案更新 criterion §3.3 再落地 | criterion §3.3 |
+| **样式与色彩** | 背景 / 边框 / 文字 **必须**绑定 `var(--dsw-alias-*)`（`--dsw-alias-bg-layer-1/2/3`、`--dsw-alias-border-l1/l2`、`--dsw-alias-label-primary/secondary/tertiary`）。交互点缀色是令牌化**唯一例外**，权威取值：主操作蓝 `#1677ff`、安全绿 `#15803d`、告警橙 `#b45309`、活力紫 `#7c3aed`。禁止把未验证的 `--dsw-alias-brand-primary` / `--dsw-alias-status-*` / `--dsw-alias-border-default` 当作宿主已存在，也禁止用未授权 HEX 作 CSS fallback | criterion §3.1 / 架构 §5.4 |
 | **通信链路** | 严格通过 `callOpsRpc` 进行网关通信，禁止手写外部 `fetch`，统一 `loading / error / data` 状态域 | criterion §3.3 (MUST) |
 | **数据真实性** | 无法获取的指标必须为 `null` 并展示为「暂无数据」，**严禁伪造数据或粗暴显示为 0** | criterion §3.2, §3.3 |
-| **发布守卫** | **严禁自动点击正式发布**；遵循 Human-in-the-loop 预填与 URL 回填闭环 | criterion §3.2, §4 |
-| **会话保护** | 零阻碍原则，未登录平台显示 `去登录 ↗` 快捷外链，禁止泄露 Cookie | criterion §3.3, §4 |
+| **发布守卫** | **严禁自动点击正式发布**；客户端**不得**把草稿/排期写成 `published`。回填只调用 `drafts.updatePublishUrl`，由**宿主**用 URL 解析器校验并写状态 | criterion §3.1 / §3.2 / §4 |
+| **会话保护** | 零阻碍原则，`needs_login` 显示 `去登录 ↗` 快捷外链，禁止泄露 Cookie | criterion §3.3, §4 |
+| **阶段口径** | 本文只用带前缀的阶段名：**UI 批次 1/2** = 客户端界面交付批次（落在路线图**项目 Phase 3**）；**项目 Phase N** = PRD 里程碑。禁止无前缀的「Phase 0」 | PRD §七、BR-002、proposal-roadmap |
 
 ---
 
@@ -51,21 +60,21 @@ graph TD
 
 | 决策编号 | 决策议题 | 当前状态 | 最终结论 | 决策理由 / 备选考量 |
 |---------|---------|---------|---------|-------------------|
-| **DEC-UI-001** | 工作台在 DSH 中的承载形态与主入口 | **已决策** | **独立工作台主视图（主侧边栏/主窗口级入口）+ 设置页保留引擎配置与快捷跳转联动** | 6大Tab信息量大，仅放设置弹窗过窄，独立视图赋予宽屏空间 |
-| **DEC-UI-002** | 视觉风格与质感定位 | **已决策** | **Modern Pro SaaS 风格（Linear/Raycast 质感，高信息密度、精细边框微质感，严格绑定 DSH Token 深浅色）** | 契合专业运营者心智，兼顾科技美感与原生深浅色一致性 |
-| **DEC-UI-003** | 页面主布局与导航组织模式 | **已决策** | **顶部常驻全局驾驶舱状态栏 (Sticky KPI & Engine Ribbon) + 紧凑分段式 Tab (Segmented Workspaces)** | 保证多设备与不同窗口尺寸下的宽屏利用率与关键指标即时可见性 |
-| **DEC-UI-004** | 客户端工程与组件构建策略 | **已决策** | **全面启用 JSX 模块化与设计系统原子组件体系（由 esbuild 原生编译，按 Tab 和通用组件分目录维护）** | 利用已有 esbuild 编译能力，拆分原子组件与 6 大业务组件，杜绝单文件 createElement 冗长难维护 |
+| **DEC-UI-001** | 工作台在 DSH 中的承载形态与主入口 | **已决策（实施门禁）** | **目标形态**：独立工作台主视图（主侧边栏/主窗口级入口）+ 设置页保留引擎配置与快捷跳转联动。**当前可实施**：仅 `settings.section`（`id: 'ops'` / `order: 60`）；独立主视图须先走 OpenSpec 提案更新 criterion §3.1 后再落地 | 6大Tab信息量大，仅放设置弹窗过窄；但槽位契约以 criterion 为准，不得先斩后奏 |
+| **DEC-UI-002** | 视觉风格与质感定位 | **已决策** | **Modern Pro SaaS 风格（Linear/Raycast 质感，高信息密度、精细边框微质感，严格绑定 DSH Token 深浅色）**。**显式不采纳** PRD §六「毛玻璃背景」——与 Linear 平面分层冲突 | 契合专业运营者心智；毛玻璃会破坏信息密度与宿主原生质感 |
+| **DEC-UI-003** | 页面主布局与导航组织模式 | **已决策** | **顶部常驻全局驾驶舱状态栏 (Sticky KPI & Engine Ribbon) + 紧凑分段式 Tab**。Tab **顺序与命名对齐 PRD/criterion**：运营驾驶舱 / 排期日历流水 / 内容创作室 / AI工具中枢 / 舆情需求大盘 / 引擎策略配置 | 保证宽屏利用率；导航文案与顺序不得另造 |
+| **DEC-UI-004** | 客户端工程与组件构建策略 | **已决策（实施门禁）** | **目标**：JSX 模块化与原子组件分目录。**当前准则**仍指定 `ops-page.js` + `ops-styles.js`；目录重构须先提案更新 criterion §3.3 | 拆分可维护性，但不得绕过现行 SSoT |
 | **DEC-UI-005** | 内容创作室与多端拟真预览交互 | **已决策** | **左右双栏响应式分屏（左侧多渠道表单与 AI 润色区，右侧公众号/B站卡片模拟器 + 底部预填与回填栏）** | 边写边预览，直接实现所见即所得与预填闭环 |
 | **DEC-UI-006** | 排期日历流水线视图模式 | **已决策** | **双视图架构（默认 5 态看板流水，支持卡片拖拽与阶段跃迁，可一键无缝切换周排期日历视图）** | 兼顾漏斗流转与时间节点管控 |
-| **DEC-UI-007** | 运营驾驶舱卡片与热点雷达交互 | **已决策** | **矩阵卡片配备四态呼吸状态徽章、原地无刷新探活与“去登录 ↗”快捷外链；热点雷达支持“一键采用”直接流转创作室** | 零摩擦外链与一键选题流转 |
+| **DEC-UI-007** | 运营驾驶舱卡片与热点雷达交互 | **已决策** | **矩阵卡片使用 PRD 会话四态**（`unknown` / `needs_login` / `authenticated` / `no_publish_permission`），原地无刷新探活；`needs_login` 提供 `去登录 ↗`；热点「采用此选题创作 ➔」切入创作室并预填标题与基调。**UI 批次 1 渠道矩阵仅公众号 + B 站两张卡片**，未交付渠道不计入连通度 | 对齐 BR-002 / BR-010 / BR-012；禁止「故障」替代「无权限」 |
 | **DEC-UI-008** | AI 运营工具中枢展现形式 | **已决策** | **双层模式（默认运营场景卡片引导，点击展开右侧抽屉式可视化调试沙箱，展示表单、原始 JSON 与耗时日志）** | 降低普通运营者门槛，兼顾高阶排查需求 |
-| **DEC-UI-009** | 发布闭环守卫与 Human-in-the-Loop 交互 | **已决策** | **预填成功弹出常驻通知条引导「去平台后台确认发布 ↗」，并在草稿卡片提供 URL 回填与格式校验，校验通过跃迁为已发布** | 严格符合安全合规，闭环流转顺畅 |
+| **DEC-UI-009** | 发布闭环守卫与 Human-in-the-Loop 交互 | **已决策** | **预填成功弹出常驻通知条引导「去平台后台确认发布 ↗」/「前往平台草稿箱 ↗」**；URL 回填仅调用 `drafts.updatePublishUrl`，由**宿主**用 URL 解析器校验并写 `published`。客户端不得本地跃迁状态 | 对齐 criterion §3.1 与 `api_strategy.md` published 守卫 |
 | **DEC-UI-010** | 全站空状态与 null 数据展示标准 | **已决策** | **规范化“微图标 + 解释文案 + 行动按钮引导”空状态卡片；指标字段为 null 时统一展示中性灰色「暂无数据」徽章并提供悬浮原因提示** | 避免误判为 0，引导下一步操作 |
 | **DEC-UI-011** | 交互微动效与反馈设计标准 | **已决策** | **采用 150ms~200ms 缓动微动效：卡片 Hover 轻量上浮与微光边框、状态徽章呼吸闪烁、操作反馈全局 Toast 5 秒渐隐** | 提升 Modern SaaS 质感，兼顾低耗性能 |
-| **DEC-UI-012** | Phase 0 首版交付范围优先级取舍 | **已决策** | **优先深度打通「运营驾驶舱 + 内容创作室 + 引擎策略配置」，排期日历与 AI 工具中枢提供基础看板与静态/轻量交互，Phase 1 扩充** | 确保端到端闭环可用，降低单期复杂度 |
+| **DEC-UI-012** | UI 批次 1 交付范围优先级取舍 | **已决策** | **UI 批次 1**（路线图项目 Phase 3 客户端内的首批界面）优先深度打通「运营驾驶舱 + 内容创作室 + 引擎策略配置」；排期日历与 AI 工具中枢提供基础看板与轻量交互，**UI 批次 2** 扩充。业务渠道范围仍是**项目 Phase 0** = 公众号+B站 | 阶段名必须带「UI 批次」或「项目 Phase」前缀 |
 | **DEC-UI-013** | 极窄与小屏断点响应式机制 | **已决策** | **设定 960px 响应式折叠断点：小于 960px 时创作室左右双栏自动退化为上下垂直流，KPI Ribbon 网格转为 2x2 布局** | 保障小屏笔记本、分屏平铺窗口下的工作台可用性 |
 | **DEC-UI-014** | 全局无障碍与高频快捷键体系 | **已决策** | **支持 Cmd/Ctrl+S（保存草稿）、Cmd/Ctrl+Enter（一键预填）、Cmd/Ctrl+R（刷新大盘）等高频快捷键** | 大幅提升专业创作者与独立开发者的高频物料生产效率 |
-| **DEC-UI-015** | 国际化 i18n 文本管理架构 | **已决策** | **首版以中文界面打底，但全量静态与动态文案统一挂载至专有字典结构，无缝兼容后续 locale/*.json 多语言** | 为未来海外出海渠道与多语言用户留出免侵入式扩展能力 |
+| **DEC-UI-015** | 国际化 i18n 文本管理架构 | **已决策** | **首版中文打底**。静态/动态文案键放在仓库根 `locale/zh.json`（及后续 `locale/<locale>.json`），取值优先级：`ctx.i18n.text(key)` → 当前 locale 文件 → `locale/zh.json` 回退。禁止 JSX 深层写死用户可见文案。键名 `ops.<area>.<name>`（例：`ops.header.refresh`） | 现有 `locale/zh.json` 仅有 `meta.title/description`，工作台文案按此契约增量补键 |
 
 ---
 
@@ -75,32 +84,34 @@ graph TD
 
 ```text
 ┌────────────────────────────────────────────────────────────────────────────────────────┐
-│ [🚀 Growth Studio] [当前产品: DeepSeek Harness ▾]  [● Injoys MCP: 连通] [● BrowserOS: 4/4 就绪]│ [🔄 刷新大盘] [✍ 新建物料] │
+│ [Growth Studio] [当前产品: DeepSeek Harness ▾]  [● Injoys MCP: 连通] [● BrowserOS: 2/2 已认证]│
+│ 快捷行动: [+ 生成 7 天排期日历] [✍ 新建多端物料] [🔄 刷新大盘]                            │
 ├────────────────────────────────────────────────────────────────────────────────────────┤
-│ 核心数据看板 (Sticky KPI Ribbon):                                                       │
+│ 核心数据看板 (Sticky KPI Ribbon) — 命名与口径对齐 PRD §5.1.2：                           │
 │ ┌──────────────────┐ ┌──────────────────┐ ┌──────────────────┐ ┌──────────────────┐   │
-│ │ 全网非去重曝光    │ │ 真实互动与关注净增│ │ 本周排期履约流水 │ │ 分发矩阵就绪度   │   │
-│ │ 128.4k   ↑14.2%  │ │ 3,420    ↑8.1%   │ │ 5 / 7 篇  (71%)  │ │ 4 / 4 平台就绪   │   │
+│ │ 全网曝光/播放总量 │ │ 互动与关注增长   │ │ 排期履约流水     │ │ 分发矩阵连通度   │   │
+│ │ 128.4k   ↑14.2%  │ │ 3,420    ↑8.1%   │ │ 5 / 7 篇  (71%)  │ │ 2 / 2 已认证就绪 │   │
 │ └──────────────────┘ └──────────────────┘ └──────────────────┘ └──────────────────┘   │
+│ 第 4 项只统计 SessionState=authenticated；unknown / needs_login / no_publish_permission 不计分子 │
 ├────────────────────────────────────────────────────────────────────────────────────────┤
-│ 工作区分段导航 (Segmented Tabs):                                                       │
-│ [ 🌟 运营驾驶舱 ]  [ ✍ 内容创作室 ]  [ 📅 排期流水线 ]  [ 🛠 AI工具中枢 ]  [ 📊 舆情大盘 ]  [ ⚙ 引擎配置 ] │
+│ 工作区分段导航 (顺序对齐 PRD/criterion)：                                               │
+│ [ 🌟 运营驾驶舱 ]  [ 📅 排期日历流水 ]  [ ✍ 内容创作室 ]  [ 🛠 AI工具中枢 ]  [ 📊 舆情需求大盘 ]  [ ⚙ 引擎策略配置 ] │
 ├────────────────────────────────────────────────────────────────────────────────────────┤
 │ 主工作画布 (Active Workspace Canvas):                                                  │
 │                                                                                        │
 │ (以「内容创作室」为例：左右双栏响应式分屏)                                                │
 │ ┌────────────────────────────────────────┬───────────────────────────────────────────┐ │
 │ │ 左栏：多端物料编辑与 AI 润色面板         │ 右栏：真实平台拟真卡片模拟器与发布预填        │ │
-│ │ - 产品定位与主题输入                   │ - [微信公众号图文卡片 ▾]                   │ │
+│ │ - 本次更新特性 / 目标受众 / 基调风格   │ - [微信公众号：朋友圈卡片 + 文章详情]      │ │
 │ │ - 标题候选生成 (带热度评分)            │   ┌─────────────────────────────────────┐ │ │
 │ │ - 正文 Markdown / 富文本编辑器         │   │ [微信封面] 标题: 如何用 AI 重塑运营   │ │ │
 │ │ - 摘要 / 标签 Tags 提取                │   │ 摘要: 深度解析 DSH 插件机制...       │ │ │
 │ │ - 一键调用 AI 工具润色                 │   └─────────────────────────────────────┘ │ │
-│ │                                        │ - [B站视频元数据卡片 ▾] (动态切换)          │ │
+│ │                                        │ - [B站：3 套标题 / 标签词云 / 分区]         │ │
 │ │                                        │ ───────────────────────────────────────── │ │
-│ │                                        │ 底部操作栏:                               │ │
-│ │ [ 💾 保存本地草稿 ]                    │ [ 🚀 一键预填至草稿箱 (BrowserOS) ]        │ │
-│ │                                        │ [ 🔗 回填真实发布 URL: [ http://... ] [确认] ]│ │
+│ │ [ 💾 保存本地草稿 ]                    │ 底部操作栏:                               │ │
+│ │ [ 📋 一键复制物料 ]                    │ [ 🚀 一键预填至草稿箱 (BrowserOS) ]        │ │
+│ │ [ 💾 沉淀至 Injoys 知识文档 ]          │ [ 🔗 回填 URL → 调用 drafts.updatePublishUrl ]│ │
 │ └────────────────────────────────────────┴───────────────────────────────────────────┘ │
 └────────────────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -109,22 +120,24 @@ graph TD
 
 ### 4.2 DSH 设计令牌绑定与色彩系统 (Design Tokens & Color Palette)
 
-严格遵从 `criterion.md` §3.3 规范，**100% 杜绝直接硬编码十六进制色值**，全面对齐 DSH 原生 CSS 变量：
+严格遵从 `criterion.md` §3.1 / 架构 §5.4：**背景 / 边框 / 文字只绑宿主 alias**；交互点缀色是令牌化唯一例外，只用授权的四个 HEX。下表 Light/Dark 列为宿主 token 的观测参考，**禁止写进组件**。
 
-| 语义层 | DSH CSS 变量 | Light Mode 回退参考 | Dark Mode 回退参考 | 适用场景 |
-|-------|-------------|-------------------|-------------------|---------|
-| **主背景底色** | `var(--dsw-alias-bg-layer-1)` | `#f8f9fb` | `#111215` | 工作台外层容器底层背景 |
-| **工作区/卡片底色** | `var(--dsw-alias-bg-layer-2)` | `#ffffff` | `#18191d` | 模块卡片、工作区主体容器 |
-| **浮层/高亮卡片** | `var(--dsw-alias-bg-layer-3)` | `#f0f2f5` | `#22242a` | Hover 卡片、表单输入框、下拉菜单 |
-| **一级主文本** | `var(--dsw-alias-label-primary)` | `#1f2329` | `#f5f6f7` | 卡片标题、核心指标数字、主导航 |
-| **二级正文** | `var(--dsw-alias-label-secondary)` | `#4e5969` | `#c5c8ce` | 描述文案、表单标签、副标题 |
-| **三级弱化文本** | `var(--dsw-alias-label-tertiary)` | `#86909c` | `#7a808d` | 占位符、辅助时间戳、空状态说明 |
-| **标准边框** | `var(--dsw-alias-border-default)` | `#e5e6eb` | `#2c2e36` | 卡片边框、分隔线、输入框边框 |
-| **主品牌蓝** | `var(--dsw-alias-brand-primary, #1677ff)` | `#1677ff` | `#3c89ff` | 主行动按钮、选中 Tab、链接 |
-| **成功色（绿）** | `var(--dsw-alias-status-success, #22c55e)`| `#22c55e` | `#34d399` | 平台就绪、连接正常、发布完成 |
-| **警告色（橙）** | `var(--dsw-alias-status-warning, #f59e0b)`| `#f59e0b` | `#fbbf24` | 需要扫码登录、待补充 URL |
-| **危险色（红）** | `var(--dsw-alias-status-error, #ef4444)`  | `#ef4444` | `#f87171` | 连接失败、校验未通过、草稿异常 |
-| **中性无数据** | `var(--dsw-alias-status-neutral, #86909c)`| `#86909c` | `#6b7280` | null 暂无数据中性指示徽章 |
+| 语义层 | 实施绑定 | 观测参考（非硬编码） | 适用场景 |
+|-------|---------|---------------------|---------|
+| **主背景底色** | `var(--dsw-alias-bg-layer-1)` | Light `#f8f9fb` / Dark `#111215` | 工作台外层容器底层背景 |
+| **工作区/卡片底色** | `var(--dsw-alias-bg-layer-2)` | Light `#ffffff` / Dark `#18191d` | 模块卡片、工作区主体 |
+| **浮层/输入底色** | `var(--dsw-alias-bg-layer-3)` | Light `#f0f2f5` / Dark `#22242a` | Hover 卡片、表单输入框、下拉菜单 |
+| **一级主文本** | `var(--dsw-alias-label-primary)` | Light `#1f2329` / Dark `#f5f6f7` | 卡片标题、核心指标数字、主导航 |
+| **二级正文** | `var(--dsw-alias-label-secondary)` | Light `#4e5969` / Dark `#c5c8ce` | 描述文案、表单标签、副标题 |
+| **三级弱化文本** | `var(--dsw-alias-label-tertiary)` | Light `#86909c` / Dark `#7a808d` | 占位符、时间戳、空状态、`unknown` 灰灯、`null` 徽章 |
+| **边框 L1** | `var(--dsw-alias-border-l1)` | 宿主主题 | 分割线、外层描边 |
+| **边框 L2** | `var(--dsw-alias-border-l2)` | 宿主主题 | 卡片 / 输入框边框 |
+| **主操作蓝** | `#1677ff`（架构 §5.4 例外） | 同左 | 主按钮、选中 Tab、链接、卡片 Hover 描边 |
+| **安全绿** | `#15803d`（架构 §5.4 例外） | 同左 | `authenticated`、已预填、连接正常 |
+| **告警橙** | `#b45309`（架构 §5.4 例外） | 同左 | `needs_login`、待回填 URL；**无权限若宿主无 error alias，亦用此色 + 文字「无权限」，不得另造红 HEX** |
+| **活力紫** | `#7c3aed`（架构 §5.4 例外） | 同左 | 强调点缀（热点采用等），不可替代状态语义 |
+
+> **禁止**：`--dsw-alias-border-default`、`--dsw-alias-brand-primary`、`--dsw-alias-status-*` 及 `#22c55e` / `#f59e0b` / `#ef4444` 作为实施绑定。PRD 对 `no_publish_permission` 写「红色指示灯」，但 criterion 未授权独立红 HEX；实施以文字状态名 + 告警橙（或宿主若已暴露的 error alias，须先在提案中登记）表达，满足「不只靠颜色」。
 
 ---
 
@@ -138,7 +151,7 @@ graph TD
   }
   .dim-ops-card:hover {
     transform: translateY(-2px);
-    border-color: var(--dsw-alias-brand-primary, #1677ff);
+    border-color: #1677ff;
     box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.08);
   }
   ```
@@ -148,7 +161,7 @@ graph TD
     0%, 100% { opacity: 1; transform: scale(1); }
     50% { opacity: 0.55; transform: scale(0.92); }
   }
-  .dim-status-dot[data-status="active"] {
+  .dim-status-dot[data-status="authenticated"] {
     animation: dimStatusPulse 2.4s ease-in-out infinite;
   }
   ```
@@ -183,76 +196,96 @@ graph TD
 
 ### 4.6 国际化多语言文本架构 (i18n Architecture)
 
-- **当前实现**：首版界面全面使用标准中文文案。
-- **扩展规范**：所有按钮文本、表单 Label、错误提示与 Toast 文案统一通过客户端常量字典或 Cordis 多语言机制 (`ctx.i18n.text`) 引用，与根目录 `locale/*.json` 规范无缝契合，严禁在 JSX 组件深层零散写死文案，以便后续随时无缝开启多语言（英文、日文等）。
+- **文件位置**：仓库根 `locale/zh.json`（首版）、后续 `locale/<locale>.json`。
+- **键名**：`ops.<area>.<name>`（例：`ops.header.refresh`、`ops.session.needs_login`）。
+- **取值优先级**：`ctx.i18n.text(key)` → 当前 locale 文件 → `locale/zh.json`。
+- **禁止**：在 JSX 组件深层写死用户可见文案。现有 `locale/zh.json` 仅含 `meta.title` / `meta.description`，工作台文案按本契约增量补键。
 
 ---
 
 ## 5. 六大业务 Tab 详细交互规格 (Feature Workspaces Spec)
 
-### 5.1 运营驾驶舱 (Overview & Cockpit) `[Phase 0 核心]`
+### 5.1 运营驾驶舱 (Overview & Cockpit) `[UI 批次 1 核心 / 业务项目 Phase 0]`
 - **平台矩阵网格 (Platform Matrix)**：
-  - 支持多渠道（微信公众号、B站、视频号、抖音等）卡片展示。
-  - 卡片顶部包含渠道 Logo、名称、四态状态灯（`已就绪` / `待扫码` / `未连接` / `故障`）。
-  - 数据区域展示核心指标（曝光量/粉丝净增），若接口返回 `null` 则显示「暂无数据」浅灰徽章，悬浮提示「尚未探活或平台未发布」。
-  - 底部操作栏：提供「🔄 原地探活」无刷新更新当前卡片状态，以及「去登录 ↗」直达网页后台。
+  - **UI 批次 1 / 项目 Phase 0 只展示两张卡片**：微信公众号、哔哩哔哩。视频号 / 抖音属**项目 Phase 1**，海外四渠道属**项目 Phase 2**，**不得出现在矩阵，也不得计入连通度**（BR-002 / BR-012）。
+  - 卡片顶部包含渠道 Logo、名称、**会话四态灯**（键值对齐 `SessionState` / PRD §5.2.1 / BR-010）：
+    1. `unknown`（未知 / 探测中）— 灰灯（`--dsw-alias-label-tertiary`）
+    2. `needs_login`（需登录）— 告警橙 + **`去登录 ↗`**
+    3. `authenticated`（已认证就绪）— 安全绿 + 呼吸灯
+    4. `no_publish_permission`（无权限）— 告警橙（或已登记的宿主 error alias）+ 文字「无权限」，**禁止用「故障」替代**
+  - 数据区域展示核心指标（曝光/播放、互动与关注）；接口 `null` 显示「暂无数据」中性徽章，悬浮原因，**不得显示为 0**。
+  - 底部操作栏：「🔄 原地探活」无整页刷新；`needs_login` 才出现「去登录 ↗」。
+- **全局快捷行动组**（BR-083）：`+ 生成 7 天排期日历`、`✍ 新建多端物料`（切创作室并聚焦输入）、`🔄 刷新大盘`。
 - **全网热点雷达 (Trends Radar)**：
-  - 展示实时热点选题榜单（标题、热度指数、建议发帖渠道）。
-  - 点击「一键采用此选题 ➔」：自动切换至「内容创作室」Tab，并将该选题标题注入创作室输入框中，实现丝滑联动。
+  - 展示热点选题（标题、热度指数、建议渠道）。
+  - 点击「采用此选题创作 ➔」：切至内容创作室，预填**标题与基调**（PRD §5.2.2）。
 
-### 5.2 内容创作室与多端模拟器 (Content Studio) `[Phase 0 核心]`
+### 5.2 内容创作室与多端模拟器 (Content Studio) `[UI 批次 1 核心 / 业务项目 Phase 0]`
 - **左右分屏架构**：
-  - **左侧编辑面板**：产品上下文选择器、文章/视频标题输入、正文富文本/Markdown 编辑区、一键调用 AI 工具润色按钮。
-  - **右侧多平台模拟器**：
-    - **微信公众号模拟器**：手机框架外观，真实还原公众号图文推送封面卡片（大图、居底标题、号名与发布时间），以及正文排版预览。
-    - **B站视频元数据模拟器**：桌面端视频详情页外观，展示 16:9 封面预览、主标题、标签 Tag 胶囊、视频简介。
+  - **左侧编辑面板**：产品上下文；**本次更新特性、目标受众、基调风格**（PRD §5.4.1）；标题；正文富文本/Markdown；一键 AI 润色。
+  - **右侧多平台模拟器**（BR-032）：
+    - **微信公众号**：朋友圈分享卡片 + 文章详情，Markdown 代码高亮。
+    - **B 站**：3 套候选爆款标题、结构化简介、标签词云、分区选择。
+- **MVP 草稿边界**（BR-030）：只保留当前草稿；覆盖保存；**不提供**历史查看 / 版本恢复 / 版本快照。`version` 仅并发控制。
+- **物料操作条**（BR-033 / PRD §5.4.3）：
+  - `📋 一键复制物料`（**项目 Phase 0** 首版，纯客户端剪贴板）。
+  - `💾 沉淀至 Injoys 知识文档`（**项目 Phase 0** 首版入口；**仅用户显式点击后**才写入 Injoys）。
+  - `💾 保存本地草稿`（`drafts.save`；不得传 `status: 'published'`）。
 - **预填与发布闭环栏 (Human-in-the-loop Guard)**：
-  - 底部常驻双操作区：
-    - 按钮一：`一键预填至草稿箱 (BrowserOS)` —— 触发 BrowserOS 自动化填充，执行中显示加载微动效，成功后提示「已成功预填，请前往平台人工审核发布」。
-    - 输入组：`真实发布 URL 回填` —— 用户在平台发布后复制链接，在此粘贴并点击确认，系统通过 URL 解析器严格校验合法性，校验通过后草稿状态跃迁为 `published`。
+  - `🚀 一键预填至草稿箱 (BrowserOS)`：Loading + 成功通知「已成功预填，请前往平台人工审核发布」+ `前往平台草稿箱 ↗`。
+  - `真实发布 URL 回填`：客户端只调用 `drafts.updatePublishUrl`；**宿主**用 URL 解析器校验（禁止宽松正则）并写入状态。多渠道时仅全部回填才 `published`，部分回填保持 `prefilled` 并展示「已发布 n/m 渠道」。客户端**禁止**本地把状态设为 `published`。
 
-### 5.3 排期流水线与日历 (Calendar & Pipeline) `[Phase 0 基础看板 / Phase 1 深度]`
-- **5 态看板泳道**：
+### 5.3 排期日历流水 (Calendar & Pipeline) `[UI 批次 1 基础看板 / UI 批次 2 深度]`
+- **5 态看板泳道**（键值对齐 `ItemStatus` / PRD §5.3.1 / BR-020，**禁止** `writing` / `drafted`）：
   - 列 1：`计划中 (planned)`
-  - 列 2：`撰写中 (writing)`
-  - 列 3：`草稿就绪 (drafted)`
-  - 列 4：`预填完成 (prefilled)`
+  - 列 2：`撰写中 (drafting)`
+  - 列 3：`草稿就绪 (draft_ready)`
+  - 列 4：`已推草稿箱 (prefilled)`
   - 列 5：`已发布 (published)`
-- **卡片内容**：显示内容标题、平台图标、计划日期、负责人与当前操作快捷按钮。
-- **视图切换**：右上角提供 `[ 📋 看板流水 ]` 与 `[ 📅 周排期日历 ]` 一键切换。
+- **卡片内容**：内容标题、平台图标、计划日期、当前操作快捷按钮。`published` 不可经 `calendar.updateStatus` 写入。
+- **Injoys 同步（BR-024，项目 Phase 0 首版）**：提供两个独立动作 `📥 导出至 Injoys 表格` 与 `从 Injoys 导入`；单向、以本地为准；不得宣称双向实时同步。
+- **视图切换**：`[ 📋 看板流水 ]` 与 `[ 📅 周排期日历 ]`。拖拽深度为 UI 批次 2。
 
-### 5.4 AI 工具中枢与调试沙箱 (AI Ops Tools Hub) `[Phase 0 场景卡片 + 抽屉]`
+### 5.4 AI 工具中枢与调试沙箱 (AI Ops Tools Hub) `[UI 批次 1 场景卡片 + 抽屉]`
 - **场景化卡片引导**：按运营场景分类展示工具集（如：`一键生成复盘报告`、`抓取评论与舆情聚类`、`多端发布物料生成`）。
 - **右侧调试抽屉 (Drawer Console)**：
   - 点击任一工具卡片展开右侧抽屉。
   - 上方：可视化参数输入表单（带校验与占位提示）。
   - 下方：可折叠展示原始 JSON 请求报文、执行耗时（如 `1,240ms`）、返回值结构化渲染。
 
-### 5.5 舆情需求大盘 (Social Listening) `[Phase 0 基础指标 / Phase 1 聚类]`
-- 真实采集的互动大盘与评论列表，保留 null 容错展示，Phase 1 接入 IssueExtractor 需求聚类反哺。
+### 5.5 舆情需求大盘 (Social Listening) `[UI 批次 1 基础指标 / 项目 Phase 1 聚类]`
+- **项目 Phase 0 基础指标**（PRD §5.6，仅公众号+B站）：播放/阅读量、点赞、评论、分享、收藏；采集失败为 `null` →「暂无数据」，禁止 0。
+- **项目 Phase 1**：真实评论抓取 + `IssueExtractor` 需求聚类反哺；基于真实数据的复盘报告。
 
-### 5.6 引擎与策略配置 (Integrations & Governance) `[Phase 0 核心]`
-- **Injoys MCP 配置卡片**：Endpoint 地址、Token 显隐切换按钮、连通性实时测试按钮。
-- **BrowserOS 能力开关卡片**：八项能力开关控制、会话探活与重连机制。
-- **全局运营规则**：默认产品名、本地草稿存储路径（只读展示与健康度检查）。
+### 5.6 引擎与策略配置 (Integrations & Governance) `[UI 批次 1 核心]`
+- **入口图标（宿主导航 chrome，非工作台 Header 控件）**：`settings.section` 导航注入使用 **大喇叭 (Megaphone)** 矢量图标（BR-080 / `plugin-src/client/index.js`）。工作台画布内不再重复放置该图标。
+- **信息架构**：引擎策略配置 → BrowserOS 浏览器引擎 → **能力管理**（与 AI 工具中枢的 `ops_*` 开关是两层，必须同时满足）。
+- **Injoys MCP 配置卡片**：Endpoint、Token 显隐、连通性测试。
+- **BrowserOS 能力管理**（PRD §5.7.1）：列出**当前连接实际暴露**的工具 + 启停开关；**默认八项**（`tabs` / `navigate` / `snapshot` / `act` / `read` / `grep` / `wait` / `upload`）是默认启用集，**不是上限**；其余实际暴露工具默认关、允许手动开；未暴露的不列出、不伪造。
+- **本地草稿目录**：可配置（默认 `$DSH_HOME/growth-studio/drafts/`）+ 健康度检查。`config.save` 改 `draftsDir` 前由宿主预检，失败返回 `config/invalid-drafts-dir`，界面展示错误、不得先报成功（BR-030 / criterion §3.2）。
+- **全局运营策略**：默认产品名、**调性基调**、保存即时生效（PRD §5.7）。
 
 ---
 
 ## 6. 客户端工程目录结构规范 (plugin-src/client Refactoring)
 
-为支撑上述设计方向，客户端代码将从单文件 `ops-page.js` 体系重构升级为**规范的 JSX 模块化组件体系**：
+为支撑上述设计方向，客户端**目标**从单文件 `ops-page.js` 重构为 JSX 模块化组件体系。
+
+> **实施门禁**：criterion §3.3 当前指定 `ops-page.js` + `ops-styles.js`，入口槽位为 `settings.section`。下列目录是目标结构，**落地前须 OpenSpec 提案更新 criterion**；在此之前新增 UI 仍写入现行文件，不得私自改槽位或拆出未授权 CSS 入口。
 
 ```text
 plugin-src/client/
-├── index.js                     # 插件客户端入口（注册导航图标与主工作台/设置页 Slot）
+├── index.js                     # 当前：settings.section id=ops order=60 + Megaphone 导航图标
+├── ops-page.js                  # 当前工作台（criterion 现行）
+├── ops-styles.js                # 当前样式模块（criterion 现行）
 ├── build.mjs                    # esbuild 构建配置（支持 JSX/TSX 编译与 CJS 打包）
-├── styles/
+├── styles/                      # 目标拆分（须提案）
 │   ├── base.css                 # 基础 Reset、动画与 DSH Token 映射
 │   ├── layout.css               # 工作台外层骨架、Sticky Ribbon、Segmented Tabs 样式
 │   └── components.css           # 通用卡片、表单、按钮、徽章与模拟器样式
 ├── components/
 │   ├── ui/                      # 基础原子设计组件 (Atomic UI)
-│   │   ├── Button.jsx           # 主/次/危险/图标按钮
+│   │   ├── Button.jsx           # 主/次/告警(危险语义)/图标；危险变体用 #b45309 + 文字，不得另造红 HEX
 │   │   ├── Badge.jsx            # 状态徽章（四态灯、null中性徽章）
 │   │   ├── Card.jsx             # 标准卡片容器（Hover微动效）
 │   │   ├── MetricBox.jsx        # KPI 指标卡（环比、数值、null占位）
@@ -264,10 +297,10 @@ plugin-src/client/
 │   └── layout/                  # 顶层布局组件
 │       ├── HeaderCockpit.jsx    # 顶部驾驶舱常驻栏
 │       └── TopKpiRibbon.jsx     # 4 核心指标条
-└── workspaces/                  # 6 大业务工作区视图组件
+└── workspaces/                  # 6 大业务工作区（顺序对齐 PRD）
     ├── OverviewCockpitTab.jsx   # 1. 运营驾驶舱
-    ├── ContentStudioTab.jsx     # 2. 内容创作室
-    ├── PipelineCalendarTab.jsx  # 3. 排期日历流水线
+    ├── PipelineCalendarTab.jsx  # 2. 排期日历流水
+    ├── ContentStudioTab.jsx     # 3. 内容创作室
     ├── ToolsHubTab.jsx          # 4. AI工具中枢与调试抽屉
     ├── SocialListeningTab.jsx   # 5. 舆情需求大盘
     └── SettingsGovernanceTab.jsx# 6. 引擎策略配置
@@ -279,20 +312,24 @@ plugin-src/client/
 
 ### 7.1 对照覆盖维度自查结果
 
-- [x] **技术实现**：React 18、esbuild 原生 JSX、DSH CSS 变量、统一 `callOpsRpc` 错误捕获。
-- [x] **UI/UX**：现代 Pro SaaS（Linear 质感）、顶部常驻 Ribbon + 分段 Tab、左右分屏创作室。
-- [x] **边缘情况**：缺失指标严格显示中性「暂无数据」徽章，空状态全量配 CTA，未登录提供直达外链。
-- [x] **风险考量**：绝不自动点击正式发布（仅预填 + 原地 URL 回填校验），零 Cookie 外发。
-- [x] **权衡取舍**：Phase 0 深度打通驾驶舱、创作室、配置三大主链路，日历与工具中枢首版基础态。
-- [x] **架构决策**：模块化组件分层目录，支持多端模拟器与可视化抽屉扩展。
-- [x] **迁移与兼容**：旧 `ops-page.js` 的配置与探活逻辑平滑迁移入 `SettingsGovernanceTab.jsx`。
+- [x] **技术实现**：React 18、esbuild、DSH CSS 变量、`callOpsRpc`；入口维持 `settings.section` 直至提案授权主视图。
+- [x] **UI/UX**：现代 Pro SaaS（Linear 质感、精细边框）；**不采纳** PRD 毛玻璃。
+- [x] **边缘情况**：`null` →「暂无数据」；空状态三件套；`needs_login` → `去登录 ↗`。
+- [x] **风险考量**：仅预填；回填经 `drafts.updatePublishUrl`；零 Cookie 外发。
+- [x] **权衡取舍**：UI 批次 1 深度打通驾驶舱、创作室、配置；排期/工具中枢基础态。业务渠道 = 项目 Phase 0 公众号+B站。
+- [x] **架构决策**：原子目录为**目标重构**，须先更新 criterion §3.3。
+- [x] **迁移与兼容**：现行 `ops-page.js` / `ops-styles.js` 在提案落地前仍是唯一实现面。
 
 ### 7.2 次级细节建议采纳情况 (Secondary Details Formalized)
 
-经收尾确认，以下 3 项建议已**全量采纳并正式升级为系统标准规范**（见 `DEC-UI-013`、`DEC-UI-014`、`DEC-UI-015` 及规范 §4.4、§4.5、§4.6）：
+经收尾确认，以下 **3 项建议**已全量采纳并升级为系统标准（见 `DEC-UI-013`、`DEC-UI-014`、`DEC-UI-015` 及 §4.4、§4.5、§4.6）：
 
-1. [x] **响应式极窄断点 (DEC-UI-013)**：确定 960px 折叠断点；小于 960px 时创作室双栏自动退化为上下垂直单列流，KPI Ribbon 网格转为 2x2 紧凑布局。
-2. [x] **快捷键系统 (DEC-UI-014)**：正式确立 `Cmd/Ctrl + S`（保存草稿）、`Cmd/Ctrl + Enter`（一键预填）、`Cmd/Ctrl + R`（刷新大盘）、`Esc`（关闭抽屉）全局快捷键体系。
-3. [x] **国际化多语言 (DEC-UI-015)**：首版以中文打底，全站组件静态与动态文案集中字典化管理，与 `locale/*.json` 多语言体系完全兼容。
+1. [x] **响应式极窄断点 (DEC-UI-013)**：960px 折叠；创作室双栏退化为上下流，KPI Ribbon 转为 2x2。
+2. [x] **快捷键系统 (DEC-UI-014)**：`Cmd/Ctrl + S` / `Enter` / `R`，`Esc` 关闭抽屉。
+3. [x] **国际化多语言 (DEC-UI-015)**：`locale/*.json` + `ops.<area>.<name>` + `ctx.i18n.text` 优先级链。
+
+### 7.3 2026-10-21 修订记录（非访谈建议）
+
+- [x] MUST 对齐：会话四态、内容五态、**项目 Phase 0** 两渠道、KPI 口径、导出/导入、复制/沉淀、Megaphone（宿主导航）、draftsDir 可配置、能力开关非上限、宿主写 `published`。
 
 
