@@ -115,7 +115,7 @@
 **Change ID:** `feat-storage-metrics-snapshot`  
 **优先级:** P1  
 **预计时间:** 2 人日（规划估算）  
-**状态:** proposed
+**状态:** in-progress
 
 **业务目标（Business Goal）**:
 - 落地 `$DSH_HOME/growth-studio/metrics/{YYYY-MM-DD}.json` 指标历史快照，使环比有真实基准，而非恒为 `null` 的占位语义。
