@@ -4,6 +4,8 @@
 > - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.4.5 §4、§5.3）
 > - **Generated At**: `2026-10-16 09:44`
 > - **Generator**: `Context-Agent v1.0`
+> - **Last Synced At**: `2026-10-21T00:01:50+08:00`
+> - **Sync Authority**: `openspec/changes/archive/2026-10-20-feat-storage-metrics-snapshot/`
 
 > ⚠️ **权威定义在 `src/types.ts`**（criterion §5.5）。若本文与源文档冲突，**以源文档为准**。
 > **本项目无数据库** —— 数据层未启用（criterion §7.3），持久化为本地 JSON 文件。
@@ -270,6 +272,13 @@ $DSH_HOME/
 | `growth-studio/drafts/{id}.json` | `ContentDraft` | 只保留当前内容，`version` 用于并发控制 |
 | `growth-studio/calendar/{id}.json` | `CalendarItem` | 排期黄金主数据源 |
 | `growth-studio/metrics/{YYYY-MM-DD}.json` | `PlatformMetrics[]` | 按 `(platform, capturedAt)` 追加，供环比；仅 `source === 'live'` 且 `windowScope === 'verified'` 的结果写入（`src/storage/metrics-store.ts`） |
+
+### 指标历史存取边界
+
+- `MetricsSnapshotFile` 是 `PlatformMetrics[]` 的契约别名；按 `capturedAt` 的 UTC 日期分桶，`source` / `windowScope` 不落盘。仅通过 live + verified 门的行追加，现有实现不按 `(platform, capturedAt)` 去重；既有记录保持不变。
+- 请求开始捕获 `resolveDshHome()` 下的指标目录，贯穿采集、追加和历史读取；不受 `draftsDir` 影响。`MetricsStore` 复用统一原子写、每实例一套的文件锁及目录可写性校验，不承诺跨实例 / 跨进程互斥。
+- 追加失败返回 `drafts/storage-unavailable` 失败信封，不回滚采集；目录不存在按无历史处理，读取失败 / 损坏 JSON / 非数组文件报存储错误，不冒充正常空历史。
+- 上一等长窗口基准须覆盖每个应采平台、UTC 起止日期对齐且窗口长度匹配。同平台候选按距预期末端最近、并列时采集时间最新选择。缺任一平台时五键全 `null`；历史充足时仍逐指标保留未知与零基准语义（见 `api_strategy.md` §3.1）。
 
 ### MVP 单份草稿存储设计
 

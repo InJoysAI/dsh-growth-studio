@@ -4,6 +4,8 @@
 > - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.4.5 §2.2、§3）
 > - **Generated At**: `2026-10-16 09:44`
 > - **Generator**: `Context-Agent v1.0`
+> - **Last Synced At**: `2026-10-21T00:01:50+08:00`
+> - **Sync Authority**: `openspec/changes/archive/2026-10-20-feat-storage-metrics-snapshot/`
 
 > ⚠️ 本文是源文档 §3 的**结构化总结**。契约的**权威定义在 `src/ops-rpc.ts` + `src/types.ts`**（criterion §7.1，手写 TS 契约）。
 > 若本文与源文档或 `../criterion.md` 冲突，**以它们为准**。
@@ -202,7 +204,9 @@ interface WorkbenchOverviewRequest {
 
 - 基准取自本地**历史指标快照**：每次采集成功且通过可证性门后按 `(platform, capturedAt)` 追加写入 `$DSH_HOME/growth-studio/metrics/{YYYY-MM-DD}.json`；
 - `comparison.period` 表示用于对比的**上一个等长窗口**；
-- 历史快照不足以覆盖完整上一个窗口 → 对应 delta 为 **`null`**，**不得**用不完整历史算近似百分比；
+- **历史充足判定**：应采平台集合 `P` 中每个平台都须有一条窗口长度匹配请求周期、`windowStart` / `windowEnd` 的 UTC 日期分别对齐上一个等长窗口的记录；不要求采集瞬间 ISO 全等，不得以 30d 记录充当 7d 基准。同平台多条候选取 `|windowEnd - 预期 prev.windowEnd|` 最小者，并列时取 `capturedAt` 最新者。
+- 任一应采平台缺少基准时，`comparison.period` 与四个 delta **全部为 `null`**（UI 显示「暂无环比」），不得按天数、记录条数或部分平台之和估算。
+- 历史充足时 `period` 为请求的 `7d` / `30d`，各 delta 按 `(当前值 - 基准值) / 基准值 * 100` 计算。分指标汇总沿用平台覆盖门后的口径：跳过该指标未知的平台贡献，全未知仍为 `null`；互动按点赞 / 评论 / 转发 / 收藏分别汇总，任一分项汇总未知则互动未知。当前值或基准值未知时仅对应 delta 为 `null`；基准为 0 且当前也为 0 时为 0%，基准为 0 而当前非 0 时为 `null`，不输出无穷百分比。
 - 因此环比是**基于本地留存的次级指标**；首次使用时全部 delta 为 `null` 属**预期行为，不是缺陷**。
 
 ---

@@ -8,7 +8,7 @@
 > | **对应 PRD 基线** | `.context/domain/source/product_requirements.md` **v1.2.2**（MVP 简化裁决版 Approved Baseline） |
 > | **状态** | 评审整改版 |
 > | **初次编写** | 2026-10-13 |
-> | **本次修订** | 2026-10-20（按已归档提案 `fix-config-save-error-swallow` 同步 §3.10.2/§3.10.4：配置文件失败如实上报、热更新先于写盘、非空字段一致与失败不回滚；此前 v1.4.5 修订记录见下） |
+> | **本次修订** | 2026-10-21（第二次同步已归档提案 `feat-storage-metrics-snapshot`：补齐 §3.1 基准选择 / 可空边界、§5.3 目录固定 / 追加 / 存储失败语义；保留此前配置保存失败与权限封装裁决，完整同步历史见 `.context/history/context-sync.jsonl`；此前 v1.4.5 修订记录见下） |
 >
 > **v1.4.5 的修订（2026-10-17，A1/A2/A3 源契约澄清）**：A1 排期库无乐观锁（`CalendarItem` 无 `version`）；A2 `browseros.capabilities` 只列实时暴露工具（删除 `available`/`unavailableReason`，消失的工具就消失）；A3 生成落盘失败（存储类）统一走 `drafts/storage-unavailable` 错误信封，`draftSaved:false` 仅表「已生成未落盘」、不包装存储错误。
 >
@@ -263,8 +263,9 @@ DSH Desktop 客户端通过 Cordis `slots` 注入扩展机制工作：
   `$DSH_HOME/growth-studio/metrics/{YYYY-MM-DD}.json`。
 * **落盘可证性门**：仅 `source === 'live'` 且 `windowScope === 'verified'`；`mock` / `unmeasured` / `unverified` MUST NOT 成为环比基准。
 * `comparison.period` 表示用于对比的**上一个等长窗口**（`7d` 对上一个 7 天，`30d` 同理）。窗口匹配按 UTC 日历日 + 窗口长度，不要求采集瞬间 ISO 字符串全等。
-* 若历史快照不足以覆盖完整上一个窗口 → 对应 delta 为 **`null`**（UI 显示「暂无环比」），
-  **不得**用不完整历史算出一个近似百分比。
+* **历史充足判定**：应采平台集合 `P` 中每个平台都须有一条窗口长度匹配请求周期、`windowStart` / `windowEnd` 的 UTC 日期分别对齐上一个等长窗口的记录；不要求采集瞬间 ISO 全等，不得以 30d 记录充当 7d 基准。同平台多条候选取 `|windowEnd - 预期 prev.windowEnd|` 最小者，并列时取 `capturedAt` 最新者。
+* 任一应采平台缺少基准时，`comparison.period` 与四个 delta **全部为 `null`**（UI 显示「暂无环比」），不得按天数、记录条数或部分平台之和估算。
+* 历史充足时 `period` 为请求的 `7d` / `30d`，各 delta 按 `(当前值 - 基准值) / 基准值 * 100` 计算。分指标汇总沿用平台覆盖门后的口径：跳过该指标未知的平台贡献，全未知仍为 `null`；互动按点赞 / 评论 / 转发 / 收藏分别汇总，任一分项汇总未知则互动未知。当前值或基准值未知时仅对应 delta 为 `null`；基准为 0 且当前也为 0 时为 0%，基准为 0 而当前非 0 时为 `null`，不输出无穷百分比。
 * 因此环比是**基于本地留存的次级指标**，其可用性取决于用户已积累的历史采集次数；
   首次使用时全部 delta 为 `null` 属**预期行为**，不是缺陷。
 * 实现落点：`src/storage/metrics-store.ts` + `src/analytics/metrics-comparison.ts`（提案 `feat-storage-metrics-snapshot`，已归档）。
@@ -1243,6 +1244,8 @@ $DSH_HOME/growth-studio/drafts/
    ```
 
    > 配置另存于 `$DSH_HOME/ops-manager/config.json`（§3.10）。
+   > 指标历史文件内容为 `MetricsSnapshotFile = PlatformMetrics[]`，按采集时间的 UTC 日期分桶；`source` / `windowScope` 属采集结果扩展，仅用于写入前的可证性门，不写入快照行。每次追加保留既有记录，当前实现不按 `(platform, capturedAt)` 去重，也不修改既有行。
+   > `workbench.overview` / `ops_fetch_metrics` 在请求开始、任何 `await` 之前捕获 `resolveDshHome()` 下的指标目录，贯穿采集后追加及请求内历史读取；`draftsDir` 仅影响草稿库。复用 `local-fs.ts` 的原子写 / 实例级文件锁和 `draft-store.ts` 的目录可写性校验 / `DraftStorageError`，新建目录 `0o700`、文件 `0o600`（权限边界见 §六.1）。追加失败整体调用返回 `drafts/storage-unavailable`，不回滚已发生的采集；历史目录不存在视为无历史，读取失败或非数组 / 损坏 JSON 同样报存储错误，不伪装成历史不足。
 
 3. **导入/导出的冲突与幂等规则**：见 §3.3.3（导出幂等）与 §3.3.4（导入去重与冲突处理）。
 

@@ -4,6 +4,8 @@
 > - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.4.5 §3、§4.2、§5）
 > - **Generated At**: `2026-10-16 09:44`
 > - **Generator**: `Context-Agent v1.0`
+> - **Last Synced At**: `2026-10-21T00:01:50+08:00`
+> - **Sync Authority**: `openspec/changes/archive/2026-10-20-feat-storage-metrics-snapshot/`
 
 ---
 
@@ -259,56 +261,50 @@ stateDiagram-v2
 
 ```mermaid
 sequenceDiagram
-    autonumber
     participant WB as 驾驶舱 UI
     participant RPC as 宿主 RPC 网关
-    participant MA as MetricsAggregator
-    participant BD as BrowserDriver
+    participant MC as MetricsCollector
     participant BOS as BrowserOS MCP
+    participant MS as MetricsStore
     participant Hist as metrics/{YYYY-MM-DD}.json
+    participant Calc as 汇总与环比纯函数
 
     WB->>RPC: workbench.overview { metricsWindow:'7d' }
-    RPC->>MA: 路由
-    loop 每个应采平台 P
-        MA->>BD: 采集该平台指标
-        BD->>BOS: 导航至平台数据页并抓取
-        alt 采集成功（含真实 0）
-            BOS-->>BD: { impressions, plays, likes, ... }
-            BD-->>MA: 有效值（0 也是有效值）
-        else 采集失败 / 平台不支持
-            BOS-->>BD: 失败 / 不支持
-            BD-->>MA: null
+    RPC->>MS: 请求开始捕获指标目录（任何 await 前）
+    RPC->>MC: 按应采平台 P 与请求窗口采集
+    MC->>BOS: 经统一浏览器入口读取平台指标
+    BOS-->>MC: 真实结果或失败
+    MC-->>RPC: outcomes（含 source / windowScope）
+    RPC->>MS: appendVerified(outcomes, 固定目录)
+    opt 存在 live 且 verified 记录
+        MS->>Hist: 文件锁内读取、追加、原子替换
+    end
+    alt 存储失败
+        MS-->>RPC: DraftStorageError
+        RPC-->>WB: drafts/storage-unavailable 失败信封
+    else 追加成功或无可落盘记录
+        RPC->>MS: readAll(同一固定目录)
+        MS->>Hist: 读取历史（目录不存在则空历史）
+        alt 历史读取失败
+            MS-->>RPC: DraftStorageError
+            RPC-->>WB: drafts/storage-unavailable 失败信封
+        else 历史读取成功
+            MS-->>RPC: PlatformMetrics[]
+            RPC->>Calc: 汇总覆盖门 + 选择上一等长窗口基准
+            Calc-->>RPC: 汇总与 comparison（保留可空语义）
+            RPC-->>WB: 成功信封，客户端局部替换
         end
     end
-    MA->>Hist: 按 (platform, capturedAt) 追加快照
-    MA->>MA: 汇总判定
-    alt measuredPlatforms == P（全部成功）
-        MA->>MA: 汇总值 = 各平台之和
-    else measuredPlatforms ⊂ P（部分缺失）
-        MA->>MA: 汇总值 = null + 填充 unmeasuredPlatforms
-    end
-    MA->>Hist: 读取上一个等长窗口快照
-    alt 历史覆盖完整对比窗口
-        MA->>MA: 计算 delta 百分比
-    else 历史不足
-        MA->>MA: delta = null（UI 显示「暂无环比」）
-    end
-    MA-->>RPC: { overviewMetrics, statuses, ... }
-    RPC-->>WB: 局部替换（不整页重载）
 ```
 
 ### 关键决策点
 
-| 步骤 | 决策 | 失败处理 |
-|------|------|---------|
-| 5 | 真实返回 `0` 是**有效值** | 参与求和；`0` 与 `null` 语义**严格区分** |
-| 8 | 采集失败 / 不支持 → `null` | **不得**按 0 或估算值伪造填充 |
-| 11 | 部分缺失 → 汇总 **`null`** | **不得**只汇总已成功平台冒充全网总量；须填充 `measuredPlatforms` / `unmeasuredPlatforms` |
-| 13 | 互动汇总 | `totalEngagements` 在点赞/评论/转发/收藏**任一为 null 时为 null** |
-| 16 | 历史不足 → delta `null` | **不得**用不完整历史算近似百分比 |
-| 18 | UI 局部替换 | 同一卡片并发刷新须做 **in-flight 去重** |
-
-> **首次使用时全部 delta 为 `null` 属预期行为，不是缺陷。**
+- 真实 `0` 是有效值；抓取成功但窗口不可证实的结果不进入周期汇总、不写快照。
+- 平台覆盖不足时汇总为 `null`，填充覆盖数组；互动分项任一汇总未知则互动为 `null`。
+- 任一应采平台缺少上一等长窗口基准时，`comparison.period` 与四个 delta 全 `null`。候选按 UTC 起止日期 / 长度匹配，取距预期末端最近者，并列取采集时间最新者。
+- `period` 有值不保证每个 delta 都可用：当前值 / 基准未知仍为 `null`；基准与当前均为零时为 0%，基准零且当前非零时为 `null`。
+- `ops_fetch_metrics` 共用采集与追加路径，但不执行 overview 的历史读取和环比计算。存储失败不回滚已发生的采集，整体调用如实报错。
+- 首次使用无历史是正常情况；同一卡片并发刷新须做 in-flight 去重。图中 UI 是目标交互，不表示驾驶舱 UI 已验收。
 
 ---
 

@@ -30,7 +30,7 @@
       "path": ".context/architecture/source/technical_architecture.md",
       "archived_to": ".context/architecture/source/technical_architecture.md",
       "type": "system_architecture",
-      "content_hash": "de1c0c3a53c7415aab5c67cf286ddc8f360615165b80155556082d6811d32936",
+      "content_hash": "a0d9d2143ddce941b8338f0fb09e411b59f8837ee8eddf9d26a8ede5042bd8b6",
       "status": "archived"
     },
     "UI_SPEC": {
@@ -111,7 +111,7 @@
     "ordering": "ascending_by_synced_at"
   },
   "last_context_sync": {
-    "synced_at": "2026-10-20T23:56:58+08:00",
+    "synced_at": "2026-10-21T00:01:50+08:00",
     "source": "openspec/changes/archive/2026-10-20-feat-storage-metrics-snapshot/",
     "workflow": ".agents/workflows/context-update.md sync proposal feat-storage-metrics-snapshot --mode apply",
     "change_id": "feat-storage-metrics-snapshot",
@@ -119,9 +119,13 @@
     "mode": "apply",
     "updated_context_files": [
       ".context/architecture/source/technical_architecture.md",
-      ".context/architecture/data_architecture.md",
-      ".context/architecture/system_design.md",
       ".context/architecture/api_strategy.md",
+      ".context/architecture/tech_stack.md",
+      ".context/domain/testing_strategy.md",
+      ".context/domain/edge_cases.md",
+      ".context/architecture/risks_and_debt.md",
+      ".context/architecture/data_architecture.md",
+      ".context/architecture/runtime_view.md",
       ".context/history/context-sync.jsonl",
       ".context/context-manifest.json"
     ],

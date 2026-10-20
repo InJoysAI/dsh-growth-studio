@@ -4,6 +4,8 @@
 > - **Source**: `.context/domain/source/product_requirements.md`（PRD 基线 v1.2.2）、`.context/domain/source/development_plan.md`（验收条件）、`.context/architecture/source/technical_architecture.md` §3.10.2、`openspec/changes/archive/2026-10-20-fix-config-save-error-swallow/specs/ops-config/spec.md`（配置保存专项）
 > - **Generated At**: `2026-10-16 09:00`
 > - **Generator**: `Context-Agent v1.0`
+> - **Last Synced At**: `2026-10-21T00:01:50+08:00`
+> - **Sync Authority**: `openspec/changes/archive/2026-10-20-feat-storage-metrics-snapshot/`
 
 ---
 
@@ -306,6 +308,16 @@ Then 环比应显示为空
   And 不得编造环比结论
 ```
 
+#### 场景 6a: 历史充足时按上一等长周期计算环比（BR-052，提案补充）
+```gherkin
+Given 每个应采渠道均有覆盖上一个等长周期的可证实历史数据
+When 当前周期指标可用且用户查看环比
+Then 根据真实基准计算变化百分比
+  And 当前值或基准未知时该项仍显示「暂无环比」
+  And 基准为零且当前非零时不编造百分比；两者真实为零时显示 0%
+```
+> 宿主自动化见 `tests/metrics-snapshot.spec.ts`：包含 UTC 日期对齐、最近窗口末端 / 并列取最新采集、禁止跨周期混用及零基准分支；测试夹具不证明生产采集窗口已可证实。来源：归档提案 `feat-storage-metrics-snapshot` 的 specs / design；未新增 UI 实现承诺。
+
 > **场景 4 / 5 / 6 的当前自动化范围**：`tests/overview-metrics.spec.ts` 验证宿主平台覆盖门、真实零值、互动严格空值、本周筛选与无历史空环比；`tests/overview-window-passthrough.spec.ts` 验证 RPC 请求窗口穿透；`tests/metrics-window.spec.ts` 验证实际采集器的窗口字段；`tests/metrics-snapshot.spec.ts` 验证快照追加、可证性门、历史不足 / 充足环比、目录固定、权限位与写盘失败信封。完整覆盖和零值的正向汇总通过显式测试数据验证，不表示当前 `live` 页面已能提供该周期增量。宿主测试也不能替代场景中的驾驶舱 UI 验收。
 
 #### 场景 7: 评论抓取为空不伪造（BR-054）
@@ -524,7 +536,7 @@ Then 界面应明确提示该能力不可用
 | RISK-010 测试污染真实 `$DSH_HOME` | —（工程层，无 BDD 场景） | **已有工程自动化覆盖（非 BDD）**：`vitest.config.ts` 在收集前加载 `tests/setup-isolation.ts`；`tests/isolation.spec.ts` 验证隔离目录及一次配置写入前后真实默认配置不变；权限配置用例显式以 `profileContext.home` 固定临时目录。该哨兵不等于审计所有用例的全部文件写入；`git status` 不作为真实 HOME 未被写入的证据 |
 | RISK-011 令牌明文暴露面扩大 | —（工程安全检查：RPC 暴露边界是否仅本机可达 + `config.get` 的 `hasToken` 返回策略；模块 6 场景 2 仅验证 BR-071 的界面掩码，不能证明响应体与可达范围安全） | **缺口**（非 BDD） |
 | RISK-012 Phase 2 CDP 能力未验证 | —（Phase 2 PoC） | **缺口**（非 Phase 0） |
-| TD-007 `workbench.overview` 缺失汇总语义 | 模块 5 场景 4 / 5 的宿主判定与场景 6 的无历史空值分支；`tests/overview-metrics.spec.ts` / `tests/metrics-window.spec.ts` / `tests/overview-window-passthrough.spec.ts` | **宿主修复已覆盖，TD-007 已关闭**；不代表驾驶舱 UI、真实窗口增量采集或历史快照能力已实现 |
+| TD-007 `workbench.overview` 缺失汇总语义 | 模块 5 场景 4 / 5 的宿主判定与场景 6 的无历史空值分支；`tests/overview-metrics.spec.ts` / `tests/metrics-window.spec.ts` / `tests/overview-window-passthrough.spec.ts` | **宿主修复已覆盖，TD-007 已关闭**；不代表驾驶舱 UI 或真实窗口增量采集已实现；历史快照读写已由 `feat-storage-metrics-snapshot` 落地，见 TD-010 与 `tests/metrics-snapshot.spec.ts` |
 | TD-008 生成路径未授权写入 Injoys 文档 | 模块 3 场景 1「未经用户明确要求不得创建或更新 Injoys 文档」（直接约束）；模块 8 场景 2 / 3（BR-033 / BR-073） | **缺口（待实现）** |
 | TD-009 `ops_generate_review` 假文档编号 | 模块 8 场景 3「知识库未连通时沉淀不可用」 | **缺口（待实现）** |
 | TD-010 `calendar/` 与 `metrics/` 持久化契约未落地 | 模块 5 场景 6「历史不足时环比为空」（BR-052）；`tests/metrics-snapshot.spec.ts` | **部分修复（metrics 已覆盖，calendar 仍待 `feat-storage-calendar-items`）** |

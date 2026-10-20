@@ -4,6 +4,8 @@
 > - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.4.5）
 > - **Generated At**: `2026-10-16 09:44`
 > - **Generator**: `Context-Agent v1.0`
+> - **Last Synced At**: `2026-10-21T00:01:50+08:00`
+> - **Sync Authority**: `openspec/changes/archive/2026-10-20-feat-storage-metrics-snapshot/`
 
 > ⚠️ 版本号取自 `package.json`（实际依赖，2026-10-16 核对）。若与源文档冲突，**以源文档为准**；
 > 约束性表述（MUST / MUST NOT）的**权威来源为 `.context/criterion.md` §3**，本文为其结构化摘录。
@@ -122,7 +124,7 @@
 - 写入前**准备并验证可写**（创建并删除唯一命名探测文件）；仅检查存在性不足
 - 存储错误码统一 `drafts/storage-unavailable`，须在**统一 RPC 错误边界**映射，覆盖所有写入口
 
-**当前落点**（源文档 §4.4 / §六.1）：`src/storage/local-fs.ts` 提供权限常量、递归建目录、JSON 原子写与写锁工厂，草稿和配置 store 复用；后续 `metrics/` / `calendar/` 须复用，不代表其业务持久化已实现。`DraftStorageError` / 目录校验仍从 `draft-store.ts` 导出，配置保存继续由 RPC 包装原始 fs 错误并在统一边界映射；封装不依赖项目内模块、不加入 `src/index.ts` 公开导出。既有对象残留与 POSIX 保证边界见 `security_policy.md`「存储层加密」，不降低上述 MUST。
+**当前落点**（源文档 §4.4 / §六.1）：`src/storage/local-fs.ts` 提供权限常量、递归建目录、JSON 原子写与写锁工厂，草稿、配置及指标历史 store 已复用；`metrics/` 读写已由 `feat-storage-metrics-snapshot` 落地（仅 live + verified 追加，当前生产窗口仍未验证）；`calendar/` 业务持久化仍待 `feat-storage-calendar-items` 复用该封装。`DraftStorageError` / 目录校验仍从 `draft-store.ts` 导出，配置保存继续由 RPC 包装原始 fs 错误并在统一边界映射；封装不依赖项目内模块、不加入 `src/index.ts` 公开导出。既有对象残留与 POSIX 保证边界见 `security_policy.md`「存储层加密」，不降低上述 MUST。
 
 **持久化 MUST NOT**
 
