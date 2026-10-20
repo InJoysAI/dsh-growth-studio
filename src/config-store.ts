@@ -3,10 +3,11 @@
  * @module @deepseek-ai/dsh-ops-manager/config-store
  */
 
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { homedir } from 'node:os'
 import type { Context } from '@deepseek-ai/cordis'
+import { mkdirWithMode, writeJsonAtomic } from './storage/local-fs.js'
 
 export interface OpsManagerConfig {
   /** Default product name for knowledge base matching */
@@ -191,10 +192,8 @@ export class ConfigStore {
     if (this.configPath) {
       // Disk persistence failures must surface: `config.save` reports them as
       // `drafts/storage-unavailable` instead of silently claiming success.
-      mkdirSync(join(this.configPath, '..'), { recursive: true })
-      const tmp = `${this.configPath}.tmp`
-      writeFileSync(tmp, JSON.stringify(this.inMemory, null, 2), 'utf-8')
-      renameSync(tmp, this.configPath)
+      mkdirWithMode(join(this.configPath, '..'))
+      writeJsonAtomic(this.configPath, this.inMemory)
     }
   }
 }
