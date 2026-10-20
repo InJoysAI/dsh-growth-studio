@@ -72,6 +72,9 @@
 │   └── source/
 │       ├── product_requirements.md
 │       └── development_plan.md
+├── ui/
+│   └── source/
+│       └── ui-design-direction.md
 ├── openspec/
 │   └── integration.md
 └── history/
