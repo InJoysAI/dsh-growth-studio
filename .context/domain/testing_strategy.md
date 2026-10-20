@@ -523,7 +523,7 @@ Then 界面应明确提示该能力不可用
 | RISK-010 测试污染真实 `$DSH_HOME` | —（工程层，隔离见 `tests/setup-isolation.ts`） | **缺口**（非 BDD） |
 | RISK-011 令牌明文暴露面扩大 | —（工程安全检查：RPC 暴露边界是否仅本机可达 + `config.get` 的 `hasToken` 返回策略；模块 6 场景 2 仅验证 BR-071 的界面掩码，不能证明响应体与可达范围安全） | **缺口**（非 BDD） |
 | RISK-012 Phase 2 CDP 能力未验证 | —（Phase 2 PoC） | **缺口**（非 Phase 0） |
-| TD-007 `workbench.overview` 缺失汇总语义 | 模块 5 场景 5（当前实现未通过） | **缺口（待实现）** |
+| TD-007 `workbench.overview` 缺失汇总语义 | 模块 5 场景 5（BR-050 部分缺失 → 汇总为空）+ 场景 4（BR-051 零值 vs 失败）；已由 `tests/overview-metrics.spec.ts` / `tests/metrics-window.spec.ts` / `tests/overview-window-passthrough.spec.ts` 覆盖 | **已覆盖**（2026-10-20 `fix-overview-metrics-null-semantics` 关闭） |
 | TD-008 生成路径未授权写入 Injoys 文档 | 模块 3 场景 1「未经用户明确要求不得创建或更新 Injoys 文档」（直接约束）；模块 8 场景 2 / 3（BR-033 / BR-073） | **缺口（待实现）** |
 | TD-009 `ops_generate_review` 假文档编号 | 模块 8 场景 3「知识库未连通时沉淀不可用」 | **缺口（待实现）** |
 | TD-010 `calendar/` 与 `metrics/` 持久化契约未落地 | 模块 5 场景 6「历史不足时环比为空」（BR-052） | **缺口（待实现）** |

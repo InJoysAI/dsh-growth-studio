@@ -257,11 +257,20 @@
 
 ### TD-007: `workbench.overview` 未实现部分缺失汇总语义（**触碰架构铁律 3**）
 
-> ✅ **已修复（2026-10-20）**：由 `fix-overview-metrics-null-semantics` 落地。汇总判定下沉至
+> ✅ **已修复（2026-10-20）**：由 `fix-overview-metrics-null-semantics` 落地（已归档至
+> `openspec/changes/archive/2026-10-20-fix-overview-metrics-null-semantics/`，规范同步至
+> `openspec/specs/workbench-overview/spec.md`）。汇总判定下沉至
 > `src/analytics/overview-aggregator.ts`（平台级覆盖门 + 真实 `0` 参与求和 + `totalEngagements` 子项严格 `null`）；
 > `workbench.overview` 响应已补齐 `measuredPlatforms` / `unmeasuredPlatforms` / `totalEngagements` /
-> `totalFavorites` / `comparison` / `weeklyPipeline`；`PlatformMetrics` 已补 `windowStart` / `windowEnd`；
-> 硬编码热点样例数据已移除（`trends` 如实返回空数组）。下方描述保留为**历史记录**。
+> `totalFavorites` / `comparison` / `weeklyPipeline`；`PlatformMetrics` 已补 `windowStart` / `windowEnd`
+> （**闭区间**，由 `metricsWindow` + 采集发起时刻推导，与 `capturedAt` 相互独立）；
+> 硬编码热点样例数据已移除（`trends` 如实返回空数组）。
+> 下方描述保留为**历史记录**。
+
+> ⚠️ **残留边界（不属本 TD，另由采集能力提案承接）**：现有采集页面口径为「累计 / 昨日数据」
+> （B站累计播放、抖音按作品累加、视频号昨日增量），无法证实属于请求窗口，故 `live` 采集结果
+> 标记 `windowScope: 'unverified'` 且其贡献不计入汇总 —— 真实环境下汇总值可能恒为「暂无数据」。
+> 这是 design.md「数据周期真实性」决策的忠实实现（空值优于假数据），**不是本 TD 的未完成项**。
 
 | 属性 | 值 |
 |------|-----|

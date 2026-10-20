@@ -746,7 +746,7 @@ interface BrowserOsCapabilityDescriptor {
 | `ops_draft_launch_kit` | 无 | OverseasManager | Injoys 读取 | 本地草稿 | 无条件 saveLaunchKitDocument | Phase 2 |
 | `ops_generate_hooks` | 无 | ContentStudioEngine | — | 本地草稿 | 未注册、无实现 | 未定 |
 | `ops_push_drafts` | `workbench.prefillDraft`（§3.1，单草稿） | BrowserDriver/Adapter | BrowserOS | 平台草稿箱 | 批量入口无 RPC | Phase 0 |
-| `ops_fetch_metrics` | 与 `workbench.overview` 共用采集 | MetricsCollector | BrowserOS | 本地 metrics | overview 缺部分缺失汇总（TD-007） | Phase 0 |
+| `ops_fetch_metrics` | 与 `workbench.overview` 共用采集 | MetricsCollector | BrowserOS | 本地 metrics | overview 部分缺失汇总已修复（TD-007 关闭）；`live` 采集窗口可证性待采集能力提案 | Phase 0 |
 | `ops_generate_review` | 无 | ReviewReporter | Injoys 读取 | 本地指标快照 | 假编号回退（TD-009） | Phase 1 |
 | `ops_fetch_comments` | 无 | CommentsCrawler | BrowserOS | — | 无 RPC | Phase 1 |
 | `ops_extract_feedback` | 无 | IssueExtractor | Injoys 需求池 | — | 无 RPC | Phase 1 |
@@ -765,15 +765,20 @@ interface BrowserOsCapabilityDescriptor {
 
 | 分类 | 方法 |
 |------|------|
-| 工作台 | `workbench.overview`（⚠️ **部分实现**，见下）、`workbench.generateArticleDraft`、`workbench.generateVideoMeta`、`workbench.prefillDraft` |
+| 工作台 | `workbench.overview`（✅ **字段级已实现**，见下）、`workbench.generateArticleDraft`、`workbench.generateVideoMeta`、`workbench.prefillDraft` |
 | 草稿 | `drafts.list`、`drafts.get`、`drafts.save`、`drafts.delete`、`drafts.updatePublishUrl` |
 | 浏览器 | `browser.sessions`（额外含 `reuseHostBrowserProfile`） |
 | 配置 | `config.get`、`config.save`、`injoys.test` |
 
-> ⚠️ **「已登记」≠「字段级已实现」**：`workbench.overview` 的方法已注册（路由可达、§3.1 契约已定义），
-> 但其**响应字段与 §3.1 契约不一致**，尤其**未实现部分缺失汇总语义**。
-> 该差异属**实现待补**（见 `risks_and_debt.md` TD-001 / TD-007），非本文档错误 ——
-> 本文档 §3.1 忠实于源文档契约，代码侧须按 SSoT-first 补齐。**不得据本节认为汇总语义已生效。**
+> ✅ **实现状态（2026-10-20）**：`workbench.overview` 的响应已与 §3.1 契约字段级对齐 ——
+> `measuredPlatforms` / `unmeasuredPlatforms` / `totalEngagements` / `totalFavorites` /
+> `comparison` / `weeklyPipeline` 均已落地，平台级覆盖门与「真实 `0` 参与求和」判定生效
+> （`src/analytics/overview-aggregator.ts`；`risks_and_debt.md` **TD-007 已关闭**）。
+> 实现提交见 `fix-overview-metrics-null-semantics`（已归档），规范见 `openspec/specs/workbench-overview/spec.md`。
+>
+> ⚠️ **窗口可证性边界**：`windowStart` / `windowEnd` 表达**请求窗口**，不证明数值属于该窗口；
+> 当前采集页面口径为「累计 / 昨日数据」，`live` 结果标记 `windowScope: 'unverified'` 且不计入汇总，
+> 故真实环境下汇总可能为「暂无数据」。采集侧窗口化解析能力不在该提案范围。
 
 ### 已定义但**尚未实现**（新增须先补契约再实现）
 

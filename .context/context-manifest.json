@@ -100,18 +100,20 @@
     "ordering": "ascending_by_synced_at"
   },
   "last_context_sync": {
-    "synced_at": "2026-10-20T00:51:38+08:00",
-    "source": "openspec/changes/fix-overview-metrics-null-semantics/",
-    "workflow": ".agents/workflows/context-start.md",
+    "synced_at": "2026-10-20T09:15:37+08:00",
+    "source": "openspec/changes/archive/2026-10-20-fix-overview-metrics-null-semantics/",
+    "workflow": ".agents/workflows/context-update.md sync proposal fix-overview-metrics-null-semantics --mode apply",
     "authority": "proposal",
     "mode": "apply",
     "change_id": "fix-overview-metrics-null-semantics",
     "updated_context_files": [
       ".context/architecture/risks_and_debt.md",
       ".context/architecture/api_strategy.md",
-      ".context/architecture/data_architecture.md",
-      ".context/criterion.md"
+      ".context/architecture/README.md",
+      ".context/architecture/source/technical_architecture.md",
+      ".context/domain/testing_strategy.md",
+      ".context/context-manifest.json"
     ],
-    "notes": "TD-007 已修复：workbench.overview 汇总空值语义落地（src/analytics/overview-aggregator.ts），响应补齐 measuredPlatforms/unmeasuredPlatforms/totalEngagements/totalFavorites/comparison/weeklyPipeline；PlatformMetrics 补 windowStart/windowEnd；移除硬编码热点样例数据（trends 返回空数组）。同步 TD-007 关闭状态、RISK-006 缓解状态、api_strategy 实现状态、data_architecture 窗口字段状态、criterion §5.5 窗口字段口径。"
+    "notes": "归档后复核并同步 5 处实现状态漂移：① risks_and_debt.md TD-007 补归档路径与 spec 同步位置，并显式标注「live 窗口可证性」为另属采集能力提案的残留边界；② api_strategy.md §3.10 ops_fetch_metrics 行、§4 方法实现状态表（workbench.overview 由「部分实现」改为「字段级已实现」）与旧「已登记≠已实现」警告段重写为已实现状态 + 窗口可证性边界；③ architecture/README.md TD-007 从高严重性待办清单移出并标注已关闭；④ domain/testing_strategy.md TD-007 覆盖状态由「缺口（待实现）」改为「已覆盖」；⑤ source/technical_architecture.md §3.13 ops_fetch_metrics「当前实现差距」列更新。未变更任何契约语义；criterion §5.5 闭区间口径已于上一轮 sync 落地，本轮复核无漂移。"
   }
 }

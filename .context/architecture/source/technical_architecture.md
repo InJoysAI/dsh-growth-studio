@@ -974,7 +974,7 @@ interface BrowserOsCapabilityDescriptor {
 | `ops_draft_launch_kit` | PH / X 推文串生成 | 无对应 RPC | OverseasManager | Injoys 知识库读取 | 本地草稿 | 工具已注册，execute **读取 Injoys 知识库并无条件调用 `injoys.saveLaunchKitDocument`**（与「沉淀须显式触发」不符）；无工作台 RPC | Phase 2 |
 | `ops_generate_hooks` | 视频前 3 秒钩子 | 无对应 RPC | ContentStudioEngine | — | 本地草稿 | **未注册、无实现**（PRD 列出，无契约与工具） | 未定 |
 | `ops_push_drafts` | 批量预填草稿箱 | `workbench.prefillDraft`（§3.6，单草稿入口） | BrowserDriver / Adapter | BrowserOS | 平台后台草稿箱 | 工具已注册；`prefillDraft` RPC 已实现（单草稿）；**批量入口无对应 RPC** | Phase 0 |
-| `ops_fetch_metrics` | 多维指标采集 | 与 `workbench.overview`（§3.1）共用采集能力，返回范围不同 | MetricsCollector | BrowserOS | 本地指标快照 `metrics/` | 工具已注册；`overview` RPC 已实现但**缺部分缺失汇总语义**（TD-007） | Phase 0 |
+| `ops_fetch_metrics` | 多维指标采集 | 与 `workbench.overview`（§3.1）共用采集能力，返回范围不同 | MetricsCollector | BrowserOS | 本地指标快照 `metrics/` | 工具已注册；`overview` RPC 的**部分缺失汇总语义已实现**（TD-007 于 2026-10-20 关闭，`src/analytics/overview-aggregator.ts`）；`live` 采集的窗口可证性待采集能力提案 | Phase 0 |
 | `ops_generate_review` | 周/月复盘 | 无对应 RPC | ReviewReporter | Injoys 知识库读取（写入须显式触发） | 本地指标快照 | 工具已注册，但存在**假文档编号回退**（TD-009，`injoysDocId ?? 'doc_review'`）；无工作台 RPC | Phase 1 |
 | `ops_fetch_comments` | 跨渠道评论抓取 | 无对应 RPC | CommentsCrawler | BrowserOS | — | 工具已注册；无工作台 RPC（Phase 1） | Phase 1 |
 | `ops_extract_feedback` | Bug/Feature 聚类反哺 | 无对应 RPC | IssueExtractor | Injoys 需求池（写入须显式触发） | — | 工具已注册；无工作台 RPC（Phase 1） | Phase 1 |
