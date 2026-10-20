@@ -45,6 +45,15 @@
   - `.context/domain/risks_and_debt.md`
   - `.context/domain/data_strategy.md`
   - `.context/domain/edge_cases.md`
+- **UI** (8 个文件):
+  - `.context/ui/README.md`
+  - `.context/ui/design_system.md`
+  - `.context/ui/atomic_components.md`
+  - `.context/ui/layout_grid.md`
+  - `.context/ui/design_tokens.json`
+  - `.context/ui/interaction_states.md`
+  - `.context/ui/motion_tokens.md`
+  - `.context/ui/accessibility_checklist.md`
 - **OpenSpec** (8 个文件，派生产物，不作为 Context 输入):
   - `.context/openspec/integration.md`
   - `openspec/proposal-roadmap.md`

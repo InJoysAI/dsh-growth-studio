@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generated_at": "2026-10-17T17:44:59+08:00",
+  "generated_at": "2026-10-21T00:20:50+08:00",
   "generator": "Context-Agent v1.0",
   "generation_pipeline": {
     "root_assets": "Context-Dev-Agent v1.0",
@@ -91,13 +91,19 @@
       "openspec/proposal-roadmap-Phase-3.md",
       "openspec/proposal-roadmap-Phase-4.md",
       "openspec/config.yaml"
-    ]
-  },
-  "pending_generation": {
+    ],
     "ui": [
-      ".context/ui/design_system.md"
+      ".context/ui/README.md",
+      ".context/ui/design_system.md",
+      ".context/ui/atomic_components.md",
+      ".context/ui/layout_grid.md",
+      ".context/ui/design_tokens.json",
+      ".context/ui/interaction_states.md",
+      ".context/ui/motion_tokens.md",
+      ".context/ui/accessibility_checklist.md"
     ]
   },
+  "pending_generation": {},
   "last_openspec_project": {
     "path": "openspec/config.yaml",
     "context_sha256": "2b48bd6e9a8f4a97379d878c80c02663adf6e7b71f468013aae3726afeb89ae4",

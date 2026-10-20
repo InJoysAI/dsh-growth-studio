@@ -72,6 +72,14 @@
 │       ├── product_requirements.md
 │       └── development_plan.md
 ├── ui/
+│   ├── README.md
+│   ├── design_system.md
+│   ├── atomic_components.md
+│   ├── layout_grid.md
+│   ├── design_tokens.json
+│   ├── interaction_states.md
+│   ├── motion_tokens.md
+│   ├── accessibility_checklist.md
 │   └── source/
 │       └── ui-design-direction.md
 ├── openspec/
