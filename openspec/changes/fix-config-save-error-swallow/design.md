@@ -1,10 +1,10 @@
 ## Context
 
-`.context/criterion.md` §3.2 把「错误不得吞没」列为 MUST、把「不虚报成功」列为 MUST NOT；`.context/architecture/risks_and_debt.md` RISK-005 缓解措施 ③ 点名「不得吞异常后谎报保存成功」。但 `src/config-store.ts` 的 `save()`（`config-store.ts:179-188`）以 `catch { /* Ignore disk persistence failures */ }` 吞掉 `mkdirSync` / `writeFileSync` / `renameSync` 的落盘失败，`src/ops-rpc.ts` 的 `config.save` case（`ops-rpc.ts:150`）随后照常返回 `{ ok:true, value:{ success:true, config } }`——配置文件不可写时用户看到「保存成功」，重启后配置（含明文 Injoys 令牌）回退。
+`.context/criterion.md` §3.2 把「错误不得吞没」列为 MUST、把「虚报成功（无客户端或执行失败时严禁返回成功）」列为 MUST NOT；`.context/architecture/risks_and_debt.md` RISK-005 缓解措施 ③ 点名「不得吞异常后谎报保存成功」。但 `src/config-store.ts` 的 `save()`（`config-store.ts:179-188`）以 `catch { /* Ignore disk persistence failures */ }` 吞掉 `mkdirSync` / `writeFileSync` / `renameSync` 的落盘失败，`src/ops-rpc.ts` 的 `config.save` case（`ops-rpc.ts:150`）随后照常返回 `{ ok:true, value:{ success:true, config } }`——配置文件不可写时用户看到「保存成功」，重启后配置（含明文 Injoys 令牌）回退。
 
 需要澄清的覆盖关系：criterion §3.5 的 `draftsDir` 前置预检（`src/ops-rpc.ts:131-148`，返回 `config/invalid-drafts-dir`）只覆盖草稿目录的可用性，不覆盖配置文件自身的写盘失败——本提案不把它当作已覆盖，也不改动其语义。
 
-相关权威口径：`.context/criterion.md` §3.2 / §3.5 / §3.4 / §6；`.context/architecture/risks_and_debt.md` RISK-005、RISK-010；`.context/architecture/api_strategy.md` §2.3 / §3.6 / §3.7；`.context/architecture/constraints.md`（架构铁律）；`.context/architecture/runtime_view.md`（`config.save` 目标目录不可用失败路径）；`.context/architecture/cross_cutting_concepts.md`（前置校验优先）；`.context/architecture/data_architecture.md`（`config.json` 物理布局与权限）；`.context/architecture/tech_stack.md`（持久化 MUST/MUST NOT）；`.context/architecture/system_design.md`（QS-6 存储失败可感知的质量场景）；`.context/architecture/security_policy.md`（`config.json` 明文令牌的保护方式，邻近约束）。
+相关权威口径：`.context/criterion.md` §3.2 / §3.5 / §3.4 / §6；`.context/architecture/risks_and_debt.md` RISK-005、RISK-010；`.context/architecture/api_strategy.md` §2.3 / §3.6 / §3.7；`.context/architecture/constraints.md`（架构铁律）；`.context/architecture/runtime_view.md`（`config.save` 目标目录不可用失败路径）；`.context/architecture/cross_cutting_concepts.md`（前置校验优先）；`.context/architecture/data_architecture.md`（`config.json` 物理布局与权限）；`.context/architecture/tech_stack.md`（持久化 MUST/MUST NOT）；`.context/architecture/system_design.md`（QS-6 `draftsDir` 预检场景——**邻近但未覆盖**配置文件写盘失败）；`.context/architecture/security_policy.md`（`config.json` 明文令牌的保护方式，邻近约束）。
 
 ## Goals / Non-Goals
 
@@ -31,12 +31,12 @@
 
 - **Decision 2: 落盘失败不回滚 `inMemory`**
   - `save()` 的既有顺序是「先合并进 `inMemory`（`config-store.ts:155-177`）再落盘（179-188）」。失败时进程内配置已生效、下次重启按 `config.json` 实际内容回退。
-  - 选择**保持该顺序、失败只如实上报**：回滚 `inMemory` 会让运行中配置与用户刚提交的表单不一致（其它在内存中已采用新配置的调用方行为与盘上文件脱节），属于另一处语义变更，超出「不虚报成功」的本提案范围；roadmap 风险行⑤也明确「保持现状并如实上报，回滚语义另属独立决策」。
+  - 选择**保持该顺序、失败只如实上报**：回滚 `inMemory` 会让运行中配置与用户刚提交的表单不一致（其它在内存中已采用新配置的调用方行为与盘上文件脱节），属于另一处语义变更，超出本提案「如实上报、不吞错」的纠错范围；roadmap 风险行⑤也明确「保持现状并如实上报，回滚语义另属独立决策」。
   - Alternatives considered：失败时回滚 `inMemory`（被否：会让「内存配置 ≠ 盘上配置」的不一致更难定位，且属于独立语义决策，不应搭本次修复的便车）。
 
 - **Decision 3: `injoys.updateConfig` 提前到 `await configStore.save()` 之前**
   - `ops-rpc.ts` 的 `config.save` case 原顺序为「`await save()` → `updateConfig`」。若 `save()` 抛错，`:151-156` 的 `updateConfig` 不再执行——`inMemory` 已是新令牌（`config.get` 返回新值），但 `InjoysClient` 仍持旧令牌，界面显示与真实调用分裂，违背 `criterion.md:104` MUST「配置热更新须实时生效并传给 `InjoysClient`（`updateConfig`）」。
-  - 选择**把 `updateConfig` 移到 `await save()` 之前**：`updateConfig`（`client.ts:77-87`）只更新 `endpoint`/`token` 并清目标缓存、不抛错，提前执行无副作用；失败路径下 `inMemory`/`InjoysClient` 仍一致，与「不回滚 `inMemory`」自洽。
+  - 选择**把 `updateConfig` 移到 `await save()` 之前**：`updateConfig`（`client.ts:77-87`）只更新 `endpoint`/`token` 并清目标缓存、不抛错，提前执行无副作用；失败路径下 `inMemory`/`InjoysClient` 仍一致，与「不回滚 `inMemory`」自洽。**契约替换义务**：`api_strategy.md:655` 现有条款写的是「持久化后实时热更新运行中的 `InjoysClient`」，与本决策的「写盘前热更新」相反——实施时必须经 Context 工具链**替换**该条款（不是只追加失败条款），否则设计/规范/契约三者继续矛盾（已列入 tasks 5.1 第二项、验收 6.1.3）。
   - Alternatives considered：在 `catch` 中转调 `updateConfig` 后重抛（被否：多一条 `catch`→中转→重抛路径，且仍要先接住异常才能转发，不如「先热更新再持久化」直接）；失败时把 `InjoysClient` 回滚到旧令牌（被否：与「不回滚 `inMemory`」矛盾，会造成新的内存/客户端分裂）。
 
 - **Decision 4: `details.dir` 由 `ConfigStore` 只读访问器提供，不在 RPC 层重解析**
@@ -46,7 +46,7 @@
 
 ## Risks / Trade-offs
 
-- **`config.save` 由「恒成功」变「可能失败」**：客户端此前从未收到该失败。既有 `unwrapRpcResult` 抛错 + `handleSave` catch「保存失败」分支已存在，同一信封形状仅 `ok`/`error.code` 如实，属纠错非破坏性变更，无需 UI 改动。
+- **`config.save` 由「恒成功」变「可能失败」**：客户端此前从未收到该失败（更精确地说：`draftsDir` 预检失败已能返回 `config/invalid-drafts-dir`，真正恒被吞没的是配置文件写盘异常分支）。既有 `unwrapRpcResult` 抛错 + `handleSave` catch「保存失败」分支已存在，同一信封形状仅 `ok`/`error.code` 如实，属纠错非破坏性变更，无需 UI 改动。
 - **`drafts/storage-unavailable` 语义扩展**：该码原本面向草稿目录不可用，现也覆盖配置文件写盘失败。统一边界按「写入口失败 → 存储不可用」的口径本就如此设计（`ops-rpc.ts` 边界注释明确「every write entry point … reports the same code」），`details.dir` 指向 `ops-manager` 目录即可区分为配置失败，不需另设码。**契约同步缺口**：`api_strategy.md` §2.3（`:114`）与 `cross_cutting_concepts.md`（`:39`）现有触发条件仍限定「目录」，须同轮扩容为「目录不可写 / 创建失败 / 配置文件写盘失败」，否则实现者可能把配置失败回退到 `ops/internal-error` 违反 `criterion.md:183`——已列入 tasks 5.1/5.1.1。
 - **测试污染真实 `$DSH_HOME`（RISK-010，高）**：新用例一律经 `tests/setup-isolation.ts` 使用独立 `DSH_HOME`。
 - **同文件并行改动**：与 `feat-browseros-capability-toggle`（同改 `config-store.ts`）、`fix-storage-file-permissions`（同改 `save()`）的串行 / 变基按 roadmap 处理，不构成依赖。

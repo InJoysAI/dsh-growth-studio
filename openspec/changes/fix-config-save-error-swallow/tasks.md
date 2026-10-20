@@ -49,8 +49,9 @@
   - [ ] 4.3.2 在配置页提交一次保存、再把 `ops-manager/` 置为只读再保存一次，确认第二次弹出「保存失败」而非「保存成功」
 
 ## 5. 文档
-- [ ] 5.1 同轮同步 `.context/architecture/api_strategy.md`（三处同轮改，消除契约内部矛盾）：
+- [ ] 5.1 同轮同步 `.context/architecture/api_strategy.md`（四处同轮改，消除契约内部矛盾与热更新时序矛盾）：
   - §3.6 `config.save` 契约补写「配置文件写盘失败 → `ok:false` + `error.code='drafts/storage-unavailable'`」，并明确 `success` 字段的失败语义（`ok:false` 时响应不含 `value.success`）
+  - **§3.6 替换现有「持久化后实时热更新运行中的 `InjoysClient`」条款（`api_strategy.md:655`）**为「`draftsDir` 预检通过后、配置文件写盘**之前**完成 `updateConfig` 热更新（`endpoint`/`token`）；写盘失败仍保留已合并的内存态并返回失败信封，不回滚」——本提案把热更新提前到保存前，必须显式替换该旧时序条款，不得只新增失败条款而留下相反顺序
   - §2.3 `drafts/storage-unavailable` 触发条件由「**目录**不可写或创建失败」扩容为「目录不可写 / 创建失败 / **配置文件写盘失败**，统一 RPC 错误边界映射、覆盖所有写入口」；确认不新增错误码（复用该码）
   - §3.7 写失败诚实性口径同步加「含配置文件写盘失败」
 - [ ] 5.1.1 `.context/architecture/cross_cutting_concepts.md`（错误码与错误边界段）`drafts/storage-unavailable` 触发条件同步扩容，与 §2.3 措辞一致
@@ -60,7 +61,7 @@
 - [ ] 6.1 验证所有验收标准
   - [ ] 6.1.1 不虚报成功：不可写（目录只读或路径被文件占用）→ `ok:false` + `drafts/storage-unavailable`（单测断言 code）
   - [ ] 6.1.2 正常路径不变：可写 → `ok:true` 且 `config.json` 落盘（单测 + 文件断言）
-  - [ ] 6.1.3 契约一致：`api_strategy.md` §3.6 写明失败映射与 `success` 失败语义；§2.3 `drafts/storage-unavailable` 触发条件已扩容为覆盖配置文件写盘失败、`cross_cutting_concepts.md` 同步；§2.3 无新增错误码（比对 + `grep`）
+  - [ ] 6.1.3 契约一致：`api_strategy.md` §3.6 写明失败映射与 `success` 失败语义、**并已把「持久化后热更新」替换为「写盘前热更新」**；§2.3 `drafts/storage-unavailable` 触发条件已扩容为覆盖配置文件写盘失败、`cross_cutting_concepts.md` 同步；§2.3 无新增错误码（比对 + `grep`）
   - [ ] 6.1.4 客户端零改动：`ok:false` 时 `unwrapRpcResult` 抛错、`handleSave` 进入失败提示分支（代码审查）
 - [ ] 6.2 代码审查
   - [ ] 6.2.1 代码规范检查（`pnpm typecheck` 通过；无循环依赖；`save()` 返回类型不变）

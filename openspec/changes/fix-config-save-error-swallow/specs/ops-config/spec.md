@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: 配置文件写盘失败如实上报
-系统必须（MUST）在 `ConfigStore.save()` 的 `mkdirSync` / `writeFileSync` / `renameSync` 任一步失败时如实上报失败，不得（MUST NOT）以 `catch` 吞没后让 `config.save` 返回 `ok:true`。依据 `.context/criterion.md` §3.2 MUST「错误不得吞没」与 MUST NOT「不虚报成功」，以及 `.context/architecture/risks_and_debt.md` RISK-005 缓解措施 ③「不得吞异常后谎报保存成功」。本需求补齐 `testing_strategy.md` 模块 6 场景 4 中「配置文件写失败」此前「部分覆盖」的分支。
+系统必须（MUST）在 `ConfigStore.save()` 的 `mkdirSync` / `writeFileSync` / `renameSync` 任一步失败时如实上报失败，不得（MUST NOT）以 `catch` 吞没后让 `config.save` 返回 `ok:true`。依据 `.context/criterion.md` §3.2 MUST「错误不得吞没」与 MUST NOT「虚报成功（无客户端或执行失败时严禁返回成功）」，以及 `.context/architecture/risks_and_debt.md` RISK-005 缓解措施 ③「不得吞异常后谎报保存成功」。**追溯说明**：总体依据是 RISK-005（`risks_and_debt.md:88`）；`testing_strategy.md` 模块 6 场景 4（`:347-353`）与 `system_design.md` QS-6（`:45`）是**邻近但未覆盖**配置文件写盘失败的既有场景（前者只覆盖切换可用草稿目录与提示文案，后者覆盖 `draftsDir` 预检返回 `config/invalid-drafts-dir`）——本需求为配置文件写盘失败**新增专项覆盖**，不声称原场景已含该分支。
 
 #### Scenario: 配置目录不可写
 - **WHEN** `$DSH_HOME/ops-manager/` 目录只读（`writeFileSync` tmp 抛 `EACCES`；POSIX 下 `rename` 可覆盖只读**文件**，故触发条件取目录级不可写而非 `config.json` 只读）

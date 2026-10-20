@@ -691,7 +691,7 @@
 | architecture | `.context/architecture/api_strategy.md` | §2.3 错误码清单（`drafts/storage-unavailable` 覆盖所有写入口；`config/invalid-drafts-dir` 只管前置预检）、§3.6 `config.save` 契约（`{ success: boolean; config }`） |
 | architecture | `.context/architecture/cross_cutting_concepts.md` | 「前置校验优先：不得先报成功、再让后续写失败」 |
 | architecture | `.context/architecture/runtime_view.md` | 「`config.save` 目标目录不可用」的失败返回路径（本提案把配置文件自身写失败纳入同一失败语义） |
-| domain | `.context/domain/testing_strategy.md` | 模块 6 场景 4 与 RISK-005 覆盖状态（现记为「部分覆盖」；本提案补齐配置文件写失败分支） |
+| domain | `.context/domain/testing_strategy.md` | 模块 6 场景 4 覆盖「切换可用草稿目录 + 提示文案」，**不含**配置文件写盘失败；RISK-005 现记为「部分覆盖」——本提案为配置文件写盘失败**新增专项用例**（不声称原场景已有该分支） |
 
 **关键任务**:
 1. `ConfigStore.save()` 上报配置文件写盘失败（0.25 人日）
@@ -702,7 +702,7 @@
 
 | 风险 | 影响 | 处理决定及理由 |
 |------|------|----------|
-| `config.save` 由「恒成功」变为「可能失败」 | 客户端此前从未收到过该失败 | **接受**：criterion §3.2 要求失败必须如实返回；客户端失败分支已存在（`unwrapRpcResult` 抛错 → `handleSave` catch 展示「保存失败」），无需 UI 改动。该变化属纠错而非破坏性变更（同一信封形状，仅 `ok` / `error.code` 如实） |
+| `config.save` 的**配置文件写盘失败分支**由「被吞没后仍报成功」变为「如实失败上报」 | 客户端此前从未收到过**配置文件写盘失败**（`draftsDir` 预检失败已能返回 `config/invalid-drafts-dir`，并非整个方法恒成功） | **接受**：criterion §3.2 要求失败必须如实返回；客户端失败分支已存在（`unwrapRpcResult` 抛错 → `handleSave` catch 展示「保存失败」），无需 UI 改动。该变化属纠错而非破坏性变更（同一信封形状，仅 `ok` / `error.code` 如实） |
 | 该缺陷此前无 TD 登记 | 无「TD → 提案」追溯链 | **同轮补登**：实施时经 `.agents/workflows/context-update.md` 在 `risks_and_debt.md` 新增 TD（对象：`ConfigStore.save()` 吞掉配置文件写盘失败），并刷新 Manifest / history |
 | 与 `feat-browseros-capability-toggle`（本 Phase 提案 5）同改 `src/config-store.ts` | 并行改动同一文件 | 功能点不同（本提案只动 `save()` 的失败上报，不改字段解析与默认值）；按「同文件串行落地或后者变基」处理，**不构成依赖** |
 | 与 `fix-storage-file-permissions`（本 Phase 提案 7）同改 `config-store.ts` 的 `save()` | 同一方法内两轮改动 | 提案 7 改 `mkdirSync` / `writeFileSync` 的参数（权限位），本提案改失败处理（try/catch 与上报）；**建议在提案 7 落地后实施**以最小化变基，但功能上无前置关系 |
