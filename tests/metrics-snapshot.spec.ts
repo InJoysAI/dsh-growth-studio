@@ -13,6 +13,7 @@ import {
   selectBaselineRecord,
 } from '../src/analytics/metrics-comparison.js'
 import { registerOpsRpc, OPS_API_PATH, OPS_ENDPOINT } from '../src/ops-rpc.js'
+import { createOpsTools } from '../src/tools/index.js'
 import { DraftStorageError } from '../src/storage/draft-store.js'
 import { DIR_MODE, FILE_MODE } from '../src/storage/local-fs.js'
 import {
@@ -499,6 +500,81 @@ describe('workbench.overview snapshot integration', () => {
     expect(comparison.followersDeltaPercent).toBeNull()
     expect(await store.readAll()).toEqual(before)
     expect(existsSync(join(dir, snapshotDateFromCapturedAt(NOW) + '.json'))).toBe(false)
+  })
+
+  it('pins the metrics directory before collection await on workbench.overview', async () => {
+    const homeA = mkdtempSync(join(tmpdir(), 'gs-metrics-pin-a-'))
+    const homeB = mkdtempSync(join(tmpdir(), 'gs-metrics-pin-b-'))
+    let home = homeA
+    const store = new MetricsStore(undefined, () => join(home, 'growth-studio', 'metrics'))
+    const current = [
+      outcome('wechat_mp', { impressions: 1, likes: 1, comments: 1, shares: 1, favorites: 1 }),
+      outcome('bilibili', { plays: 1, likes: 1, comments: 1, shares: 1, favorites: 1 }),
+    ]
+    class SwitchingCollector extends MetricsCollector {
+      constructor() {
+        super({ now: () => new Date(NOW) })
+      }
+      override async fetchPlatformMetrics(): Promise<PlatformMetricsOutcome[]> {
+        await Promise.resolve()
+        home = homeB
+        return current
+      }
+    }
+    try {
+      const handler = await registerOverview(new SwitchingCollector(), store)
+      const res = await handler(overviewRequest())
+      const body = (await res.json()) as any
+      expect(body.result.ok).toBe(true)
+      expect(existsSync(join(homeA, 'growth-studio', 'metrics', '2026-10-20.json'))).toBe(true)
+      expect(existsSync(join(homeB, 'growth-studio', 'metrics', '2026-10-20.json'))).toBe(false)
+    } finally {
+      rmSync(homeA, { recursive: true, force: true })
+      rmSync(homeB, { recursive: true, force: true })
+    }
+  })
+
+  it('pins the metrics directory before collection await on ops_fetch_metrics', async () => {
+    const homeA = mkdtempSync(join(tmpdir(), 'gs-metrics-tool-a-'))
+    const homeB = mkdtempSync(join(tmpdir(), 'gs-metrics-tool-b-'))
+    let home = homeA
+    const store = new MetricsStore(undefined, () => join(home, 'growth-studio', 'metrics'))
+    const current = [
+      outcome('wechat_mp', { impressions: 1, likes: 1, comments: 1, shares: 1, favorites: 1 }),
+      outcome('bilibili', { plays: 1, likes: 1, comments: 1, shares: 1, favorites: 1 }),
+    ]
+    class SwitchingCollector extends MetricsCollector {
+      constructor() {
+        super({ now: () => new Date(NOW) })
+      }
+      override async fetchPlatformMetrics(): Promise<PlatformMetricsOutcome[]> {
+        await Promise.resolve()
+        home = homeB
+        return current
+      }
+    }
+    try {
+      const tools = createOpsTools(
+        new InjoysClient(),
+        new AdapterRegistry(),
+        undefined,
+        undefined,
+        new SwitchingCollector(),
+        undefined,
+        store,
+      )
+      const fetchMetricsTool = tools.find(t => t.name === 'ops_fetch_metrics')
+      expect(fetchMetricsTool).toBeDefined()
+      await fetchMetricsTool!.execute(
+        { platforms: ['wechat_mp', 'bilibili'], timeRange: '7d' },
+        { signal: new AbortController().signal, token: 'test-token' },
+      )
+      expect(existsSync(join(homeA, 'growth-studio', 'metrics', '2026-10-20.json'))).toBe(true)
+      expect(existsSync(join(homeB, 'growth-studio', 'metrics', '2026-10-20.json'))).toBe(false)
+    } finally {
+      rmSync(homeA, { recursive: true, force: true })
+      rmSync(homeB, { recursive: true, force: true })
+    }
   })
 })
 

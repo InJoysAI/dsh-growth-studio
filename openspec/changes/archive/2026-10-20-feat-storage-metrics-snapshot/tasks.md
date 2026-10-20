@@ -48,7 +48,7 @@
   - [x] 4.1.2 权限位：新建目录 `0o700`、新建快照文件 `0o600`（`stat().mode` 断言）
   - [x] 4.1.3 历史不足 → delta 为 `null`（含首次使用无历史、缺任一应采平台基准）
   - [x] 4.1.4 历史充足 → delta 按上一个等长窗口基准计算正确（同日桶取与预期 `windowEnd` 时刻差最小的一条；两窗口长度的记录不混用，期望 delta 唯一可判定）
-  - [x] 4.1.5 目录固定语义：单次操作内 metrics 根目录（`resolveDshHome` 下 `growth-studio/metrics`）固定，home 配置切换只对新操作生效；`draftsDir` 变更不改道指标历史路径（夹具改 home，不改 `draftsDir`）
+  - [x] 4.1.5 目录固定语义：单次操作内 metrics 根目录（`resolveDshHome` 下 `growth-studio/metrics`）固定，home 配置切换只对新操作生效；`draftsDir` 变更不改道指标历史路径（夹具改 home，不改 `draftsDir`）；RPC / 工具入口在首次 `await` 前捕获目录
   - [x] 4.1.6 落盘可证性门：`windowScope: 'unverified'` 结果不落盘；构造「unverified 累计值 + 历史看似充足」用例，断言 delta 仍为 `null`
 - [x] 4.2 集成测试
   - [x] 4.2.1 `workbench.overview` 采集成功后快照落盘且 `comparison` 消费基准
@@ -66,5 +66,5 @@
   - [x] 6.2.1 代码规范检查（`pnpm typecheck`）
   - [x] 6.2.2 安全性检查（权限位、存储错误口径、无伪造数据）
 - [x] 6.3 运行 node design/context-dev/tools/specflow/specflow.mjs validate feat-storage-metrics-snapshot --strict
-- [ ] 6.4 运行 node design/context-dev/tools/specflow/specflow.mjs archive feat-storage-metrics-snapshot --yes --no-validate
+- [x] 6.4 运行 node design/context-dev/tools/specflow/specflow.mjs archive feat-storage-metrics-snapshot --yes --no-validate
   - 仅在 6.3 通过后执行

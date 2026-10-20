@@ -503,6 +503,7 @@ export function createOpsTools(
       ],
     },
     async execute(args) {
+      const metricsDir = actualMetricsStore.getDirectory()
       const targetPlatforms = (args.platforms as PlatformId[] | undefined) ?? [
         'wechat_mp',
         'wechat_channels',
@@ -515,7 +516,6 @@ export function createOpsTools(
         targetPlatforms,
         timeRange,
       )
-      const metricsDir = actualMetricsStore.getDirectory()
       await actualMetricsStore.appendVerified(metrics, { dir: metricsDir })
       const sheetSynced = await injoys.recordMetricsToSheet(metrics)
 

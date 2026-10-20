@@ -115,7 +115,7 @@
 **Change ID:** `feat-storage-metrics-snapshot`  
 **优先级:** P1  
 **预计时间:** 2 人日（规划估算）  
-**状态:** in-progress
+**状态:** done
 
 **业务目标（Business Goal）**:
 - 落地 `$DSH_HOME/growth-studio/metrics/{YYYY-MM-DD}.json` 指标历史快照，使环比有真实基准，而非恒为 `null` 的占位语义。
@@ -126,9 +126,9 @@
 | 类型 | 内容 |
 |------|------|
 | ✅ In | 实现 `metrics/` 目录读写服务，按 `(platform, capturedAt)` 追加写入 |
-| ✅ In | 落盘可证性门：仅 `source !== 'unmeasured'` 且 `windowScope === 'verified'` 的采集结果落盘；不可证实（`unverified`）的累计 / 昨日口径结果不落盘，避免未来「历史充足」时由不可证数据算出环比 |
+| ✅ In | 落盘可证性门：仅 `source === 'live'` 且 `windowScope === 'verified'` 的采集结果落盘；`unverified` / `unmeasured` / `mock` 不落盘，避免未来由不可证或合成数据算出环比 |
 | ✅ In | 采集成功且通过可证性门后落盘快照，供 `workbench.overview` 的 `comparison` 消费 |
-| ✅ In | 历史快照不足以覆盖完整窗口时，对应 delta 为 `null`；「历史充足」判定可测试（每个应采平台在上一个等长窗口内至少一条 `windowStart`/`windowEnd` 完整覆盖该窗口且可证性达标的记录） |
+| ✅ In | 历史快照不足以覆盖完整窗口时，对应 delta 为 `null`；「历史充足」判定可测试（每个应采平台在上一个等长窗口内至少一条窗口长度匹配、UTC 日历日起止对齐且可证性达标的记录） |
 | ❌ Out | `calendar/` 排期主数据落盘（`feat-storage-calendar-items`，Phase 1） |
 | ❌ Out | 指标采集适配器本身的修复 |
 | ❌ Out | 快照的历史查看 / 恢复界面（MVP 不提供草稿历史，见 `adr_008`） |

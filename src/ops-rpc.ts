@@ -506,6 +506,8 @@ export function registerOpsRpc(
           }
 
           case 'workbench.overview': {
+            // Pin before any await so a home switch mid-request cannot redirect the write (criterion §3.5).
+            const metricsDir = actualMetricsStore.getDirectory()
             const cfg = configStore.load()
             let activeTabs: Array<{ url: string }> = []
             if (browserOsClient) {
@@ -536,7 +538,6 @@ export function registerOpsRpc(
 
             const readyCount = statuses.filter(s => s.state === 'authenticated' || (s as any).loggedIn).length
 
-            const metricsDir = actualMetricsStore.getDirectory()
             await actualMetricsStore.appendVerified(platformMetrics, { dir: metricsDir })
             const history = await actualMetricsStore.readAll({ dir: metricsDir })
 

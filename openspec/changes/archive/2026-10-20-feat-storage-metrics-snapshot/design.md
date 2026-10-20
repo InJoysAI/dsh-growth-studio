@@ -32,7 +32,7 @@
   - 仅 `source === 'live'` 且 `windowScope === 'verified'` 的采集结果落盘；`unverified`、`unmeasured` 与 `mock` 不落盘（合成数据不得进入环比基准目录，criterion §3.2）。
   - 这使快照行保持纯 `PlatformMetrics[]` 形状（`windowScope` 是 `PlatformMetricsOutcome` 的非契约扩展，不入快照），不新增快照行字段。
   - Alternatives considered：快照行扩展持久化 `windowScope` 标记、基准读取时过滤（被否：与 `data_architecture.md` 的 `PlatformMetrics[]` 契约形状不一致，需新增非契约字段）。
-  - **上游出处说明**：快照的窗口可证性规则在上游权威文档中**未被约束** —— `.context/architecture/source/technical_architecture.md` §3.1「环比基准来源」与 `.context/architecture/api_strategy.md` §3.1「环比基准来源」只规定「按 `(platform, capturedAt)` 追加」，均未要求过滤 `windowScope: 'unverified'` 结果，属上游口径缺口（提案系忠实复刻该缺口，非自创）。本决策为提案层补口径；待后续 `.agents/workflows/context-update.md` 回填 TAD §3.1 / `api_strategy.md` §3.1 权威表述，届时可据本条追溯。
+  - **上游出处说明**：源文档 TAD（`.context/architecture/source/technical_architecture.md` §3.1「环比基准来源」）仍只规定「按 `(platform, capturedAt)` 追加」，未写可证性门，属源文档口径缺口。本决策为提案层补口径；`api_strategy.md` §3.1 的**实现状态段**已由本提案回填为 `source === 'live' && windowScope === 'verified'` 与 UTC 日历日匹配，勿再把该总结文件读成「未约束」。完整回填 TAD 源文档走后续 `context-update`。
   - **生产后果（须知）**：当前生产采集路径 `live` 结果的 `windowScope` 均为 `'unverified'`（`api_strategy.md` §3.1「窗口真实性说明」），因此本提案落地后生产路径**暂不会写出快照**、`comparison` 在生产上仍五键 `null`，直到采集侧能产出 `windowScope: 'verified'` 的窗口化数据（属采集能力提案，本提案 Out）。正向路径由测试夹具（`verified` 记录）证明；不把「驾驶舱马上看到非空环比」写进本提案验收。
 
 - **Decision: 环比基准读取落在 `src/analytics/` 纯函数，快照存取落在 `src/storage/`**

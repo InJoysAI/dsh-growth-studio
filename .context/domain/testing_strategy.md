@@ -527,7 +527,7 @@ Then 界面应明确提示该能力不可用
 | TD-007 `workbench.overview` 缺失汇总语义 | 模块 5 场景 4 / 5 的宿主判定与场景 6 的无历史空值分支；`tests/overview-metrics.spec.ts` / `tests/metrics-window.spec.ts` / `tests/overview-window-passthrough.spec.ts` | **宿主修复已覆盖，TD-007 已关闭**；不代表驾驶舱 UI、真实窗口增量采集或历史快照能力已实现 |
 | TD-008 生成路径未授权写入 Injoys 文档 | 模块 3 场景 1「未经用户明确要求不得创建或更新 Injoys 文档」（直接约束）；模块 8 场景 2 / 3（BR-033 / BR-073） | **缺口（待实现）** |
 | TD-009 `ops_generate_review` 假文档编号 | 模块 8 场景 3「知识库未连通时沉淀不可用」 | **缺口（待实现）** |
-| TD-010 `calendar/` 与 `metrics/` 持久化契约未落地 | 模块 5 场景 6「历史不足时环比为空」（BR-052） | **缺口（待实现）** |
+| TD-010 `calendar/` 与 `metrics/` 持久化契约未落地 | 模块 5 场景 6「历史不足时环比为空」（BR-052）；`tests/metrics-snapshot.spec.ts` | **部分修复（metrics 已覆盖，calendar 仍待 `feat-storage-calendar-items`）** |
 | TD-011 错误码 `ops/not-found` 与 `ops/draft-not-found` 语义重复 | —（错误码契约层，无对应 BDD 场景） | **缺口**（非 BDD） |
 | TD-012 BrowserOS 能力开关与统一执行检查契约（原「动作白名单」口径已由 PRD §5.7.1 / criterion §4 取代） | —（执行检查：能力存在 / 启用 / 连接可用集中校验；对应 BR-074 场景 5–8，含双开关同时开启的正常执行） | **缺口**（契约已同步、实现待补） |
 | TD-013 criterion 文件权限约束无实现落点 | —（工程检查：落盘文件 `0o600` / 目录 `0o700` 权限位；无对应 BDD 场景） | **已覆盖（非 BDD）**：`tests/storage-permissions.spec.ts` 断言新建草稿 / 配置的目录与文件权限、既有 `0644` 文件保存后收紧、无临时文件残留、同一锁集同路径串行、不同库同 ID 内容互不覆盖；以独立临时文件 `chmod 0o640` 后 `stat` 读回探测文件系统（不调用被测封装），`root` 不因身份跳过创建位断言，`win32` 或探测失败显式跳过并声明未覆盖；主判据为 `(mode & 0o077) === 0`，仅在 umask 未清除 owner 位时追加精确值；既有目录及不再保存的旧文件仍属未覆盖面 |
