@@ -239,6 +239,11 @@ DSH Desktop 客户端通过 Cordis `slots` 注入扩展机制工作：
   }
   ```
 
+> **当前实现说明（`fix-overview-metrics-null-semantics` 已归档）**：上方响应形状已由 `src/types.ts` 的 `OverviewMetrics` / `MetricsComparison` / `WeeklyPipeline` 与宿主汇总实现承载。请求的 `metricsWindow` 贯穿调用；`windowStart` / `windowEnd` 为该请求的闭区间边界，不构成原始数值属于该周期的证明。
+> `PlatformMetricsOutcome` 是基础 `PlatformMetrics` 之外的宿主采集结果扩展，使用 `source` / `windowScope` / `note` 标注来源与周期可证性。当前 `measuredPlatforms` 仅含应采集合 `P` 中 `source !== 'unmeasured'` 且 `windowScope === 'verified'` 的平台，`unmeasuredPlatforms = P - measuredPlatforms`；不是只凭抓取成功就计入。当前生产 `live` 页面数值属于累计/单日口径，标为 `unverified`，保留原始值但不进入窗口汇总；显式 `mock` 仅用于测试。
+> `weeklyPipeline` 按既有 Injoys 返回列表的本周行派生，筛选后集合为空时返回全零，原始非空列表不能被无条件清空。当前代码以 UTC 推导周一起算的自然周；用户本地周边界的时区对齐尚未实现，此说明记录实现边界，不新增产品时区承诺。
+> 当前尚无本地指标快照读写，`comparison` 五键均为 `null`；下方环比基准来源是 `feat-storage-metrics-snapshot` 待实现的目标契约。本地排期主数据、真实窗口化采集与驾驶舱 UI 均不由本提案新增。
+
 **部分缺失汇总规则（服务端强制口径）**：
 
 > 核心原则：**绝不用不完整的数据冒充全网总量**（PRD §5.1.2「不粗暴按 0 计算」的延伸）。
@@ -974,7 +979,7 @@ interface BrowserOsCapabilityDescriptor {
 | `ops_draft_launch_kit` | PH / X 推文串生成 | 无对应 RPC | OverseasManager | Injoys 知识库读取 | 本地草稿 | 工具已注册，execute **读取 Injoys 知识库并无条件调用 `injoys.saveLaunchKitDocument`**（与「沉淀须显式触发」不符）；无工作台 RPC | Phase 2 |
 | `ops_generate_hooks` | 视频前 3 秒钩子 | 无对应 RPC | ContentStudioEngine | — | 本地草稿 | **未注册、无实现**（PRD 列出，无契约与工具） | 未定 |
 | `ops_push_drafts` | 批量预填草稿箱 | `workbench.prefillDraft`（§3.6，单草稿入口） | BrowserDriver / Adapter | BrowserOS | 平台后台草稿箱 | 工具已注册；`prefillDraft` RPC 已实现（单草稿）；**批量入口无对应 RPC** | Phase 0 |
-| `ops_fetch_metrics` | 多维指标采集 | 与 `workbench.overview`（§3.1）共用采集能力，返回范围不同 | MetricsCollector | BrowserOS | 本地指标快照 `metrics/` | 工具已注册；`overview` RPC 已实现但**缺部分缺失汇总语义**（TD-007） | Phase 0 |
+| `ops_fetch_metrics` | 多维指标采集 | 与 `workbench.overview`（§3.1）共用采集能力，返回范围不同 | MetricsCollector | BrowserOS | 本地指标快照 `metrics/` | 工具已注册；`overview` RPC 的**部分缺失汇总语义已实现**（TD-007 于 2026-10-20 关闭，`src/analytics/overview-aggregator.ts`）；`live` 采集的窗口可证性待采集能力提案 | Phase 0 |
 | `ops_generate_review` | 周/月复盘 | 无对应 RPC | ReviewReporter | Injoys 知识库读取（写入须显式触发） | 本地指标快照 | 工具已注册，但存在**假文档编号回退**（TD-009，`injoysDocId ?? 'doc_review'`）；无工作台 RPC | Phase 1 |
 | `ops_fetch_comments` | 跨渠道评论抓取 | 无对应 RPC | CommentsCrawler | BrowserOS | — | 工具已注册；无工作台 RPC（Phase 1） | Phase 1 |
 | `ops_extract_feedback` | Bug/Feature 聚类反哺 | 无对应 RPC | IssueExtractor | Injoys 需求池（写入须显式触发） | — | 工具已注册；无工作台 RPC（Phase 1） | Phase 1 |

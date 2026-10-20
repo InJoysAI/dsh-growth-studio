@@ -159,7 +159,7 @@
 
 | status | 说明 |
 |--------|------|
-| `archived` | 源文件已复制到 `source/` 目录，并记录 `content_hash` |
+| `archived` | 源文件已移动或复制到 `source/` 目录（移动时 `path == archived_to`），并记录 `content_hash` |
 | `referenced` | 仅记录引用（遗留代码库不复制），没有 `content_hash` |
 
 **`content_hash`**：被归档源文件原始字节的 SHA-256（64 位小写 hex），在复制归档时写入，源文件被重新归档（`UPDATE`）时刷新。
@@ -257,7 +257,7 @@
 | `context_sha256` | 生成时的来源组合指纹（算法见 `openspec/project/AGENTS.md`「Context-SHA256 算法」），与 `config.yaml` 头部一致 |
 | `config_sha256` | 生成完成后 `config.yaml` 磁盘原始字节的 sha256（64 位小写 hex）；用于发现“生成之后被改动”。**可选**，旧 Manifest 没有时按未记录处理 |
 | `generated_at` | ISO 8601 |
-| `workflow` | 固定 `.agent/workflows/context-openspec.md project` |
+| `workflow` | 固定 `.agents/workflows/context-openspec.md project` |
 
 只有生成流程可以写这些字段；其他流程不得自造同级字段。
 - 历史日志不登记到 `generated_files`，避免资产读取器把审计历史作为项目上下文全文加载；Manifest 仅通过 `context_sync_history.path` 指向它。

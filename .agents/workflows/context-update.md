@@ -4,10 +4,6 @@ description: Update Context assets (sync/add/modify/delete/fix) and keep manifes
 
 # Context Update
 
-## 协作协议（先执行）
-
-先读 `@design/context-dev/tools/collab/AGENTS.md`，然后：第一行输出身份行（本命令角色：**生成**）→ 读花名册与待确认台账，处理发给自己的 `open` 记录 → 再执行下面的主任务 → 结束报告末尾追加「待确认」。
-
 > ⚠️ 给 AI 的说明：本命令文档同时包含「已落地能力」与「规划中的接口草案」。
 >
 > - `archive <change-id>`：✅ 已落地（通过 `design/context-dev/tools/specflow/specflow.mjs`）
@@ -26,7 +22,7 @@ Supported subcommands:
 - `fix <path>`: fix metadata/links/format only (no business-content change)
 - `archive <change-id>`: archive a completed change and (optionally) sync specs (delta → main)
 
-If the target project still uses separate commands (`.agent/workflows/context-add.md`, `.agent/workflows/context-modify.md`, ...), this command describes the unified interface you should implement.
+If the target project still uses separate commands (`.agents/workflows/context-add.md`, `.agents/workflows/context-modify.md`, ...), this command describes the unified interface you should implement.
 
 ## sync
 
@@ -85,16 +81,16 @@ node design/context-dev/tools/specflow/specflow.mjs validate <change-id> --stric
 
 2. 提案一致性检查（结合 Context 资产）：
 ```bash
-.agent/workflows/context-check.md proposal <change-id>
+.agents/workflows/context-check.md proposal <change-id>
 ```
 
 3. 开放式核对（重点核对“实现是否导致 Context 需要更新”）：
 ```bash
-.agent/workflows/context-check.md review "核对提案 <change-id> 的实现与 .context 资产一致性；如不一致，更新对应 .context 文件并同步 manifest"
+.agents/workflows/context-check.md review "核对提案 <change-id> 的实现与 .context 资产一致性；如不一致，更新对应 .context 文件并同步 manifest"
 ```
 
-> 若发现不一致：优先用 `.agent/workflows/context-update.md fix <path>`（仅修复 metadata/links/format）；
-> 若确需更新业务含义/约束内容：使用 `.agent/workflows/context-update.md modify <scope>` 或直接修改目标 `.context/**` 文件，并在修复后更新 manifest。
+> 若发现不一致：优先用 `.agents/workflows/context-update.md fix <path>`（仅修复 metadata/links/format）；
+> 若确需更新业务含义/约束内容：使用 `.agents/workflows/context-update.md modify <scope>` 或直接修改目标 `.context/**` 文件，并在修复后更新 manifest。
 >
 > ⚠️ 如果本仓库尚未落地 `fix/modify`：请改为 **STOP 并请求用户确认** 是否要现在补齐实现；或由用户指定要更新的具体 `.context/**` 文件与期望改动后再继续。
 

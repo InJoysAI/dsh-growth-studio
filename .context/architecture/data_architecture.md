@@ -151,12 +151,23 @@ export interface UserFeedbackItem {
 
 > 源文档 §4.1 定义（v1.4.1 补齐）；`workbench.overview.feedbackItems` 引用。实现侧 `src/types.ts` 已落地该类型（`category` 五值 / `priority` 三值一致），被 `src/feedback/issue-extractor.ts`、`src/injoys/client.ts` 消费。
 
-> ⚠️ **`windowStart` / `windowEnd` 状态说明（源文档先有、实现待补）**：
-> 这两个字段由**源文档 §4.1 定义**（用于表达「采集时刻 ≠ 指标所属周期」），
-> 但 **`src/types.ts` 的 `PlatformMetrics` 当前尚无这两个字段**，criterion §5.5 也未列出。
-> 因此本节所示类型是**源文档契约**，**不等于当前代码状态**。
-> 实现补齐须走 **SSoT-first**：先改 `src/types.ts`，再改 `src/ops-rpc.ts` 与 `src/analytics/`。
-> 与下方 `PlatformId` 口径注同类处理：**文档如实标注差异，不假装代码已具备**。
+> ✅ **`windowStart` / `windowEnd` 状态说明（2026-10-20 已落地）**：
+> 这两个字段由**源文档 §4.1 定义**（用于表达「采集时刻 ≠ 指标所属周期」），现已由
+> `fix-overview-metrics-null-semantics` 在 `src/types.ts` 的 `PlatformMetrics` 中补齐为**必填 `string`**，
+> 由 `src/analytics/metrics-collector.ts` 按请求窗口（`metricsWindow`，默认 `7d`）+ 采集发起时刻推导，
+> `live`、`unmeasured` 与显式测试 `mock` 三条路径使用同一请求窗口推导，边界为闭区间 `[windowStart, windowEnd]`；`windowEnd` 与 `capturedAt` 可取同一时刻，二者的业务概念仍不同。
+> 二者表达**请求窗口**，**不构成「数值属于该窗口」的证明** —— 平台数值贡献须仅在可证实时计入汇总
+> （见 `api_strategy.md` §3.1「指标口径」）。
+
+### 总览响应类型与采集结果扩展
+
+源契约为 `source/technical_architecture.md` §3.1 的 `overviewMetrics`，实现统一引用 `src/types.ts`：
+
+- `OverviewMetrics`：可空的曝光、播放、点赞、评论、转发、收藏、净增关注及互动总量；保留既有计数和口径说明，新增覆盖数组、`comparison` 与 `weeklyPipeline`。
+- `MetricsComparison`：`period: '7d' | '30d' | null`；`impressionsDeltaPercent` / `playsDeltaPercent` / `engagementsDeltaPercent` / `followersDeltaPercent` 均为 `number | null`。无历史基准时五键均为 `null`，不代表指标历史快照已落盘。
+- `WeeklyPipeline`：`total` / `completed` 为数字，`byStatus: Record<ItemStatus, number>`；筛选后的本周集合为空才为全零，`completed = prefilled + published`。当前从既有远端 `calendarItems` 派生，非本地主数据接入；本周边界的当前 UTC 实现见 `api_strategy.md` §3.1。
+
+`src/analytics/metrics-collector.ts` 的 `PlatformMetricsOutcome extends PlatformMetrics` 另含 `source`、`windowScope`、`note` 等带明确注释的采集结果扩展。`windowScope: 'verified' | 'unverified'` 不属于 `PlatformMetrics` 基础契约；汇总仅接受来源不是 `unmeasured` 且窗口已验证的结果，现有 `live` 页面数值保留，但窗口未验证时不计入窗口汇总。可选 `favorites` / `followerDelta` 的 `undefined` 与 `null` 同属未知，不回退为真实 `0`。
 
 > ⚠️ **`views` 使用警告**：其表达式在缺失时**会产出 0**，与「不可按 0 伪造缺失值」冲突。
 > `views` **仅供向后兼容，不得作为缺失指标的真实值** —— 业务逻辑须消费 `impressions` / `plays` 并处理 `null`。

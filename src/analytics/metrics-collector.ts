@@ -12,14 +12,29 @@ export interface MetricsCollectorOptions {
   mockOffline?: boolean
   /** Connected BrowserOS client for scraping live creator dashboards. */
   browserOsClient?: BrowserOsMcpClient
+  /** Clock used to stamp `capturedAt` and derive the request window; injectable for tests. */
+  now?: () => Date
 }
 
 /** Where a metric value came from, so a real 0 is never confused with "not measured". */
 export type MetricsSource = 'live' | 'unmeasured' | 'mock'
 
+/**
+ * Whether the scraped numbers are provably for the REQUESTED window.
+ *
+ * `'verified'` means the value is a window increment (mock data is generated per
+ * requested window, so it is window-scoped by construction). `'unverified'` means
+ * the dashboard only exposes an "all time" / "today" / "yesterday" figure, which
+ * must never be relabelled as a 7d/30d increment — such a contribution stays
+ * unknown to the aggregator (architecture §3.1「指标口径」).
+ */
+export type MetricsWindowScope = 'verified' | 'unverified'
+
 /** Per-platform extraction outcome. */
 export interface PlatformMetricsOutcome extends PlatformMetrics {
   source: MetricsSource
+  /** Whether these numbers are provably scoped to the requested window. */
+  windowScope: MetricsWindowScope
   /** Why the platform could not be measured; absent when measured. */
   note?: string
   /** Total followers at capture time, when the page reports one. */
@@ -27,6 +42,18 @@ export interface PlatformMetricsOutcome extends PlatformMetrics {
   /** Number of published posts counted on the page, when reported. */
   postCount?: number | undefined
 }
+
+
+/**
+ * Why a live scrape cannot be counted as a window increment.
+ *
+ * The creator dashboards report all-time totals (B站 播放量), per-post lifetime
+ * sums (抖音), or single-day figures (视频号「昨日数据」). None of them exposes the
+ * requested window's increment, so the value is kept but its contribution is
+ * withheld from window totals rather than being relabelled.
+ */
+const UNVERIFIED_WINDOW_NOTE =
+  '页面口径为累计 / 昨日数据，无法证实属于所请求统计窗口，未计入窗口汇总'
 
 /** How one platform's numbers are scraped. */
 interface PlatformScrapeSpec {
@@ -54,36 +81,73 @@ export class MetricsCollector {
   /**
    * Fetch latest engagement and growth metrics for specified platforms.
    * If mockOffline is false and no live client is provided, returns nullable indicators.
+   *
+   * `timeRange` is the REQUESTED window. It is forwarded to every path so the
+   * window bounds are derived from the caller's request rather than hardcoded.
    */
   async fetchPlatformMetrics(
     platforms: PlatformId[],
     timeRange: '7d' | '30d' = '7d',
   ): Promise<PlatformMetricsOutcome[]> {
-    const nowIso = new Date().toISOString()
+    const capturedAt = this.now().toISOString()
+    const { windowStart, windowEnd } = this.resolveWindow(timeRange, capturedAt)
 
     // 1. If explicit mock mode is requested
     if (this.options.mockOffline) {
       const multiplier = timeRange === '30d' ? 4.2 : 1.0
       return platforms.map(platform => ({
-        ...this.generateMockMetricsForPlatform(platform, multiplier, nowIso),
+        ...this.generateMockMetricsForPlatform(platform, multiplier, capturedAt),
+        windowStart,
+        windowEnd,
         source: 'mock' as const,
+        // Mock figures are generated per requested window, so they are scoped to it.
+        windowScope: 'verified' as const,
       }))
     }
 
     // 2. If live BrowserOS client is attached, attempt real dashboard collection
     if (this.options.browserOsClient) {
-      return this.collectLivePlatformMetrics(platforms, timeRange, nowIso)
+      return this.collectLivePlatformMetrics(platforms, capturedAt, windowStart, windowEnd)
     }
 
     // 3. Otherwise: honestly return unmeasured / null metrics (not fake numbers)
-    return platforms.map(platform => this.unmeasured(platform, nowIso, 'BrowserOS MCP 未接入'))
+    return platforms.map(platform =>
+      this.unmeasured(platform, capturedAt, windowStart, windowEnd, 'BrowserOS MCP 未接入'),
+    )
+  }
+
+  /** Injectable clock; defaults to the real one. */
+  private now(): Date {
+    return this.options.now ? this.options.now() : new Date()
+  }
+
+  /**
+   * Bounds of the requested statistics window, as a closed ISO 8601 range
+   * `[windowStart, windowEnd]` ending at the capture start (architecture §3.1).
+   */
+  private resolveWindow(
+    timeRange: '7d' | '30d',
+    capturedAt: string,
+  ): { windowStart: string; windowEnd: string } {
+    const days = timeRange === '30d' ? 30 : 7
+    const end = new Date(capturedAt)
+    const start = new Date(end.getTime() - days * 24 * 60 * 60 * 1000)
+    return { windowStart: start.toISOString(), windowEnd: end.toISOString() }
   }
 
   /** A metrics row that states plainly that nothing was measured. */
-  private unmeasured(platform: PlatformId, capturedAt: string, note: string): PlatformMetricsOutcome {
+  private unmeasured(
+    platform: PlatformId,
+    capturedAt: string,
+    windowStart: string,
+    windowEnd: string,
+    note: string,
+  ): PlatformMetricsOutcome {
     return {
       platform,
       capturedAt,
+      windowStart,
+      windowEnd,
       impressions: null,
       plays: null,
       views: 0,
@@ -93,6 +157,7 @@ export class MetricsCollector {
       favorites: null,
       followerDelta: null,
       source: 'unmeasured',
+      windowScope: 'unverified',
       note,
     }
   }
@@ -105,8 +170,9 @@ export class MetricsCollector {
    */
   private async collectLivePlatformMetrics(
     platforms: PlatformId[],
-    _timeRange: '7d' | '30d',
     capturedAt: string,
+    windowStart: string,
+    windowEnd: string,
   ): Promise<PlatformMetricsOutcome[]> {
     const client = this.options.browserOsClient!
     const session = new BrowserOsSession(client)
@@ -115,7 +181,15 @@ export class MetricsCollector {
     for (const platform of platforms) {
       const spec = PLATFORM_SCRAPE_SPECS[platform]
       if (!spec) {
-        results.push(this.unmeasured(platform, capturedAt, `平台 ${platform} 暂无采集配置`))
+        results.push(
+          this.unmeasured(
+            platform,
+            capturedAt,
+            windowStart,
+            windowEnd,
+            `平台 ${platform} 暂无采集配置`,
+          ),
+        )
         continue
       }
 
@@ -123,7 +197,13 @@ export class MetricsCollector {
         const tab = await session.findTabByHost(spec.host)
         if (!tab) {
           results.push(
-            this.unmeasured(platform, capturedAt, `浏览器中未打开 ${spec.host} 的已登录页面`),
+            this.unmeasured(
+              platform,
+              capturedAt,
+              windowStart,
+              windowEnd,
+              `浏览器中未打开 ${spec.host} 的已登录页面`,
+            ),
           )
           continue
         }
@@ -143,7 +223,7 @@ export class MetricsCollector {
 
         // WeChat answers a stale session with a login gate rather than data.
         const note = found
-          ? undefined
+          ? UNVERIFIED_WINDOW_NOTE
           : isWechatLoginGate(text)
             ? '微信会话已过期，需在浏览器中重新扫码登录'
             : (spec.emptyNote ?? '页面已读取，但未解析到数据')
@@ -151,6 +231,8 @@ export class MetricsCollector {
         results.push({
           platform,
           capturedAt,
+          windowStart,
+          windowEnd,
           impressions: parsed.impressions ?? null,
           plays: parsed.plays ?? null,
           views: parsed.views ?? parsed.impressions ?? parsed.plays ?? 0,
@@ -161,6 +243,9 @@ export class MetricsCollector {
           followerDelta: parsed.followerDelta ?? null,
           topPostTitle: parsed.topPostTitle,
           source: found ? 'live' : 'unmeasured',
+          // These dashboards expose all-time / yesterday figures, never a window
+          // increment, so the numbers cannot be proven to belong to this window.
+          windowScope: 'unverified',
           note,
         })
       } catch (err: any) {
@@ -168,6 +253,8 @@ export class MetricsCollector {
           this.unmeasured(
             platform,
             capturedAt,
+            windowStart,
+            windowEnd,
             `采集失败: ${err?.message ?? '未知异常'}`,
           ),
         )
@@ -184,7 +271,7 @@ export class MetricsCollector {
     platform: PlatformId,
     multiplier: number,
     capturedAt: string,
-  ): PlatformMetrics {
+  ): Omit<PlatformMetrics, 'windowStart' | 'windowEnd'> {
     switch (platform) {
       case 'wechat_mp': {
         const impressions = Math.round(3500 * multiplier)

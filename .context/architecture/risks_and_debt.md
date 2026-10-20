@@ -257,10 +257,25 @@
 
 ### TD-007: `workbench.overview` 未实现部分缺失汇总语义（**触碰架构铁律 3**）
 
+> ✅ **已修复（2026-10-20）**：由 `fix-overview-metrics-null-semantics` 落地（已归档至
+> `openspec/changes/archive/2026-10-20-fix-overview-metrics-null-semantics/`，规范同步至
+> `openspec/specs/workbench-overview/spec.md`）。汇总判定下沉至
+> `src/analytics/overview-aggregator.ts`（平台级覆盖门 + 真实 `0` 参与求和 + `totalEngagements` 子项严格 `null`）；
+> `workbench.overview` 响应已补齐 `measuredPlatforms` / `unmeasuredPlatforms` / `totalEngagements` /
+> `totalFavorites` / `comparison` / `weeklyPipeline`；`PlatformMetrics` 已补 `windowStart` / `windowEnd`
+> （**闭区间**，由 `metricsWindow` + 采集发起时刻推导，与 `capturedAt` 相互独立）；
+> 硬编码热点样例数据已移除（`trends` 如实返回空数组）。
+> 下方描述保留为**历史记录**。
+
+> ⚠️ **残留边界（不属本 TD，需后续规划采集能力提案；当前未确认专门承接 Change ID）**：现有采集页面口径为「累计 / 昨日数据」
+> （B站累计播放、抖音按作品累加、视频号昨日增量），无法证实属于请求窗口，故 `live` 采集结果
+> 标记 `windowScope: 'unverified'` 且其贡献不计入汇总 —— 真实环境下汇总值可能恒为「暂无数据」。
+> 这是归档提案 `openspec/changes/archive/2026-10-20-fix-overview-metrics-null-semantics/design.md`「数据周期真实性」决策的忠实实现（空值优于假数据），**不是本 TD 的未完成项**。
+
 | 属性 | 值 |
 |------|-----|
 | **类型** | 实现债务 / **契约债务** |
-| **严重性** | **高** |
+| **严重性** | **高**（修复前等级；当前已修复，状态与等级分开记录） |
 | **描述** | 源文档 §3.1 与 criterion §4 要求：应采平台未全部成功时汇总值必须为 `null`，并填充 `measuredPlatforms` / `unmeasuredPlatforms`；`totalEngagements` 在点赞/评论/转发/收藏任一为 `null` 时为 `null`。但 `src/ops-rpc.ts` 的 `workbench.overview` 对非 `null` 值**直接累加**，且响应中**缺少** `measuredPlatforms` / `unmeasuredPlatforms` / `totalEngagements` / `totalFavorites` / `comparison` / `weeklyPipeline` 字段。 |
 | **影响** | **可能产出「以偏概全」的全网总量** —— 部分平台采集失败时仍返回数字，违反**架构铁律 3**（绝不用不完整数据冒充全网总量）；环比与本周排期进度亦不可用。这是本项目**质量目标第 2 位（数据真实性）**的直接违反。 |
 | **目标解决时间** | N/A – 源文档未提供（建议**优先于其他 TD**） |
@@ -377,7 +392,7 @@
 | RISK-003 | 风险 | 会话状态假阳性 | 高 | N/A | 未缓解 / 待修复（Cookie 探测分支待提案移除） | 2026-10-16 |
 | RISK-004 | 风险 | 配置切换竞态跨库覆盖 | 高 | N/A | 已由目录固定缓解 | 2026-10-16 |
 | RISK-005 | 风险 | 存储不可用误报 | 中 | N/A | 已由前置校验缓解 | 2026-10-16 |
-| RISK-006 | 风险 | 指标汇总以偏概全 | 中 | N/A | 已定义契约方案，落实待 TD-007 | 2026-10-16 |
+| RISK-006 | 风险 | 指标汇总以偏概全 | 中 | N/A | 已由 `overview-aggregator` 平台级覆盖门缓解（TD-007 已关闭） | 2026-10-20 |
 | RISK-007 | 风险 | 环比基准不可用误读 | 中 | N/A | 已由 null 语义缓解 | 2026-10-16 |
 | RISK-008 | 风险 | 旧草稿「丢失」认知 | 中 | N/A | 已由提示文案缓解 | 2026-10-16 |
 | RISK-009 | 风险 | 两套状态枚举误用 | 中 | N/A | 监控中（依赖映射表） | 2026-10-16 |
@@ -390,7 +405,7 @@
 | TD-004 | 技术债 | 状态枚举命名差异 | 中 | N/A | 长期 | 2026-10-16 |
 | TD-005 | 技术债 | `views` 兼容字段误用 | 中 | N/A | 监控中 | 2026-10-16 |
 | TD-006 | 技术债 | 排期无双向同步 | 低 | N/A | 计划 Phase 3 | 2026-10-16 |
-| TD-007 | 技术债 | `workbench.overview` 未实现部分缺失汇总语义（**违反铁律 3**） | **高** | N/A | **待处理（优先）** | 2026-10-16 |
+| TD-007 | 技术债 | `workbench.overview` 未实现部分缺失汇总语义（**违反铁律 3**） | **高** | N/A | **已修复（2026-10-20，`fix-overview-metrics-null-semantics`）** | 2026-10-20 |
 | TD-008 | 技术债 | 生成路径未授权写入 Injoys 文档（**越过内容写入边界**） | **高** | N/A | **待处理（优先）** | 2026-10-16 |
 | TD-009 | 技术债 | `ops_generate_review` 以字面量 `doc_review` 冒充文档编号（**虚报成功**） | **高** | N/A | **待处理（优先）** | 2026-10-16 |
 | TD-010 | 技术债 | `calendar/` 与 `metrics/` 持久化契约未落地 | 中 | N/A | 待处理 | 2026-10-16 |

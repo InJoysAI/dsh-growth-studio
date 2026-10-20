@@ -144,7 +144,7 @@ graph LR
 
 | Change ID | Phase | 标题 | 优先级 | 前置依赖 | 状态 | 详情 |
 |-----------|:-----:|------|:------:|----------|------|------|
-| `fix-overview-metrics-null-semantics` | 0 | 工作台总览的汇总空值语义与真实数据来源 | P0 | 无 | proposed | [Phase-0](./proposal-roadmap-Phase-0.md) |
+| `fix-overview-metrics-null-semantics` | 0 | 工作台总览的汇总空值语义与真实数据来源 | P0 | 无 | done | [Phase-0](./proposal-roadmap-Phase-0.md) |
 | `feat-storage-metrics-snapshot` | 0 | 指标历史快照落盘（环比基准） | P1 | `fix-overview-metrics-null-semantics`、`fix-storage-file-permissions` | proposed | [Phase-0](./proposal-roadmap-Phase-0.md) |
 | `fix-unauthorized-injoys-doc-write` | 0 | 移除生成 / 复盘 / 海外 Launch 路径未授权的 Injoys 文档写入 | P0 | 无 | proposed | [Phase-0](./proposal-roadmap-Phase-0.md) |
 | `fix-doc-id-fabrication` | 0 | 工具不得以字面量 / 时间戳冒充文档编号 | P0 | `fix-unauthorized-injoys-doc-write` | proposed | [Phase-0](./proposal-roadmap-Phase-0.md) |
@@ -191,5 +191,5 @@ graph LR
 
 ---
 
-> 💡 创建单个提案时使用：`.agent/workflows/context-openspec.md proposal <change-id> [roadmap-doc]`
+> 💡 创建单个提案时使用：`.agents/workflows/context-openspec.md proposal <change-id> [roadmap-doc]`
 > 💡 本形态下 `roadmap-doc` 可指定对应的 Phase 文件；不指定时也会按总纲索引自动读取。

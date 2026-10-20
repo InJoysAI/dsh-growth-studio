@@ -255,6 +255,9 @@ stateDiagram-v2
 
 **对应接口**：`workbench.overview` / `ops_fetch_metrics`
 
+> **目标流程与当前实现边界**：下图包含规划中的历史快照和驾驶舱交互，不表示整条链路已实现。`fix-overview-metrics-null-semantics` 已落地宿主 `workbench.overview` 的字段与汇总判定：调用 `MetricsCollector` 后由 `overview-aggregator` 汇总；覆盖数组按应采集合内“抓取成功且窗口可证实”计算。`source: 'live'` 而 `windowScope: 'unverified'` 的原始数值保留，但不进入窗口汇总。
+> 当前没有图中的追加/读取快照步骤，`comparison` 五键均为 `null`；快照实现归 `feat-storage-metrics-snapshot`。`weeklyPipeline` 只从既有 Injoys 列表派生本周计数；本地排期接入和驾驶舱 UI 分别由 `feat-calendar-generate-list`、`feat-client-dashboard` 承接。规范见 `openspec/specs/workbench-overview/spec.md`。
+
 ```mermaid
 sequenceDiagram
     autonumber

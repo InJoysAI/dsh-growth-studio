@@ -44,23 +44,23 @@
 - `openspec/changes/` — 进行中的变更提案
 - `openspec/specs/` — 当前规范
 
-若其中部分文件不存在，请以 `.context/context-manifest.json` 的 `pending_generation` 判断各阶段状态：分域总结与 `.context/openspec/integration.md` 可能已生成，此时通常仅缺 `openspec/config.yaml`、`openspec/proposal-roadmap.md`（分别由 `.agent/workflows/context-openspec.md project` 与 `plan` 子命令生成）。
+若其中部分文件不存在，请以 `.context/context-manifest.json` 的 `pending_generation` 判断各阶段状态：分域总结与 `.context/openspec/integration.md` 可能已生成，此时通常仅缺 `openspec/config.yaml`、`openspec/proposal-roadmap.md`（分别由 `.agents/workflows/context-openspec.md project` 与 `plan` 子命令生成）。
 
-### 工作流命令（`.agent/workflows/`）
+### 工作流命令（`.agents/workflows/`）
 
 | 命令 | 用途 |
 |------|------|
-| `.agent/workflows/context-init.md` | 初始化 Context（归档源文档、生成准则、初始化 SSoT） |
-| `.agent/workflows/context-openspec.md` | 生成 Context 总结、`config.yaml`、`proposal-roadmap.md` |
-| `.agent/workflows/context-openspec.md proposal <change-id> [roadmap-doc]` | 创建并校验变更提案 |
-| `.agent/workflows/context-start.md` | 按提案实施并归档 |
-| `.agent/workflows/context-check.md` | 检查环境 / Manifest / 任务 / 提案 / 路线图等 |
-| `.agent/workflows/context-update.md` | 维护 Context（源文档变更后同步） |
-| `.agent/workflows/context-interview.md` | 交互式访谈以补全源文档信息 |
+| `.agents/workflows/context-init.md` | 初始化 Context（归档源文档、生成准则、初始化 SSoT） |
+| `.agents/workflows/context-openspec.md` | 生成 Context 总结、`config.yaml`、`proposal-roadmap.md` |
+| `.agents/workflows/context-openspec.md proposal <change-id> [roadmap-doc]` | 创建并校验变更提案 |
+| `.agents/workflows/context-start.md` | 按提案实施并归档 |
+| `.agents/workflows/context-check.md` | 检查环境 / Manifest / 任务 / 提案 / 路线图等 |
+| `.agents/workflows/context-update.md` | 维护 Context（源文档变更后同步） |
+| `.agents/workflows/context-interview.md` | 交互式访谈以补全源文档信息 |
 
 ### 规则
 
-- 功能变更先创建提案（`.agent/workflows/context-openspec.md proposal <change-id>`），再实施。
+- 功能变更先创建提案（`.agents/workflows/context-openspec.md proposal <change-id>`），再实施。
 - 数据层 / API / IPC 变更：先改 `.context/criterion.md` §7.1 中对应层的契约，再运行 §7.2 记录的生成与校验命令。
 - 不要手工修改 `.context/*/source/`、`openspec/config.yaml` 和 `design/context-dev/`；源文档变更请走 `context-update`。
 - 约束冲突时以 `.context/criterion.md` 为准。

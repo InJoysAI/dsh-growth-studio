@@ -30,7 +30,7 @@
       "path": ".context/architecture/source/technical_architecture.md",
       "archived_to": ".context/architecture/source/technical_architecture.md",
       "type": "system_architecture",
-      "content_hash": "8ad1bf241e5db9cde3006b02f445ae04e9a5d6c19dd8bd54c07ffc2c35b7bc49",
+      "content_hash": "82618bffc720f7b992757c2bdc81f7a0a3acfe17542173fa84b50bef4d9702d8",
       "status": "archived"
     }
   },
@@ -92,7 +92,7 @@
     "context_sha256": "2b48bd6e9a8f4a97379d878c80c02663adf6e7b71f468013aae3726afeb89ae4",
     "config_sha256": "cd455bb2542a36eee880ddcdf6d86570bb17709aa4920a3bd5b2c52efcba9c3b",
     "generated_at": "2026-10-17T16:32:39+08:00",
-    "workflow": ".agent/workflows/context-openspec.md project"
+    "workflow": ".agents/workflows/context-openspec.md project"
   },
   "context_sync_history": {
     "path": ".context/history/context-sync.jsonl",
@@ -100,19 +100,22 @@
     "ordering": "ascending_by_synced_at"
   },
   "last_context_sync": {
-    "synced_at": "2026-10-17T17:44:59+08:00",
-    "source": ".context/criterion.md、.context/domain/risks_and_debt.md（RISK-B005 定位）、.context/domain/testing_strategy.md（读取核对；未变更任何 .context 资产）",
-    "workflow": ".agent/workflows/context-openspec.md plan",
-    "authority": "用户回传 Phase 5 检查（PASS Conditional：P0=0 / P1=0 / P2=2）并要求检查与修复。逐条核验两项 P2 均属实后修复：① 补登缺失依赖——D1 feat-client-engine-config 增列前置 feat-injoys-test-document-count（消费 injoys.test.documentCount）；D3 feat-client-content-studio 增列前置 feat-calendar-status-transitions（排期关联不变量），并同步详情/索引/反向依赖/依赖图；② 修正旧文案——Phase 1 把 calendar.list 错指提案 3（实为提案 2）、RISK-B005 错挂 architecture（实定义于 domain）、Phase 2 仍写「3 个缺失工具」（实为 2 个）。仅改 openspec/proposal-roadmap*.md 与 Manifest，不改任何 .context 资产、source/、config.yaml 与实现代码",
+    "synced_at": "2026-10-20T09:20:26+08:00",
+    "source": "openspec/changes/archive/2026-10-20-fix-overview-metrics-null-semantics/",
+    "workflow": ".agents/workflows/context-update.md sync proposal fix-overview-metrics-null-semantics --mode apply",
+    "authority": "proposal",
     "mode": "apply",
+    "change_id": "fix-overview-metrics-null-semantics",
     "updated_context_files": [
-      "openspec/proposal-roadmap.md",
-      "openspec/proposal-roadmap-Phase-0.md",
-      "openspec/proposal-roadmap-Phase-1.md",
-      "openspec/proposal-roadmap-Phase-2.md",
-      "openspec/proposal-roadmap-Phase-3.md",
+      ".context/architecture/api_strategy.md",
+      ".context/architecture/data_architecture.md",
+      ".context/architecture/runtime_view.md",
+      ".context/domain/testing_strategy.md",
+      ".context/architecture/risks_and_debt.md",
+      ".context/architecture/README.md",
+      ".context/architecture/source/technical_architecture.md",
+      ".context/history/context-sync.jsonl",
       ".context/context-manifest.json"
-    ],
-    "history_path": ".context/history/context-sync.jsonl"
+    ]
   }
 }

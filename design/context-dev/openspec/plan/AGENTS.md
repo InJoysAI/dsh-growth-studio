@@ -1,6 +1,6 @@
 # Plan 生成指令
 
-> 当 `.agent/workflows/context-openspec.md plan` 被调用时执行此文件。
+> 当 `.agents/workflows/context-openspec.md plan` 被调用时执行此文件。
 
 ---
 
@@ -129,11 +129,12 @@
 **总纲+分Phase**
 - 总纲：保留阶段总览（含提案数与链接）、全局依赖图、**提案索引**、「【总纲+分Phase 形态】」；**删除**「【单文件形态】」，**总纲里不写提案块**
 - Phase 文件：用 `proposal-roadmap-phase.md.template`，文件名 `openspec/proposal-roadmap-Phase-<N>.md`，`<N>` 与总纲阶段编号一致（Phase 0 → `Phase-0`）
+- **提案状态**初始为 `proposed`；之后由 `specflow roadmap-status` 维护（`proposal` 完成时 `in-progress`，`archive` 时 `done`），不手改。
 - **唯一来源**：提案详情只写在 Phase 文件；总纲索引只放 Change ID、Phase、标题、优先级、前置依赖、状态、链接，且必须与 Phase 文件一致，不得两处各写一套
 - 全局依赖图只在总纲维护；Phase 文件只写本 Phase 内的执行顺序与跨阶段前置/产出
 
 **提案块的必填与按需**
-- 必填：Change ID、优先级、预计时间、状态、业务目标、范围边界、关联 Context 资产、关键任务、验证标准、依赖
+- 必填：Change ID、优先级、预计时间、状态、变更类型（`change_kind`：`code` / `docs-ops` / `mixed`，写明判定依据；决定后续 `tasks.md` 的模板）、业务目标、范围边界、关联 Context 资产、关键任务、验证标准、依赖
 - 按需：里程碑、风险、迁移与回滚、运维、KPI、验收场景、跨提案场景、跟踪清单；**没有来源依据就删除整块**，不得为填满模板而编造
 - 单文件形态下的简单提案尤其如此，只写必填项即可
 

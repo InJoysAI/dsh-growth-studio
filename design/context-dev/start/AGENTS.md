@@ -1,6 +1,6 @@
 # Context Start 指令
 
-> 当 `.agent/workflows/context-start.md <提案ID>` 被调用时执行此文件。
+> 当 `.agents/workflows/context-start.md <提案ID>` 被调用时执行此文件。
 
 ---
 
@@ -36,8 +36,6 @@
 ## 🎯 执行指令
 
 > ⛔ **必须依次执行所有步骤**，不得跳过或中断。
-
-> ⛔ **多工具并行规则**：花名册里「实现」配有多个工具时，开工前先按 `tools/collab/AGENTS.md` §8 查台账并登记 `认领`；同一提案已被他人认领则停止并报告。
 
 > ⛔ **中断恢复规则**：执行前必须先检查 `openspec/changes/<提案ID>/tasks.md` 中的任务状态：
 > - 若存在 `[x]` 或 `[/]` 标记 → **重新执行 Phase 0–3**（幂等读取，确保约束加载），**跳过 Phase 4**，从第一个 `[ ]` 或 `[/]` 任务直接进入 Phase 5

@@ -4,10 +4,6 @@ description: Initialize and enhance OpenSpec with Context assets (generate `conf
 
 # Context OpenSpec Integration
 
-## 协作协议（先执行）
-
-先读 `@design/context-dev/tools/collab/AGENTS.md`，然后：第一行输出身份行（本命令角色：**生成（domain/architecture/db/ui/legacy/project）或 规划（plan/proposal）**）→ 读花名册与待确认台账，处理发给自己的 `open` 记录 → 再执行下面的主任务 → 结束报告末尾追加「待确认」。
-
 ---
 
 ## ⛔ 第 1 步：Pre-flight Checklist（必须首先完成）
@@ -21,7 +17,7 @@ ls -la .context/criterion.md
 ```
 
 - ✅ 若存在 → 继续检查 2
-- ❌ 若不存在 → **⛔ STOP**，告知用户：`先运行 .agent/workflows/context-init.md`
+- ❌ 若不存在 → **⛔ STOP**，告知用户：`先运行 .agents/workflows/context-init.md`
 
 ### 检查 2: CLI Check
 
@@ -57,6 +53,6 @@ mkdir -p openspec/changes openspec/specs openspec/changes/archive
 
 > ⛔ **子命令模式只运行命中的那一个模块，完成后立即结束**，不得继续执行一键模式的其他步骤。可识别的子命令以权威流程 `@design/context-dev/openspec/AGENTS.md` §1 为准；**无法识别的参数：STOP 并向用户确认，不得回退为一键模式。**
 
-当执行 `proposal <change-id> [roadmap-doc]` 时，提案通过严格校验后必须基于实际 Roadmap、提案工件和 Context 资产动态生成三层评审 Prompt。Prompt 首行调用 `.agent/workflows/context-check.md review proposal <change-id>`，且明确 `check-report.md` 落盘门禁；不得只输出固定短命令。
+当执行 `proposal <change-id> [roadmap-doc]` 时，提案通过严格校验后必须基于实际 Roadmap、提案工件和 Context 资产动态生成三层评审 Prompt。Prompt 首行调用 `.agents/workflows/context-check.md review proposal <change-id>`，且明确 `check-report.md` 落盘门禁；不得只输出固定短命令。
 
 $ARGUMENTS
