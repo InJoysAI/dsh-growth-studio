@@ -347,10 +347,10 @@
 |------|-----|
 | **类型** | 实现债务 |
 | **严重性** | 中 |
-| **描述** | criterion §3.5 MUST 声明「系统文件权限仅限当前操作系统用户」（`criterion.md` §3.5），但 `src/storage/draft-store.ts` 与 `src/config-store.ts` 的 `writeFileSync` / `mkdirSync` 均未传 `mode`（`grep -rn "mode:" src/` 为空），实际权限取决于进程 umask。 |
-| **影响** | 多用户主机上草稿与配置（含 Injoys 令牌）可能对同机其他用户可读，与 MUST 声明不符。 |
+| **描述** | criterion §3.5 MUST 声明「系统文件权限仅限当前操作系统用户」（`criterion.md` §3.5），但 `src/storage/draft-store.ts` 与 `src/config-store.ts` 的 `writeFileSync` / `mkdirSync` 均未传 `mode`，实际权限取决于进程 umask。2026-10-20 已由 `fix-storage-file-permissions` 修复（见「解决方案」）。 |
+| **影响** | 多用户主机上草稿与配置（含 Injoys 令牌）可能对同机其他用户可读，与 MUST 声明不符。修复后**新写入**不再依赖 umask；**既有对象**（升级前创建的目录、此后不再保存的文件）保持原权限，属已知未覆盖面。 |
 | **目标解决时间** | N/A – 源文档未提供 |
-| **解决方案** | 补实现：草稿 / 配置文件写入显式 `mode: 0o600`、目录 `0o700`（或在统一落盘封装内集中设定），并补权限位断言测试。属实现变更，须走提案。 |
+| **解决方案** | 已落地（2026-10-20，`fix-storage-file-permissions`）：新增 `src/storage/local-fs.ts` 作为统一落盘封装，单点定义 `FILE_MODE = 0o600` / `DIR_MODE = 0o700`、`mkdirWithMode()`、`writeJsonAtomic()`（随机后缀临时文件 + `rename`）与 `createFileWriteLocks()`（按绝对文件路径归属的串行写锁）；`draft-store.ts` / `config-store.ts` 经该封装落盘，`verifyDirectoryWritable` 探测文件同样显式设 `mode`。权限位以创建期 `mode` 传递，不做写后 `chmod`（实际位为 `mode & ~umask`，umask 只能更严格）。**范围为新建对象**：既有目录不回改、既有文件在下一次保存时经原子替换收紧；一次性收紧既有对象须另立迁移提案。测试见 `tests/storage-permissions.spec.ts`（含既有 `0644` 文件保存后收紧、无临时文件残留、运行期探测文件系统是否保留 POSIX 位）。 |
 | **估算工作量** | N/A – 源文档未提供 |
 
 ### TD-014: 客户端 RPC 消费无测试覆盖（契约同步机制未闭环）
@@ -422,7 +422,7 @@
 | TD-010 | 技术债 | `calendar/` 与 `metrics/` 持久化契约未落地 | 中 | N/A | 待处理 | 2026-10-16 |
 | TD-011 | 技术债 | 错误码 `ops/not-found` 与 `ops/draft-not-found` 语义重复 | 低 | N/A | 待处理 | 2026-10-16 |
 | TD-012 | 技术债 | BrowserOS 能力开关契约与实现尚未对齐（安全边界缺口） | 高 | N/A | 待处理 | 2026-10-16 |
-| TD-013 | 技术债 | criterion 文件权限约束无实现落点 | 中 | N/A | 待处理 | 2026-10-16 |
+| TD-013 | 技术债 | criterion 文件权限约束无实现落点 | 中 | N/A | **已修复（2026-10-20，`fix-storage-file-permissions`；既有对象收紧另案）** | 2026-10-20 |
 | TD-014 | 技术债 | 客户端 RPC 消费无测试覆盖（契约同步机制未闭环） | 中 | N/A | 待处理 | 2026-10-16 |
 | TD-015 | 技术债 | `PlatformId` 含 `xiaohongshu`（9 值）但适配器未注册 | 中 | N/A | 待处理 | 2026-10-17 |
 | TD-016 | 技术债 | `ConfigStore.save()` 吞掉配置文件写盘失败，`config.save` 虚报成功（**违反 criterion §3.2 错误不得吞没**） | **高** | N/A | **已修复（2026-10-20，`fix-config-save-error-swallow`）** | 2026-10-20 |

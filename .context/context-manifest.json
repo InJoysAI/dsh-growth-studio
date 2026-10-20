@@ -111,19 +111,14 @@
     "ordering": "ascending_by_synced_at"
   },
   "last_context_sync": {
-    "source": "openspec/changes/archive/2026-10-20-fix-config-save-error-swallow/",
-    "synced_at": "2026-10-20T20:56:22+08:00",
-    "workflow": ".agents/workflows/context-update.md sync proposal fix-config-save-error-swallow --mode apply",
-    "change_id": "fix-config-save-error-swallow",
+    "synced_at": "2026-10-20T22:26:18+08:00",
+    "source": "openspec/changes/archive/2026-10-20-fix-storage-file-permissions/",
+    "workflow": ".agents/workflows/context-update.md sync proposal fix-storage-file-permissions --mode apply",
+    "change_id": "fix-storage-file-permissions",
     "authority": "proposal",
     "mode": "apply",
     "updated_context_files": [
-      ".context/architecture/cross_cutting_concepts.md",
-      ".context/architecture/data_architecture.md",
       ".context/architecture/risks_and_debt.md",
-      ".context/architecture/runtime_view.md",
-      ".context/architecture/source/technical_architecture.md",
-      ".context/architecture/system_design.md",
       ".context/domain/testing_strategy.md",
       ".context/history/context-sync.jsonl",
       ".context/context-manifest.json"
