@@ -61,6 +61,7 @@ C4Container
 | **BrowserOSClient** | TypeScript | 会话哨兵与浏览器驱动；能力开关 + 统一执行检查 | `src/browser/` |
 | **ConfigStore** | 本地 JSON | 配置读写；`resolveDshHome` 路径解析 | `src/config-store.ts` |
 | **DraftStore** | 本地 JSON | 草稿持久化；原子写 + 串行写锁 + 乐观锁 | `src/storage/draft-store.ts` |
+| **本地落盘原语（模块内实现）** | Node.js 文件系统 | 权限常量、建目录、JSON 原子写、写锁工厂；由 ConfigStore / DraftStore 复用，不新增业务容器或公开 API | `src/storage/local-fs.ts` |
 
 > **端口**：本插件**不监听任何网络端口**。`POST /api/ops` 由 DSH 宿主提供。
 
@@ -132,9 +133,9 @@ C4Component
 
 | 组件 | 职责 | 关键约束 |
 |------|------|---------|
-| **写锁管理器** | 并发控制 | 锁按**绝对文件路径**归属 → 不同库同 ID 草稿互不阻塞、互不覆盖 |
+| **写锁管理器** | 并发控制 | `local-fs.ts` 提供 `createFileWriteLocks()`，store 每实例持有独立锁集；锁按**绝对文件路径**归属，保持实例内串行，不是全局锁 |
 | **目录解析器** | 路径解析与固定 | 请求开始时捕获，**贯穿每一次落盘**（含跨 `await` 复合 RPC） |
-| **原子写入器** | 可靠落盘 | 临时文件 + `rename`；写前**准备并验证可写** |
+| **原子写入器** | 可靠落盘 | `local-fs.ts` 的 `writeJsonAtomic()`（随机后缀临时文件 + `rename`）；`mkdirWithMode()` 只建目录，不等于可写性校验，可写性校验仍由 `draft-store.ts` 的 `verifyDirectoryWritable()` 承载 |
 | **版本管理器** | 并发版本控制 | 写锁内校验 expectedVersion 并递增 version；MVP 不存历史 |
 | **发布守卫** | 状态真实性 | URL 解析器校验；渠道成员校验；**全渠道不变量在同一写锁内维持** |
 

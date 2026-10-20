@@ -1172,6 +1172,7 @@ $DSH_HOME/growth-studio/drafts/
 4. **读取与删除**：`drafts.get` 读取当前文件；`drafts.delete` 删除当前文件。MVP 不创建或管理草稿历史目录，也不自动清理用户可能已有的历史文件。
 5. **发布守卫**：编辑保存仍维护服务端治理字段与全渠道不变量，不能借简化历史功能绕过 URL 回填守卫。
 6. **保留边界**：运营指标的历史快照仍按 §3.1 保存，用于环比；此次取消的仅为草稿版本快照。未来若需历史功能，先定义需求与契约再实现。
+7. **统一落盘原语**（`fix-storage-file-permissions` 已实施）：`src/storage/local-fs.ts` 为仅依赖 Node 内置模块的叶子模块，提供权限常量、`mkdirWithMode()`、`writeJsonAtomic()`（同目录随机后缀临时文件 + `rename`）与 `createFileWriteLocks()`。草稿与配置 store 复用，后续指标 / 排期存储同样复用，但不表示其业务已实现。锁工厂每次返回独立锁集，由 store 实例持有，锁键与读改写范围保持不变，不新增跨实例 / 跨进程互斥。封装只抛原始 fs 错误；`DraftStorageError`、`ensureDirectory`、`verifyDirectoryWritable` 仍从 `draft-store.ts` 导出，配置侧仍由 `config.save` RPC 分支包装后交统一边界映射。`mkdirWithMode()` 不替代可写性校验；`local-fs` 不加入 `src/index.ts` 公开导出，不修改 RPC 契约。
 
 ---
 
@@ -1275,7 +1276,9 @@ $DSH_HOME/growth-studio/drafts/
 
 1. **凭证隔离与数据安全**：
    * Injoys MCP 访问令牌在前端支持显隐切换，网络传输使用标准 Bearer 规范；
-   * 本地草稿存储于用户目录 `$DSH_HOME/growth-studio/drafts/`，系统文件权限仅限当前操作系统用户。
+   * 本地草稿存储于用户目录 `$DSH_HOME/growth-studio/drafts/`，配置存于 `$DSH_HOME/ops-manager/config.json`（含 Injoys 令牌），系统文件权限仅限当前操作系统用户。
+   * **创建权限实现与残留**：草稿 / 配置通过 §4.4 的统一原语创建文件 `0o600`、目录 `0o700`，`verifyDirectoryWritable` 的探测文件同样显式设 `0o600`。实际权限为 `mode & ~umask`；不做写后 `chmod`。既有目录不回改，既有文件在再次保存时经原子替换收紧；不再保存的文件可能保持宽权限，一次性收紧另立迁移提案，不能宣称所有既有对象已符合要求。宿主 Cookie 临时副本仍由 `fix-browser-session-cookie-probe` 整体移除，不属于本次权限修复。
+   * **验证边界**：上述为 POSIX 权限位保证，不等于 Windows ACL 或特权用户访问控制。`tests/storage-permissions.spec.ts` 使用独立临时文件 `chmod 0o640` 后 `stat` 读回探测文件系统能力，不依赖被测封装；root 不因身份跳过创建位断言，只有访问拒绝类断言依实际 DAC 探针跳过；win32 或文件系统探测失败明确声明未覆盖。位断言为 `(mode & 0o077) === 0`，仅在 umask 不清除 owner 位时追加精确值。测试由收集前隔离与显式 `profileContext.home` 固定临时目录，不能以仓库 git 状态代替隔离证据。
 2. **会话数据零外发**：
    * BrowserOS 会话在本地沙箱运行，不向任何第三方服务上报 Cookie 数据。
    * 本约束**不因**「启用 `act` / 脚本类 BrowserOS 工具」而解除：能力开关只决定哪些浏览器工具可调用，Cookie 零外发属于业务守卫，独立生效（§3.12.6）。

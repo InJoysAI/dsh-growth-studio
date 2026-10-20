@@ -122,6 +122,8 @@
 - 写入前**准备并验证可写**（创建并删除唯一命名探测文件）；仅检查存在性不足
 - 存储错误码统一 `drafts/storage-unavailable`，须在**统一 RPC 错误边界**映射，覆盖所有写入口
 
+**当前落点**（源文档 §4.4 / §六.1）：`src/storage/local-fs.ts` 提供权限常量、递归建目录、JSON 原子写与写锁工厂，草稿和配置 store 复用；后续 `metrics/` / `calendar/` 须复用，不代表其业务持久化已实现。`DraftStorageError` / 目录校验仍从 `draft-store.ts` 导出，配置保存继续由 RPC 包装原始 fs 错误并在统一边界映射；封装不依赖项目内模块、不加入 `src/index.ts` 公开导出。既有对象残留与 POSIX 保证边界见 `security_policy.md`「存储层加密」，不降低上述 MUST。
+
 **持久化 MUST NOT**
 
 - 绕过 `config-store` / `draft-store` 模块直接操作配置文件或草稿文件

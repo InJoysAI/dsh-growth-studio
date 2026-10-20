@@ -347,10 +347,10 @@
 |------|-----|
 | **类型** | 实现债务 |
 | **严重性** | 中 |
-| **描述** | criterion §3.5 MUST 声明「系统文件权限仅限当前操作系统用户」（`criterion.md` §3.5），但 `src/storage/draft-store.ts` 与 `src/config-store.ts` 的 `writeFileSync` / `mkdirSync` 均未传 `mode`，实际权限取决于进程 umask。2026-10-20 已由 `fix-storage-file-permissions` 修复（见「解决方案」）。 |
-| **影响** | 多用户主机上草稿与配置（含 Injoys 令牌）可能对同机其他用户可读，与 MUST 声明不符。修复后**新写入**不再依赖 umask；**既有对象**（升级前创建的目录、此后不再保存的文件）保持原权限，属已知未覆盖面。 |
-| **目标解决时间** | N/A – 源文档未提供 |
-| **解决方案** | 已落地（2026-10-20，`fix-storage-file-permissions`）：新增 `src/storage/local-fs.ts` 作为统一落盘封装，单点定义 `FILE_MODE = 0o600` / `DIR_MODE = 0o700`、`mkdirWithMode()`、`writeJsonAtomic()`（随机后缀临时文件 + `rename`）与 `createFileWriteLocks()`（按绝对文件路径归属的串行写锁）；`draft-store.ts` / `config-store.ts` 经该封装落盘，`verifyDirectoryWritable` 探测文件同样显式设 `mode`。权限位以创建期 `mode` 传递，不做写后 `chmod`（实际位为 `mode & ~umask`，umask 只能更严格）。**范围为新建对象**：既有目录不回改、既有文件在下一次保存时经原子替换收紧；一次性收紧既有对象须另立迁移提案。测试见 `tests/storage-permissions.spec.ts`（含既有 `0644` 文件保存后收紧、无临时文件残留、运行期探测文件系统是否保留 POSIX 位）。 |
+| **描述** | criterion §3.5 MUST 声明「系统文件权限仅限当前操作系统用户」（`criterion.md` §3.5），修复前 `src/storage/draft-store.ts` 与 `src/config-store.ts` 的 `writeFileSync` / `mkdirSync` 均未传 `mode`，权限完全取决于进程 umask。2026-10-20 已由 `fix-storage-file-permissions` 落地新建对象的显式权限位（见「解决方案」）；不代表既有对象已全部收紧。 |
+| **影响** | 多用户主机上草稿与配置（含 Injoys 令牌）可能对同机其他用户可读，与 MUST 声明不符。修复后**新建对象**以显式 `mode` 限制组 / 其他用户权限，实际权限仍为 `mode & ~umask`；**既有目录**不回改，**既有文件**仅在再次保存时收紧，不再保存的文件保持原权限，属已知未覆盖面。 |
+| **目标解决时间** | 创建权限实现已解决（2026-10-20）；既有对象一次性收紧另案，未完成迁移 |
+| **解决方案** | 已落地（2026-10-20，`fix-storage-file-permissions`）：新增 `src/storage/local-fs.ts` 作为统一落盘封装，单点定义 `FILE_MODE = 0o600` / `DIR_MODE = 0o700`、`mkdirWithMode()`、`writeJsonAtomic()`（随机后缀临时文件 + `rename`）与 `createFileWriteLocks()`（按绝对文件路径归属、每次调用返回独立锁集；保持原有实例级锁语义，不承诺跨实例 / 跨进程互斥）；`draft-store.ts` / `config-store.ts` 经该封装落盘，`verifyDirectoryWritable` 探测文件同样显式设 `mode`。权限位以创建期 `mode` 传递，不做写后 `chmod`（实际位为 `mode & ~umask`，umask 只能更严格）。**范围为新建对象**：既有目录不回改、既有文件在下一次保存时经原子替换收紧；一次性收紧既有对象须另立迁移提案。测试见 `tests/storage-permissions.spec.ts`（含既有 `0644` 文件保存后收紧、无临时文件残留、运行期探测文件系统是否保留 POSIX 位）。 |
 | **估算工作量** | N/A – 源文档未提供 |
 
 ### TD-014: 客户端 RPC 消费无测试覆盖（契约同步机制未闭环）

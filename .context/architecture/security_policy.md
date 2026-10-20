@@ -110,6 +110,8 @@
 | **草稿内容** | 同上（本地用户目录） | 源文档 §六.1 |
 | **平台 Cookie / 会话** | **不落本插件**，由 BrowserOS 实例 Profile 持有（⚠️ `reuseHostBrowserProfile` 为待废弃历史配置，见 §5.1.3） | 源文档 §5.1.2、§5.1.3、§六.2 |
 
+**权限实现与保证边界**（源文档 §六.1；`fix-storage-file-permissions`）：草稿与配置通过 `src/storage/local-fs.ts` 在创建时显式设文件 `0o600` / 目录 `0o700`，实际为 `mode & ~umask`；探测文件同样受限。既有目录不做 `chmod`，既有文件仅在再次保存时经临时文件 + `rename` 替换收紧，未再保存的含令牌配置仍可能保持宽权限；一次性收紧另立迁移提案，不能将实现归档视作全量对象合规。此为 POSIX 权限位保证，不承诺 Windows ACL 或阻止特权用户访问；测试在不支持时明确未覆盖。`session-guard.ts` 的宿主 Cookie 临时副本不在本次修复范围，其整体移除仍属 `fix-browser-session-cookie-probe`，不因本次权限实现而认可该历史路径。
+
 ---
 
 ## 🚨 敏感数据处理

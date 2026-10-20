@@ -357,7 +357,7 @@ $DSH_HOME/
 | **删除权** | `drafts.delete` 删除当前草稿；MVP 不创建或管理历史快照；旧目录草稿**不做自动迁移**，由用户自行处置 |
 | **产品切换** | `defaultProduct` **仅切换生成上下文**，**不做数据隔离**；`ContentDraft` / `CalendarItem` **不新增 `productId`** |
 | **数据源归属** | 本地为**黄金主数据源**；Injoys Spreadsheet / Document 为**导出目标**（单向） |
-| **文件权限** | 系统文件权限**仅限当前操作系统用户** |
+| **文件权限** | 系统文件权限**仅限当前操作系统用户**（要求不变）；草稿 / 配置新建文件以 `mode: 0o600`、新建目录以 `0o700` 创建，实际受 umask 进一步收紧；既有目录不回改、未再保存的旧文件不收紧，不能宣称全量对象已合规（详见 `security_policy.md`「存储层加密」） |
 | **路径解析** | 统一经 `resolveDshHome`（`profileContext.home` → `DSH_HOME` → `~/.dsh` 回退） |
 
 ### 产品切换语义（已裁决）

@@ -175,9 +175,9 @@ interface TelemetryEntry {
 | 机制 | 规则 |
 |------|------|
 | **串行写锁** | 同一草稿的写操作串行化 |
-| **锁归属** | 按**绝对文件路径**归属 → 不同库同 ID 草稿互不阻塞、互不覆盖 |
+| **锁归属** | 按**绝对文件路径**归属 → 不同库同 ID 草稿互不阻塞、互不覆盖；`local-fs.ts` 的 `createFileWriteLocks()` 每次返回独立锁集，由 store 实例持有，保持原实例级语义，不提供跨实例 / 跨进程互斥 |
 | **乐观锁** | `version` 自增 + `expectedVersion` 校验 |
-| **原子写** | 临时文件 + `rename` |
+| **原子写** | `local-fs.ts` 的 `writeJsonAtomic()` 写同目录随机后缀临时文件再 `rename`；文件以 `0o600`、目录以 `0o700` 创建（实际受 umask 收紧），既有对象残留见 `security_policy.md`「存储层加密」；封装抛原始 fs 错误，草稿侧包装 `DraftStorageError`、配置侧由 `config.save` RPC 包装，统一 RPC 边界映射保持不变 |
 | **目录固定** | 单次操作内固定，**覆盖跨 `await` 的复合 RPC** 与**请求内每一次落盘** |
 | **全渠道不变量** | 渠道集合变化须在**同一写锁内**重算状态 |
 
