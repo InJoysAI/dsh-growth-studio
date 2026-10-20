@@ -289,7 +289,7 @@ interface RpcEnvelopeRequest {
 - `ItemStatus`: `planned` → `drafting` → `draft_ready` → `prefilled` → `published`（**五态，与 PRD §5.3.1 严格一一对应**；`approved` / `archived` 已于 2026-10-15 裁决移除，不得重新引入。状态机见架构文档 §4.2）
 - `ContentDraft.status`: `draft` | `ready_for_review` | `prefilled` | `published`（与 `ItemStatus` 是**两套不同枚举**，须经架构文档 §4.3 映射表转换，禁止直接互换赋值）
 - `SessionState`: `unknown` | `needs_login` | `authenticated` | `no_publish_permission`（**严禁退化为 boolean**，杜绝假阳性）
-- `PlatformMetrics`: `impressions`（曝光 / 阅读）与 `plays`（播放）**必须独立且可空**；无法获取时为 `null`，不得按 0 计算；`views` 仅为兼容字段（`impressions ?? plays ?? 0`），不得当作真实缺失指标的值
+- `PlatformMetrics`: `impressions`（曝光 / 阅读）与 `plays`（播放）**必须独立且可空**；无法获取时为 `null`，不得按 0 计算；`views` 仅为兼容字段（`impressions ?? plays ?? 0`），不得当作真实缺失指标的值；`windowStart` / `windowEnd`（必填 ISO 8601）表达**请求窗口**，与 `capturedAt` 采集时刻相互独立、不得互相代替，且**不构成「数值属于该窗口」的证明**（业务汇总须仅在可证实时计入，见 §4「指标真实性」）
 - `ContentDraft`: 含 `channelVariants`（含 `partition`）、`version`、`prefillResults`、`publishedUrls`（见架构文档 §4.1）
 - `CalendarItem`: 见架构文档 §4.1；与 `ContentDraft` 经 `documentId` 关联（`documentId` 是**草稿 ID，不是 Injoys 文档 ID**）
 - **产品切换语义**：`defaultProduct` 仅切换知识库检索与生成上下文，**不做数据隔离**；指标 / 排期 / 草稿 / 会话均全局共享，实体不新增 `productId`（见架构文档 §3.10.3）

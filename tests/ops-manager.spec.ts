@@ -1127,6 +1127,32 @@ describe('Ops Manager (Stage 4: Overseas Expansion & Multi-Language)', () => {
       expect(dataOverview.result.value.overviewMetrics.metricsAnnotation).toContain('非去重')
       expect(dataOverview.result.value.statuses.length).toBeGreaterThanOrEqual(2)
 
+      // New overview contract fields are present and the pre-existing ones survive.
+      const overview = dataOverview.result.value.overviewMetrics
+      expect(overview.measuredPlatforms).toEqual([])
+      expect(overview.unmeasuredPlatforms).toEqual(['wechat_mp', 'bilibili'])
+      expect(overview.totalImpressions).toBeNull()
+      expect(overview.totalEngagements).toBeNull()
+      expect(overview.totalFavorites).toBeNull()
+      expect(overview.scheduledCount).toBe(0)
+      expect(overview.readyChannelsCount).toBeGreaterThanOrEqual(0)
+      expect(overview.totalChannelsCount).toBe(2)
+      expect(overview.weeklyPipeline).toEqual({
+        total: 0,
+        completed: 0,
+        byStatus: { planned: 0, drafting: 0, draft_ready: 0, prefilled: 0, published: 0 },
+      })
+      // No local snapshot yet, so every delta is null rather than a fabricated 0%.
+      expect(overview.comparison).toEqual({
+        period: null,
+        impressionsDeltaPercent: null,
+        playsDeltaPercent: null,
+        engagementsDeltaPercent: null,
+        followersDeltaPercent: null,
+      })
+      // Fabricated sample trends are gone.
+      expect(dataOverview.result.value.trends).toEqual([])
+
       // Test workbench.prefillDraft
       const reqPrefill = new Request('http://localhost/api/ops', {
         method: 'POST',

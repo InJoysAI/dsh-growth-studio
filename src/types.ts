@@ -157,6 +157,14 @@ export interface DraftPrefillResult {
 export interface PlatformMetrics {
   platform: PlatformId
   capturedAt: string
+  /**
+   * Bounds of the REQUESTED statistics window (ISO 8601, half-open
+   * `[windowStart, windowEnd)`), derived from `metricsWindow` + capture start.
+   * NOT the same concept as `capturedAt` (the scrape moment), and not proof that
+   * the numbers below belong to that window (architecture §3.1「指标口径」).
+   */
+  windowStart: string
+  windowEnd: string
   impressions: number | null
   plays: number | null
   views: number // For backward compatibility: impressions ?? plays ?? 0
@@ -166,6 +174,65 @@ export interface PlatformMetrics {
   favorites?: number | null | undefined
   followerDelta?: number | null | undefined
   topPostTitle?: string | undefined
+}
+
+/**
+ * Week-to-date content pipeline progress (PRD §5.1.2「6 / 7 篇」口径).
+ *
+ * Counting scope is the CURRENT natural week (Monday-based). `completed` is
+ * `prefilled + published`; `byStatus` covers every `ItemStatus`.
+ */
+export interface WeeklyPipeline {
+  total: number
+  completed: number
+  byStatus: Record<ItemStatus, number>
+}
+
+/**
+ * Period-over-period change rates, relative to the previous equal-length window.
+ *
+ * Every delta is nullable on purpose: without a complete local metrics snapshot
+ * for the whole comparison window the value stays `null` (「暂无环比」) rather
+ * than being approximated or reported as a 0% "no change" (RISK-007).
+ */
+export interface MetricsComparison {
+  /** Comparison baseline window; `null` when no usable history exists. */
+  period: '7d' | '30d' | null
+  impressionsDeltaPercent: number | null
+  playsDeltaPercent: number | null
+  engagementsDeltaPercent: number | null
+  followersDeltaPercent: number | null
+}
+
+/**
+ * Aggregated metrics for the workbench dashboard (`workbench.overview`).
+ *
+ * Aggregation is gated at PLATFORM level: a summary number is only reported when
+ * every expected platform was measured (`measuredPlatforms` == the expected set).
+ * Partial coverage yields `null` instead of a total that silently drops channels
+ * (architecture 铁律 3 / criterion §4「汇总口径」). A real `0` from a platform is a
+ * valid value and participates in the sum, while `null` means "unknown".
+ */
+export interface OverviewMetrics {
+  totalImpressions: number | null
+  totalPlays: number | null
+  totalLikes: number | null
+  totalComments: number | null
+  totalShares: number | null
+  totalFavorites: number | null
+  totalFollowersDelta: number | null
+  /** Likes + comments + shares + favorites; `null` when ANY of the four is `null`. */
+  totalEngagements: number | null
+  scheduledCount: number
+  weeklyPipeline: WeeklyPipeline
+  readyChannelsCount: number
+  totalChannelsCount: number
+  /** Platforms successfully measured in this window. */
+  measuredPlatforms: PlatformId[]
+  /** Expected platforms that failed / are unsupported; their contribution is excluded. */
+  unmeasuredPlatforms: PlatformId[]
+  metricsAnnotation: string
+  comparison: MetricsComparison
 }
 
 /** Feedback item extracted from audience comments. */

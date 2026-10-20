@@ -151,12 +151,13 @@ export interface UserFeedbackItem {
 
 > 源文档 §4.1 定义（v1.4.1 补齐）；`workbench.overview.feedbackItems` 引用。实现侧 `src/types.ts` 已落地该类型（`category` 五值 / `priority` 三值一致），被 `src/feedback/issue-extractor.ts`、`src/injoys/client.ts` 消费。
 
-> ⚠️ **`windowStart` / `windowEnd` 状态说明（源文档先有、实现待补）**：
-> 这两个字段由**源文档 §4.1 定义**（用于表达「采集时刻 ≠ 指标所属周期」），
-> 但 **`src/types.ts` 的 `PlatformMetrics` 当前尚无这两个字段**，criterion §5.5 也未列出。
-> 因此本节所示类型是**源文档契约**，**不等于当前代码状态**。
-> 实现补齐须走 **SSoT-first**：先改 `src/types.ts`，再改 `src/ops-rpc.ts` 与 `src/analytics/`。
-> 与下方 `PlatformId` 口径注同类处理：**文档如实标注差异，不假装代码已具备**。
+> ✅ **`windowStart` / `windowEnd` 状态说明（2026-10-20 已落地）**：
+> 这两个字段由**源文档 §4.1 定义**（用于表达「采集时刻 ≠ 指标所属周期」），现已由
+> `fix-overview-metrics-null-semantics` 在 `src/types.ts` 的 `PlatformMetrics` 中补齐为**必填 `string`**，
+> 由 `src/analytics/metrics-collector.ts` 按请求窗口（`metricsWindow`，默认 `7d`）+ 采集发起时刻推导，
+> `live` 与 `unmeasured` 两条路径口径一致。
+> 二者表达**请求窗口**，**不构成「数值属于该窗口」的证明** —— 平台数值贡献须仅在可证实时计入汇总
+> （见 `api_strategy.md` §3.1「指标口径」）。
 
 > ⚠️ **`views` 使用警告**：其表达式在缺失时**会产出 0**，与「不可按 0 伪造缺失值」冲突。
 > `views` **仅供向后兼容，不得作为缺失指标的真实值** —— 业务逻辑须消费 `impressions` / `plays` 并处理 `null`。

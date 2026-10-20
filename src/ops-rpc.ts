@@ -23,6 +23,7 @@ import {
   isValidPublishUrl,
 } from './storage/draft-store.js'
 import { MetricsCollector } from './analytics/metrics-collector.js'
+import { aggregateOverviewMetrics } from './analytics/overview-aggregator.js'
 import type { ContentDraft, PlatformId, PlatformSessionStatus } from './types.js'
 import type { AdapterContext, ArticlePayload, VideoPayload } from './adapters/base.js'
 
@@ -53,6 +54,7 @@ export function registerOpsRpc(
   adapters: AdapterRegistry,
   draftStore?: DraftStore,
   browserOsClient?: BrowserOsMcpClient,
+  metricsCollectorOverride?: MetricsCollector,
 ): void {
   const connection = ctx?.get ? (ctx.get("connection", false) ?? (ctx as any).connection) : (ctx as any).connection
   if (!connection?.fetch?.register) return
@@ -62,7 +64,7 @@ export function registerOpsRpc(
   const isDryRunAllowed = Boolean(ctx?.get ? ctx.get("allowDryRun", false) : (ctx as any)?.allowDryRun)
   const browserDriver = new BrowserDriver(browserOsClient, { allowDryRun: isDryRunAllowed })
   adapters.setBrowserOsClient(browserOsClient, { allowDryRun: isDryRunAllowed })
-  const metricsCollector = new MetricsCollector({ browserOsClient })
+  const metricsCollector = metricsCollectorOverride ?? new MetricsCollector({ browserOsClient })
 
   connection.fetch.register({
     path: OPS_API_PATH,
@@ -501,56 +503,39 @@ export function registerOpsRpc(
 
             const statuses = sessionGuard.checkBrowserSessions(adapters.list(), activeTabs)
 
-            const platformMetrics = await metricsCollector.fetchPlatformMetrics(['wechat_mp', 'bilibili'], '7d')
+            // Phase 0 covers WeChat MP + Bilibili; this set is the expected
+            // platform set `P` used by the coverage gate.
+            const expectedPlatforms: PlatformId[] = ['wechat_mp', 'bilibili']
+            // The requested window comes from the caller, never a hardcoded '7d'.
+            const metricsWindow: '7d' | '30d' = payload.metricsWindow === '30d' ? '30d' : '7d'
+
+            const platformMetrics = await metricsCollector.fetchPlatformMetrics(
+              expectedPlatforms,
+              metricsWindow,
+            )
             const calendarItems = await injoys.listCalendarItems().catch(() => [])
             const injoysHealth = await injoys.testConnection().catch(() => ({ ok: false, latencyMs: 0, message: '' }))
 
-            let totalImpressions: number | null = null
-            let totalPlays: number | null = null
-            let totalLikes: number | null = null
-            let totalComments: number | null = null
-            let totalShares: number | null = null
-            let totalFollowersDelta: number | null = null
-
-            for (const m of platformMetrics) {
-              if (m.impressions !== null) totalImpressions = (totalImpressions ?? 0) + m.impressions
-              if (m.plays !== null) totalPlays = (totalPlays ?? 0) + m.plays
-              if (m.likes !== null) totalLikes = (totalLikes ?? 0) + m.likes
-              if (m.comments !== null) totalComments = (totalComments ?? 0) + m.comments
-              if (m.shares !== null) totalShares = (totalShares ?? 0) + m.shares
-              if (m.followerDelta !== null && m.followerDelta !== undefined) {
-                totalFollowersDelta = (totalFollowersDelta ?? 0) + m.followerDelta
-              }
-            }
-
             const readyCount = statuses.filter(s => s.state === 'authenticated' || (s as any).loggedIn).length
+
+            const overviewMetrics = aggregateOverviewMetrics({
+              outcomes: platformMetrics,
+              expectedPlatforms,
+              calendarItems,
+              readyChannelsCount: readyCount,
+              totalChannelsCount: expectedPlatforms.length,
+            })
 
             result = {
               ok: true,
               value: {
                 productName: cfg.defaultProduct,
-                overviewMetrics: {
-                  totalImpressions,
-                  totalPlays,
-                  totalLikes,
-                  totalComments,
-                  totalShares,
-                  totalFollowersDelta,
-                  scheduledCount: calendarItems.length,
-                  readyChannelsCount: readyCount,
-                  totalChannelsCount: 2, // Phase 0 WeChat MP + Bilibili
-                  metricsAnnotation: '全网非去重曝光与播放累计人次',
-                },
+                overviewMetrics,
                 statuses,
-                trends: [
-                  {
-                    keyword: 'Agentic AI',
-                    platform: 'wechat_mp',
-                    heatScore: 95,
-                    sampleTopic: '为什么全插件式智能体正在颠覆传统工作流？',
-                    relevanceToProduct: '核心卖点',
-                  },
-                ],
+                // No real trending-topic source exists yet (PRD names no channel),
+                // so the honest answer is an empty list rather than fabricated
+                // sample data (criterion §3.2).
+                trends: [],
                 calendarItems,
                 feedbackItems: [],
                 injoysConnected: injoysHealth.ok,

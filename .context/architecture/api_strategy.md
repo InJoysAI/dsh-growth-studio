@@ -141,10 +141,16 @@ interface RpcEnvelopeResponse {
 
 #### `workbench.overview` `[Phase 0 首版]`
 
-> ⛔ **实现状态警告**：本节为**契约定义**（忠实于源文档 §3.1），**当前实现并非字段级完整** ——
-> `src/ops-rpc.ts` 的响应缺少下述 `measuredPlatforms` / `unmeasuredPlatforms` / `totalEngagements` /
-> `totalFavorites` / `comparison` / `weeklyPipeline` 等字段，且**未实现部分缺失汇总语义**。
-> 详见 `risks_and_debt.md` **TD-007**。**不得据本节认为「部分缺失 → `null`」已在代码中生效。**
+> ✅ **实现状态（2026-10-20）**：本节契约已由 `fix-overview-metrics-null-semantics` 在
+> `src/ops-rpc.ts` + `src/analytics/overview-aggregator.ts` 落地 —— 响应已含
+> `measuredPlatforms` / `unmeasuredPlatforms` / `totalEngagements` / `totalFavorites` /
+> `comparison` / `weeklyPipeline`，且「部分缺失 → `null`」与「真实 `0` 参与求和」判定已生效
+> （`risks_and_debt.md` TD-007 已关闭）。
+>
+> ⚠️ **窗口真实性说明**：`windowStart` / `windowEnd` 表达**请求窗口**，本身不证明数值属于该窗口。
+> 当前采集侧页面口径为「累计 / 昨日数据」（B站累计播放、抖音按作品累加、视频号昨日增量），
+> **无法证实属于请求窗口**，故 `live` 采集结果的贡献按设计保持未知（`null`），
+> 真实环境下汇总值可能为「暂无数据」。采集侧窗口化解析能力的补齐不在该提案范围。
 
 **请求**
 
