@@ -220,6 +220,25 @@ describe('compareMetrics', () => {
     expect(chosen?.impressions).toBe(100)
   })
 
+  it('prefers the row whose windowEnd is closest to the expected previous window', () => {
+    const early = resolveMetricsWindow('7d', '2026-10-13T00:10:00.000Z')
+    const late = resolveMetricsWindow('7d', '2026-10-13T23:55:00.000Z')
+    const current = resolveMetricsWindow('7d', '2026-10-20T00:05:00.000Z')
+    const prev = previousEqualLengthWindow(current.windowStart, current.windowEnd)!
+    const chosen = selectBaselineRecord(
+      [
+        row('wechat_mp', { capturedAt: '2026-10-13T23:55:00.000Z', ...late, impressions: 999 }),
+        row('wechat_mp', { capturedAt: '2026-10-13T00:10:00.000Z', ...early, impressions: 100 }),
+      ],
+      'wechat_mp',
+      prev,
+      '7d',
+    )
+    expect(chosen?.capturedAt).toBe('2026-10-13T00:10:00.000Z')
+    expect(chosen?.impressions).toBe(100)
+    expect(chosen?.windowEnd).toBe(early.windowEnd)
+  })
+
   it('does not use a 30d record as a 7d baseline', () => {
     const thirty = row('wechat_mp', {
       windowStart: '2026-09-13T00:00:00.000Z',

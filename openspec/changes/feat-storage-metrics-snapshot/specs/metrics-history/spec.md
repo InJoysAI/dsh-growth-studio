@@ -53,7 +53,7 @@
 
 `workbench.overview` 的 `comparison` MUST 以本地指标历史快照中**上一个等长窗口**的记录作为对比基准：请求 `metricsWindow = '7d'` 时对比上一个 7 天窗口，`'30d'` 时对比上一个 30 天窗口，`comparison.period` MUST 置为对应的 `'7d'` / `'30d'`。
 
-**「历史足以覆盖完整对比窗口」的判定（可测试）**：设应采平台集合为 `P`（与汇总覆盖门一致），对**每一个** `p ∈ P`，在上一个等长窗口内**至少存在一条**已落盘的快照记录（因可证性门而为 live + verified）。窗口匹配 MUST 按 **UTC 日历日 + 窗口长度**，而不是采集瞬间的 ISO 字符串全等：记录的窗口长度 MUST 等于请求的 `'7d'` / `'30d'`（MUST NOT 用 30d 记录充当 7d 基准），且记录的 `windowStart` / `windowEnd` 的 UTC 日期 MUST 分别等于上一个等长窗口起止的 UTC 日期。因此两次采集只要落在对应日历日、即使时刻差若干分钟，仍可匹配。任一 `p ∈ P` 缺少这样的记录即判定为「历史不足」。同一 `p` 存在多条满足条件的记录时，取 `capturedAt` **最新**的一条。
+**「历史足以覆盖完整对比窗口」的判定（可测试）**：设应采平台集合为 `P`（与汇总覆盖门一致），对**每一个** `p ∈ P`，在上一个等长窗口内**至少存在一条**已落盘的快照记录（因可证性门而为 live + verified）。窗口匹配 MUST 按 **UTC 日历日 + 窗口长度**，而不是采集瞬间的 ISO 字符串全等：记录的窗口长度 MUST 等于请求的 `'7d'` / `'30d'`（MUST NOT 用 30d 记录充当 7d 基准），且记录的 `windowStart` / `windowEnd` 的 UTC 日期 MUST 分别等于上一个等长窗口起止的 UTC 日期。因此两次采集只要落在对应日历日、即使时刻差若干分钟，仍可匹配。任一 `p ∈ P` 缺少这样的记录即判定为「历史不足」。同一 `p` 存在多条满足条件的记录时，MUST 取 `|windowEnd - 预期 prev.windowEnd|` **最小**的一条；时刻差并列时再取 `capturedAt` 最新。
 
 历史不足以覆盖完整对比窗口时，四个 delta MUST 全部为 `null` 且 `comparison.period` MUST 为 `null`，MUST NOT 用不完整历史算近似百分比、MUST NOT 以 `0` 冒充「无变化」、MUST NOT 以缺失平台按 `0` 参与基准计算（`.context/criterion.md` §4「环比基准」；`.context/architecture/api_strategy.md` §3.1「环比基准来源」；RISK-007）。本要求对应验收项「历史不足为 null」。
 
@@ -76,7 +76,7 @@
 
 当且仅当「历史足以覆盖完整对比窗口」（见上一条要求：UTC 日历日对齐且窗口长度等于请求周期）时，`comparison` MUST 以该窗口的基准值与当前窗口值计算 `impressionsDeltaPercent` / `playsDeltaPercent` / `engagementsDeltaPercent` / `followersDeltaPercent`（`period` 为 `'7d'` / `'30d'`）。
 
-**基准选取规则（唯一可判定）**：窗口长度 MUST 等于请求周期；`windowStart` / `windowEnd` 的 UTC 日期 MUST 对齐上一个等长窗口。同一 `p` 存在多条满足条件的记录时，MUST 取 `capturedAt` **最新**的一条。`impressions` / `plays` 与互动、净增关注口径 MUST 与汇总口径一致：平台级覆盖门已要求每个 `p ∈ P` 有记录；某一平台对该指标为 `null`（图文无播放、视频无曝光）时 MUST 与 `overview-aggregator` 一样跳过该平台贡献、不得把 `null` 当 `0`，也不得因此把混合渠道的合法分口径总和打成 `null`。本要求对应验收项「历史充足 → delta 计算正确」。
+**基准选取规则（唯一可判定）**：窗口长度 MUST 等于请求周期；`windowStart` / `windowEnd` 的 UTC 日期 MUST 对齐上一个等长窗口。同一 `p` 存在多条满足条件的记录时，MUST 取 `|windowEnd - 预期 prev.windowEnd|` **最小**的一条；时刻差并列时再取 `capturedAt` 最新。`impressions` / `plays` 与互动、净增关注口径 MUST 与汇总口径一致：平台级覆盖门已要求每个 `p ∈ P` 有记录；某一平台对该指标为 `null`（图文无播放、视频无曝光）时 MUST 与 `overview-aggregator` 一样跳过该平台贡献、不得把 `null` 当 `0`，也不得因此把混合渠道的合法分口径总和打成 `null`。本要求对应验收项「历史充足 → delta 计算正确」。
 
 #### Scenario: 历史充足时 delta 计算正确
 

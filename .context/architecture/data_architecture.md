@@ -269,7 +269,7 @@ $DSH_HOME/
 | `ops-manager/config.json` | `OpsConfig` | 配置；`draftsDir` 可由用户修改 |
 | `growth-studio/drafts/{id}.json` | `ContentDraft` | 只保留当前内容，`version` 用于并发控制 |
 | `growth-studio/calendar/{id}.json` | `CalendarItem` | 排期黄金主数据源 |
-| `growth-studio/metrics/{YYYY-MM-DD}.json` | `PlatformMetrics[]` | 按 `(platform, capturedAt)` 追加，供环比；仅 `source !== 'unmeasured'` 且 `windowScope === 'verified'` 的结果写入（`src/storage/metrics-store.ts`） |
+| `growth-studio/metrics/{YYYY-MM-DD}.json` | `PlatformMetrics[]` | 按 `(platform, capturedAt)` 追加，供环比；仅 `source === 'live'` 且 `windowScope === 'verified'` 的结果写入（`src/storage/metrics-store.ts`） |
 
 ### MVP 单份草稿存储设计
 

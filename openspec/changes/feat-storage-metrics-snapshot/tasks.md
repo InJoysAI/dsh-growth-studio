@@ -36,7 +36,7 @@
 - [x] 3.4 新增 `src/analytics/metrics-comparison.ts`：环比基准与 delta 计算纯函数
   - 输入当前窗口结果 + 上一个等长窗口快照记录 + 应采平台集合 `P`，输出 `MetricsComparison`
   - **「历史充足」判定（可测试）**：对每个 `p ∈ P`，在上一个等长窗口内至少有一条窗口长度匹配且 UTC 日历日起止对齐的快照记录；任一平台缺失即为「历史不足」
-  - **基准选取规则**：窗口长度等于请求周期；UTC 日期对齐上一个等长窗口；禁止用 30d 记录充当 7d 基准；同一 `p` 多条满足时取 `capturedAt` **最新**的一条
+  - **基准选取规则**：窗口长度等于请求周期；UTC 日期对齐上一个等长窗口；禁止用 30d 记录充当 7d 基准；同日桶内取 `|windowEnd - 预期 prev.windowEnd|` 最小的一条，时刻差并列时再取 `capturedAt` 最新
   - 历史不足 → `period: null` 且四个 delta 全 `null`
   - 历史充足 → `period` 为 `'7d'` / `'30d'`，四个 delta 按基准计算（缺失值不按 `0` 计算）
 - [x] 3.5 在 `src/ops-rpc.ts` 的 `workbench.overview` 消费上述基准，替换「无历史 → 五键恒 `null`」的占位实现
@@ -47,7 +47,7 @@
   - [x] 4.1.1 落盘：采集成功后 `metrics/{YYYY-MM-DD}.json` 按 `(platform, capturedAt)` 追加；同日重复追加不丢既有记录
   - [x] 4.1.2 权限位：新建目录 `0o700`、新建快照文件 `0o600`（`stat().mode` 断言）
   - [x] 4.1.3 历史不足 → delta 为 `null`（含首次使用无历史、缺任一应采平台基准）
-  - [x] 4.1.4 历史充足 → delta 按上一个等长窗口基准计算正确（多条覆盖记录取 `capturedAt` 最新；两窗口长度的记录不混用，期望 delta 唯一可判定）
+  - [x] 4.1.4 历史充足 → delta 按上一个等长窗口基准计算正确（同日桶取与预期 `windowEnd` 时刻差最小的一条；两窗口长度的记录不混用，期望 delta 唯一可判定）
   - [x] 4.1.5 目录固定语义：单次操作内 metrics 根目录（`resolveDshHome` 下 `growth-studio/metrics`）固定，home 配置切换只对新操作生效；`draftsDir` 变更不改道指标历史路径（夹具改 home，不改 `draftsDir`）
   - [x] 4.1.6 落盘可证性门：`windowScope: 'unverified'` 结果不落盘；构造「unverified 累计值 + 历史看似充足」用例，断言 delta 仍为 `null`
 - [x] 4.2 集成测试

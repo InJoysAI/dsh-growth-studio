@@ -198,7 +198,7 @@ interface WorkbenchOverviewRequest {
 
 **环比基准来源**
 
-> ✅ **实现状态（2026-10-20）**：`feat-storage-metrics-snapshot` 已落地 `src/storage/metrics-store.ts` + `src/analytics/metrics-comparison.ts`。仅 `source !== 'unmeasured'` 且 `windowScope === 'verified'` 的采集结果按 `(platform, capturedAt)` 追加到 `$DSH_HOME/growth-studio/metrics/{YYYY-MM-DD}.json`；`comparison` 以上一个等长窗口（`windowStart`/`windowEnd` **等于**该窗口）为基准。当前生产 `live` 均为 `unverified`，故生产路径暂不落盘、`comparison` 在生产上仍五键 `null`，直至采集侧能产出窗口可证数据。正向路径由测试夹具证明。
+> ✅ **实现状态（2026-10-20）**：`feat-storage-metrics-snapshot` 已落地 `src/storage/metrics-store.ts` + `src/analytics/metrics-comparison.ts`。仅 `source === 'live'` 且 `windowScope === 'verified'` 的采集结果按 `(platform, capturedAt)` 追加到 `$DSH_HOME/growth-studio/metrics/{YYYY-MM-DD}.json`（`mock` / `unmeasured` / `unverified` 不落盘）。`comparison` 以上一个等长窗口为基准：窗口长度等于请求周期，且 `windowStart` / `windowEnd` 的 UTC 日历日对齐；同日桶内取与预期 `windowEnd` 时刻差最小的一条。当前生产 `live` 均为 `unverified`，故生产路径暂不落盘、`comparison` 在生产上仍五键 `null`，直至采集侧能产出窗口可证数据。正向路径由测试夹具证明。
 
 - 基准取自本地**历史指标快照**：每次采集成功且通过可证性门后按 `(platform, capturedAt)` 追加写入 `$DSH_HOME/growth-studio/metrics/{YYYY-MM-DD}.json`；
 - `comparison.period` 表示用于对比的**上一个等长窗口**；

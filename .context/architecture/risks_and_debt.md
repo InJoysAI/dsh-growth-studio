@@ -307,7 +307,7 @@
 
 ### TD-010: `calendar/` 与 `metrics/` 持久化契约未落地
 
-> ✅ **metrics 部分已落地（2026-10-20）**：由 `feat-storage-metrics-snapshot` 实现 `$DSH_HOME/growth-studio/metrics/{YYYY-MM-DD}.json` 读写（`src/storage/metrics-store.ts`，复用 `src/storage/local-fs.ts`），仅 `source !== 'unmeasured'` 且 `windowScope === 'verified'` 的结果落盘；`workbench.overview` 的 `comparison` 按上一个等长窗口读取基准，历史不足时 delta 为 `null`。当前生产 `live` 采集均为 `unverified`，故生产路径暂不落盘、`comparison` 在生产上仍恒 `null`，直至采集侧能产出窗口可证数据。`calendar/` 仍未落地，归 `feat-storage-calendar-items`。下方描述保留为历史记录（metrics 段已过时）。
+> ✅ **metrics 部分已落地（2026-10-20）**：由 `feat-storage-metrics-snapshot` 实现 `$DSH_HOME/growth-studio/metrics/{YYYY-MM-DD}.json` 读写（`src/storage/metrics-store.ts`，复用 `src/storage/local-fs.ts`），仅 `source === 'live'` 且 `windowScope === 'verified'` 的结果落盘；`workbench.overview` 的 `comparison` 按上一个等长窗口读取基准（UTC 日历日对齐 + 窗口长度等于请求周期；同日桶内取与预期 `windowEnd` 时刻差最小的一条），历史不足时 delta 为 `null`。当前生产 `live` 采集均为 `unverified`，故生产路径暂不落盘、`comparison` 在生产上仍恒 `null`，直至采集侧能产出窗口可证数据。`calendar/` 仍未落地，归 `feat-storage-calendar-items`。下方描述保留为历史记录（metrics 段已过时）。
 
 | 属性 | 值 |
 |------|-----|

@@ -70,7 +70,8 @@ export function windowsCoverSameUtcPeriod(
 
 /**
  * Among rows whose UTC-day window equals `prev` at the requested length, pick
- * the latest `capturedAt`. Equal timestamps keep the last row in file order.
+ * the smallest |windowEnd - prev.windowEnd|. Equal distance keeps the later
+ * `capturedAt` (and file order if timestamps also tie).
  */
 export function selectBaselineRecord(
   history: PlatformMetrics[],
@@ -82,10 +83,14 @@ export function selectBaselineRecord(
     row => row.platform === platform && windowsCoverSameUtcPeriod(row, prev, period),
   )
   if (matches.length === 0) return null
+  const prevEnd = Date.parse(prev.windowEnd)
+  const distance = (row: PlatformMetrics) => Math.abs(Date.parse(row.windowEnd) - prevEnd)
   let chosen = matches[0]
   for (let i = 1; i < matches.length; i++) {
     const row = matches[i]
-    if (row.capturedAt >= chosen.capturedAt) chosen = row
+    const delta = distance(row) - distance(chosen)
+    if (delta < 0) chosen = row
+    else if (delta === 0 && row.capturedAt >= chosen.capturedAt) chosen = row
   }
   return chosen
 }
