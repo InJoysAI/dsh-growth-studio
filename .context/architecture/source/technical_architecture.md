@@ -242,7 +242,7 @@ DSH Desktop 客户端通过 Cordis `slots` 注入扩展机制工作：
 > **当前实现说明（`fix-overview-metrics-null-semantics` 已归档）**：上方响应形状已由 `src/types.ts` 的 `OverviewMetrics` / `MetricsComparison` / `WeeklyPipeline` 与宿主汇总实现承载。请求的 `metricsWindow` 贯穿调用；`windowStart` / `windowEnd` 为该请求的闭区间边界，不构成原始数值属于该周期的证明。
 > `PlatformMetricsOutcome` 是基础 `PlatformMetrics` 之外的宿主采集结果扩展，使用 `source` / `windowScope` / `note` 标注来源与周期可证性。当前 `measuredPlatforms` 仅含应采集合 `P` 中 `source !== 'unmeasured'` 且 `windowScope === 'verified'` 的平台，`unmeasuredPlatforms = P - measuredPlatforms`；不是只凭抓取成功就计入。当前生产 `live` 页面数值属于累计/单日口径，标为 `unverified`，保留原始值但不进入窗口汇总；显式 `mock` 仅用于测试。
 > `weeklyPipeline` 按既有 Injoys 返回列表的本周行派生，筛选后集合为空时返回全零，原始非空列表不能被无条件清空。当前代码以 UTC 推导周一起算的自然周；用户本地周边界的时区对齐尚未实现，此说明记录实现边界，不新增产品时区承诺。
-> 当前尚无本地指标快照读写，`comparison` 五键均为 `null`；下方环比基准来源是 `feat-storage-metrics-snapshot` 待实现的目标契约。本地排期主数据、真实窗口化采集与驾驶舱 UI 均不由本提案新增。
+> `feat-storage-metrics-snapshot` 已归档：`src/storage/metrics-store.ts` 按 `(platform, capturedAt)` 追加 `$DSH_HOME/growth-studio/metrics/{YYYY-MM-DD}.json`；仅 `source === 'live'` 且 `windowScope === 'verified'` 落盘（`mock` / `unmeasured` / `unverified` 不写入）。`comparison` 以上一个等长窗口为基准：窗口长度等于请求周期，`windowStart` / `windowEnd` 的 UTC 日历日对齐；同日桶内取与预期 `windowEnd` 时刻差最小的一条。当前生产 `live` 均为 `unverified`，故生产路径暂不落盘、`comparison` 在生产上仍五键 `null`，直至采集侧能产出窗口可证数据。本地排期主数据、真实窗口化采集与驾驶舱 UI 均不由该提案新增。
 
 **部分缺失汇总规则（服务端强制口径）**：
 
@@ -258,14 +258,16 @@ DSH Desktop 客户端通过 Cordis `slots` 注入扩展机制工作：
 
 **环比基准来源（已明确）**：
 
-* 基准取自本地**历史指标快照**：每次 `ops_fetch_metrics` / `workbench.overview` 采集成功后，
+* 基准取自本地**历史指标快照**：每次 `ops_fetch_metrics` / `workbench.overview` 采集成功且通过可证性门后，
   将 `PlatformMetrics` 按 `(platform, capturedAt)` 追加写入本地指标历史
   `$DSH_HOME/growth-studio/metrics/{YYYY-MM-DD}.json`。
-* `comparison.period` 表示用于对比的**上一个等长窗口**（`7d` 对上一个 7 天，`30d` 同理）。
+* **落盘可证性门**：仅 `source === 'live'` 且 `windowScope === 'verified'`；`mock` / `unmeasured` / `unverified` MUST NOT 成为环比基准。
+* `comparison.period` 表示用于对比的**上一个等长窗口**（`7d` 对上一个 7 天，`30d` 同理）。窗口匹配按 UTC 日历日 + 窗口长度，不要求采集瞬间 ISO 字符串全等。
 * 若历史快照不足以覆盖完整上一个窗口 → 对应 delta 为 **`null`**（UI 显示「暂无环比」），
   **不得**用不完整历史算出一个近似百分比。
 * 因此环比是**基于本地留存的次级指标**，其可用性取决于用户已积累的历史采集次数；
   首次使用时全部 delta 为 `null` 属**预期行为**，不是缺陷。
+* 实现落点：`src/storage/metrics-store.ts` + `src/analytics/metrics-comparison.ts`（提案 `feat-storage-metrics-snapshot`，已归档）。
 
 ---
 
@@ -1237,7 +1239,7 @@ $DSH_HOME/growth-studio/drafts/
    ├── calendar/
    │   └── {itemId}.json               # CalendarItem 排期项（§4.1）
    └── metrics/
-       └── {YYYY-MM-DD}.json           # 指标历史快照，供环比计算（§3.1）
+       └── {YYYY-MM-DD}.json           # 指标历史快照（仅 live+verified 追加，§3.1）
    ```
 
    > 配置另存于 `$DSH_HOME/ops-manager/config.json`（§3.10）。

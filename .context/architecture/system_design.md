@@ -127,7 +127,7 @@ C4Context
 |------|------|---------|-----------|
 | **草稿库** | `ContentDraft` 当前内容 | 本地 JSON：`growth-studio/drafts/{id}.json` | 单机强一致（临时文件 + `rename` 原子写 + 串行写锁） |
 | **排期库** | `CalendarItem`（排期黄金主数据源） | 本地 JSON：`growth-studio/calendar/{id}.json` | 单机强一致 |
-| **指标历史** | 环比计算基准 | 本地 JSON：`growth-studio/metrics/{YYYY-MM-DD}.json` | 追加写（`platform, capturedAt`） |
+| **指标历史** | 环比计算基准 | 本地 JSON：`growth-studio/metrics/{YYYY-MM-DD}.json`（`src/storage/metrics-store.ts`） | 仅 `live` + `verified` 按 `(platform, capturedAt)` 追加；目录经 `resolveDshHome`，不绑 `draftsDir` |
 | **配置** | `OpsConfig` | `$DSH_HOME/ops-manager/config.json` | 单文件原子替换；预检通过后、写盘前热更新，失败不回滚已合并内存（非空边界见 `api_strategy.md` §3.6），不承诺内存与磁盘跨介质事务 |
 | **Injoys Spreadsheet** | 排期**单向导出**目标 + 可导入来源 | Injoys MCP `applyOperations` / `read` | 最终一致；以 `externalRowId` 幂等 |
 | **Injoys Document** | 物料沉淀 | Injoys MCP `document.create`（幂等更新） | 最终一致 |

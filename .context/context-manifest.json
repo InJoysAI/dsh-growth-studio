@@ -30,7 +30,7 @@
       "path": ".context/architecture/source/technical_architecture.md",
       "archived_to": ".context/architecture/source/technical_architecture.md",
       "type": "system_architecture",
-      "content_hash": "38d9fbf8b31c9ea7c961aa59447e0ffe3b964031cd5d0a5bbe51c659c1a124e1",
+      "content_hash": "de1c0c3a53c7415aab5c67cf286ddc8f360615165b80155556082d6811d32936",
       "status": "archived"
     },
     "UI_SPEC": {
@@ -111,22 +111,17 @@
     "ordering": "ascending_by_synced_at"
   },
   "last_context_sync": {
-    "synced_at": "2026-10-20T22:30:54+08:00",
-    "source": "openspec/changes/archive/2026-10-20-fix-storage-file-permissions/",
-    "workflow": ".agents/workflows/context-update.md sync proposal fix-storage-file-permissions --mode apply",
-    "change_id": "fix-storage-file-permissions",
+    "synced_at": "2026-10-20T23:56:58+08:00",
+    "source": "openspec/changes/archive/2026-10-20-feat-storage-metrics-snapshot/",
+    "workflow": ".agents/workflows/context-update.md sync proposal feat-storage-metrics-snapshot --mode apply",
+    "change_id": "feat-storage-metrics-snapshot",
     "authority": "proposal",
     "mode": "apply",
     "updated_context_files": [
-      ".context/architecture/risks_and_debt.md",
-      ".context/domain/testing_strategy.md",
-      ".context/architecture/security_policy.md",
-      ".context/architecture/data_architecture.md",
-      ".context/architecture/tech_stack.md",
-      ".context/architecture/cross_cutting_concepts.md",
-      ".context/architecture/container_component_view.md",
-      ".context/architecture/api_strategy.md",
       ".context/architecture/source/technical_architecture.md",
+      ".context/architecture/data_architecture.md",
+      ".context/architecture/system_design.md",
+      ".context/architecture/api_strategy.md",
       ".context/history/context-sync.jsonl",
       ".context/context-manifest.json"
     ],

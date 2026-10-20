@@ -778,11 +778,14 @@ interface BrowserOsCapabilityDescriptor {
 > `measuredPlatforms` / `unmeasuredPlatforms` / `totalEngagements` / `totalFavorites` /
 > `comparison` / `weeklyPipeline` 均已落地，平台级覆盖门与「真实 `0` 参与求和」判定生效
 > （`src/analytics/overview-aggregator.ts`；`risks_and_debt.md` **TD-007 已关闭**）。
-> 提案归档见 `openspec/changes/archive/2026-10-20-fix-overview-metrics-null-semantics/`，规范见 `openspec/specs/workbench-overview/spec.md`。
+> 指标历史快照与环比基准已由 `feat-storage-metrics-snapshot` 落地（归档
+> `openspec/changes/archive/2026-10-20-feat-storage-metrics-snapshot/`）：仅 `live` + `verified` 追加到
+> `metrics/{YYYY-MM-DD}.json`，`comparison` 按 UTC 日历日对齐上一个等长窗口。
+> 规范见 `openspec/specs/workbench-overview/spec.md` 与 `openspec/specs/metrics-history/spec.md`。
 >
 > ⚠️ **窗口可证性边界**：`windowStart` / `windowEnd` 表达**请求窗口**，不证明数值属于该窗口；
-> 当前采集页面口径为「累计 / 昨日数据」，`live` 结果标记 `windowScope: 'unverified'` 且不计入汇总，
-> 当前生产路径的窗口汇总因此为 `null`（「暂无数据」）。原始抓取成功与窗口贡献可用须分别判断；采集侧窗口化解析能力不在该提案范围。
+> 当前采集页面口径为「累计 / 昨日数据」，`live` 结果标记 `windowScope: 'unverified'` 且不计入汇总、**不写入**快照，
+> 当前生产路径的窗口汇总与 `comparison` 因此为 `null`。原始抓取成功与窗口贡献可用须分别判断；采集侧窗口化解析能力不在该提案范围。
 
 ### 已定义但**尚未实现**（新增须先补契约再实现）
 
