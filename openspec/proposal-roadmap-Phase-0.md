@@ -3,14 +3,14 @@
 > **返回总纲**: [proposal-roadmap.md](./proposal-roadmap.md)
 > **文件名**: `proposal-roadmap-Phase-0.md`（编号与总纲阶段总览一致：Phase 0 → `Phase-0`）
 > **状态**: proposed
-> **来源**: `.context/criterion.md` §3.1 / §3.2 / §4 / §5.4 / §5.5 / §6；`.context/architecture/risks_and_debt.md`（RISK-002 / RISK-003 / RISK-006 / RISK-007；TD-007 / TD-008 / TD-009 / TD-012 / TD-013）；`.context/architecture/adr_009_browseros_capability_management.md`；`.context/architecture/api_strategy.md` §2.3 / §3.1 / §3.4 / §3.6 / §3.7 / §3.9 / §3.10；`.context/architecture/data_architecture.md`；`.context/architecture/security_policy.md`；`.context/domain/business_rules.md`（BR-052 / BR-074）；`.context/domain/risks_and_debt.md`（PD-006）；`.context/domain/testing_strategy.md` 模块 1 / 3 / 5 / 6 / 8
-> **预计工作量与周期**: ~16 人日（**规划估算**；源文档对 TD-007 ~ TD-013 的工作量字段一律标注 `N/A – 源文档未提供`）
+> **来源**: `.context/criterion.md` §3.1 / §3.2 / §4 / §5.4 / §5.5 / §6；`.context/architecture/risks_and_debt.md`（RISK-002 / RISK-003 / RISK-005 / RISK-006 / RISK-007；TD-007 / TD-008 / TD-009 / TD-012 / TD-013）；`.context/architecture/adr_009_browseros_capability_management.md`；`.context/architecture/api_strategy.md` §2.3 / §3.1 / §3.4 / §3.6 / §3.7 / §3.9 / §3.10；`.context/architecture/data_architecture.md`；`.context/architecture/security_policy.md`；`.context/domain/business_rules.md`（BR-052 / BR-074）；`.context/domain/risks_and_debt.md`（PD-006）；`.context/domain/testing_strategy.md` 模块 1 / 3 / 5 / 6 / 8
+> **预计工作量与周期**: ~17 人日（**规划估算**；源文档对 TD-007 ~ TD-013 的工作量字段一律标注 `N/A – 源文档未提供`）
 
 ## 阶段目标与范围
 
 - **目标与交付结果**：让**既有**已实现接口先「不说假话、不越界」——修掉触碰 `criterion.md` 铁律、数据真实性与安全边界的实现缺口，使 Phase 0 端到端闭环（排期 → AI 生成 → 本地草稿 → 真实预填 → 人工确认回填 → 真实指标采集）具备可信的数据基座，为 Phase 1 起的宿主契约建设与 Phase 3 的客户端 UI 提供不违反铁律的接口。
 - **In / Out**：
-  - ✅ In：`workbench.overview` 的汇总空值语义与真实数据来源（TD-007 及 `src/ops-rpc.ts` 中硬编码的热点样例数据）；`metrics/` 历史快照落盘（TD-010 的 metrics 部分，作为环比基准）；生成 / 复盘 / 海外 Launch 路径的未授权 Injoys 文档写入（TD-008，含第 5 处 `ops_draft_launch_kit`）；`ops_generate_review` 与 `ops_draft_launch_kit` 的假文档编号（TD-009，两处）；BrowserOS **能力开关**契约与统一执行检查（TD-012，按 `adr_009` 取代旧「固定动作白名单」口径）；`browser.sessions` 会话探测的假阳性修复与 `ops_inspect_sessions` 按名登记（RISK-003 / PD-006）；落盘文件与目录权限位（TD-013）；`injoys.test` 补可空文档数（`documentCount: number | null`）。
+  - ✅ In：`workbench.overview` 的汇总空值语义与真实数据来源（TD-007 及 `src/ops-rpc.ts` 中硬编码的热点样例数据）；`metrics/` 历史快照落盘（TD-010 的 metrics 部分，作为环比基准）；生成 / 复盘 / 海外 Launch 路径的未授权 Injoys 文档写入（TD-008，含第 5 处 `ops_draft_launch_kit`）；`ops_generate_review` 与 `ops_draft_launch_kit` 的假文档编号（TD-009，两处）；BrowserOS **能力开关**契约与统一执行检查（TD-012，按 `adr_009` 取代旧「固定动作白名单」口径）；`browser.sessions` 会话探测的假阳性修复与 `ops_inspect_sessions` 按名登记（RISK-003 / PD-006）；落盘文件与目录权限位（TD-013）；`injoys.test` 补可空文档数（`documentCount: number | null`）；配置写盘失败如实上报（RISK-005 缓解措施 ③，消除 `config.save` 的虚报成功）。
   - ❌ Out：排期 `calendar/` 主数据与生成 / 导出 / 导入（属 Phase 1）；`workbench.sinkToInjoysDoc` 唯一授权沉淀入口的**实现**（属 Phase 2，本 Phase 只负责移除未授权写入）；任何客户端 UI（属 Phase 3）；统一「未找到」错误码与客户端消费测试（属 Phase 4）；`browser.login.*` 前台登录（PD-001，属 Phase 2 PoC）；`ops_keyword_research` / `ops_generate_hooks`（阶段未定，见 Phase 2 的 `feat-tools-lifecycle-gaps`）；双向同步与冲突解决（PRD Phase 3，**不在本路线图范围**，见 `constraints.md`「未到阶段的能力不提前实现」）。
 - **适用约束**：
   - `criterion.md` §3.2「禁止虚报成功 / 禁止伪造、硬编码指标数据（无法获取的字段必须为 `null`）」；
@@ -542,46 +542,65 @@
 
 **Change ID:** `fix-storage-file-permissions`  
 **优先级:** P1  
-**预计时间:** 1 人日（规划估算）  
+**预计时间:** 1.25 人日（规划估算；含统一落盘封装的写锁原语抽取，供提案 2 复用）  
 **状态:** in-progress
 
 **业务目标（Business Goal）**:
-- 使 `criterion.md` §3.5「系统文件权限仅限当前操作系统用户」在实现层成立，避免多用户主机上草稿与配置（含 Injoys 令牌）被同机其他用户读取。
+- 使 `criterion.md` §3.5「系统文件权限仅限当前操作系统用户」在实现层对**新写入**成立，避免多用户主机上草稿与配置（含 Injoys 令牌）被同机其他用户读取。
 
 **范围边界（In / Out）**:
 
 | 类型 | 内容 |
 |------|------|
-| ✅ In | 草稿 / 配置文件写入显式 `mode: 0o600`、目录 `0o700`（或在统一落盘封装内集中设定） |
-| ✅ In | 补权限位断言测试 |
+| ✅ In | 新建草稿 / 配置文件写入显式 `mode: 0o600`、新建目录 `0o700`（在统一落盘封装内集中设定），并把按绝对文件路径的串行写锁一并抽入该封装（使提案 2 可复用同一封装而不自建第二套锁） |
+| ✅ In | 补权限位断言测试（含既有 `0644` 文件在保存后收紧为 `0o600`） |
 | ❌ Out | 存储加密（源文档未提供，N/A） |
 | ❌ Out | `metrics/` / `calendar/` 的业务实现（分别属本 Phase 提案 2 与 Phase 1） |
+| ❌ Out | **既有**文件 / 目录权限位的一次性收紧（`mkdir` 不修正已存在目录，既有目录不回改；须另立迁移提案） |
+| ❌ Out | `ConfigStore.save()` 吞掉配置文件写盘失败的行为（属独立缺陷，须独立登记后另行修复） |
 
 **关联 Context 资产**:
 
 | Scope | 关联资产 | 关联说明 |
 |-------|---------|----------|
-| criterion | `.context/criterion.md` | §3.5 文件权限 MUST |
-| architecture | `.context/architecture/risks_and_debt.md` | TD-013（中） |
+| criterion | `.context/criterion.md` | §3.5 文件权限 MUST 与落盘 MUST/MUST NOT（原子写、写锁、统一错误码）；§3.2「错误不得吞没」与不虚报成功（用于界定 `ConfigStore.save()` 吞错的独立缺陷）；§3.4 令牌返回边界 |
+| architecture | `.context/architecture/risks_and_debt.md` | TD-013（中，本提案偿还对象）；RISK-005（存储不可用被误报，含缓解措施 ③）；RISK-010（测试污染真实 `$DSH_HOME`） |
 | architecture | `.context/architecture/api_strategy.md` | §5.3「存储加密 N/A，依赖文件系统权限仅限当前 OS 用户」 |
+| architecture | `.context/architecture/constraints.md` | §架构铁律四条定义（本提案触碰「存储」，须逐条声明保持方式） |
+| architecture | `.context/architecture/security_policy.md` | 「存储层加密」表：Injoys Token 与草稿内容均以文件系统权限为唯一保护方式 |
+| architecture | `.context/architecture/data_architecture.md` | 「数据治理 / 文件权限」行；物理数据模型给出 `ops-manager/config.json` 与 `drafts/{id}.json` 两个落盘位置 |
+| architecture | `.context/architecture/tech_stack.md` | 「持久化 MUST」逐条列出原子写、写锁、目录固定、文件权限与统一错误码 |
+| domain | `.context/domain/testing_strategy.md` | 「风险覆盖对照」TD-013 行：工程检查口径为「落盘文件 `0o600` / 目录 `0o700` 权限位，无对应 BDD 场景」 |
 
 **关键任务**:
-1. 在统一落盘封装内为文件写入设 `mode: 0o600`、目录建立设 `0o700`（0.5 人日）
+1. 在统一落盘封装内为文件写入设 `mode: 0o600`、目录建立设 `0o700`，并把按绝对文件路径的串行写锁一并抽入该封装（0.75 人日）
 2. 覆盖 `draft-store.ts` 与 `config-store.ts` 的 `writeFileSync` / `mkdirSync`（0.25 人日）
-3. 补权限位断言测试（0.25 人日）
+3. 补权限位断言测试（含既有 `0644` 文件保存后收紧为 `0o600`）（0.25 人日）
+
+**风险与处理决定（按需）**:
+
+| 风险 | 影响 | 处理决定及理由 |
+|------|------|----------|
+| 既有**目录**残留（升级前 `drafts/` / `ops-manager/` 为 `0755`） | 同机其他用户可列出文件名（内容仍受 `0600` 保护）；「权限仅限当前用户」对目录不成立 | **接受并显式登记**：`mkdir` 不修正已存在目录、无自愈路径；本提案只声明「新写入满足 MUST」，一次性收紧需自己的扫描范围 / 时机 / 失败语义，属独立迁移提案（Out） |
+| 既有**文件**残留（升级前草稿 / 配置宽于 `0o600`） | 至下一次保存前保持原权限（含明文令牌的 `config.json`） | 原子写（临时文件 + `rename`）使下一次保存自然收紧为 `0o600`，无需迁移；补「既有 `0644` → 保存后 `0o600`」用例证明该路径；不再被保存的文件属上一行的残留范畴 |
+| TD-013（中）文件权限约束无实现落点 | umask 宽松时同机其他用户可读草稿正文与含令牌配置 | 本提案偿还：显式 `mode` 后不再依赖 umask，权限位在统一落盘封装单点定义 |
+| RISK-005（中）存储不可用被误报为成功 | `ConfigStore.save()` 吞掉配置文件写盘失败，`config.save` 仍返回成功（违反 §3.2「错误不得吞没」/ 不虚报成功与 RISK-005 缓解措施 ③） | **本提案不修**（会变更 RPC 成功 / 失败语义，属契约变更）；须独立登记后另立提案修复。澄清：criterion §3.5 保存前的目录预检只覆盖 `draftsDir`，**不覆盖**配置文件自身写盘失败 |
+| RISK-010（高）测试污染真实 `$DSH_HOME` | 权限用例直接实例化 `ConfigStore` 会改写开发者真实配置 | 用例使用独立 `DSH_HOME` / 显式 `profileContext.home`，隔离在测试收集前生效（`tests/setup-isolation.ts`），并在 `finally` 恢复 |
+| 下游自建第二套落盘口径 | `metrics/` 需要写锁与权限位；封装若不提供写锁，下游将自建第二套锁，两套口径漂移 | 本提案把权限位、原子写与写锁一并抽入统一封装（关键任务 1）；下游提案自身承诺不修改 `draft-store.ts` / `config-store.ts`，本决定使其成立 |
+| 权限断言在 `root` / `win32` / 异常 umask 下失真 | 用例误报失败或空转通过（`mkdtemp` 目录本身即 `0700`） | 主判据用「组 / 其他用户位全为 0」，精确值仅在标准 umask 下追加断言；目录断言的目标目录不得预先创建；`root` / `win32` 显式跳过并输出原因 |
 
 **验证标准**:
 
 | 验收项 | 验收条件 | 验收方式 |
 |--------|----------|----------|
-| 文件权限 | 新建草稿 / 配置文件权限为 `0o600` | 单元测试断言 `stat().mode` |
-| 目录权限 | 存储目录权限为 `0o700` | 单元测试 |
-| 无遗漏 | `src/` 内落盘调用均设定模式 | `grep` + 代码审查 |
+| 文件权限 | 新建草稿 / 配置文件权限为 `0o600`；既有 `0644` 文件在保存后收紧为 `0o600` | 单元测试断言 `stat().mode`（主判据为组 / 其他位全 0，标准 umask 下追加精确值） |
+| 目录权限 | **新建**存储目录权限为 `0o700`（既有目录不回改，属已知未覆盖面） | 单元测试 |
+| 无遗漏 | `src/` 内落盘调用均设定模式；唯一排除项为 `src/browser/session-guard.ts` 的宿主 Cookie 临时副本（由本 Phase 提案 6 整体移除） | `grep`（含 `copyFileSync` 与 `fs/promises` 写法）+ 代码审查 |
 
 **依赖**:
 - 前置: 无
-- 被依赖: `feat-storage-metrics-snapshot`
-- 约束: 后续 `metrics/` / `calendar/` 落盘须复用同一封装（Phase 1 / 本 Phase 提案 2）；`metrics/` 部分即 `feat-storage-metrics-snapshot` 的显式前置
+- 被依赖: `feat-storage-metrics-snapshot`（快照写入复用本提案的统一落盘封装，含写锁与权限位）；Phase 1 `feat-storage-calendar-items`（`calendar/` 落盘复用同一封装）
+- 约束: 后续 `metrics/` / `calendar/` 落盘须复用同一封装（Phase 1 / 本 Phase 提案 2）；`metrics/` 部分即 `feat-storage-metrics-snapshot` 的显式前置；**既有对象权限位的一次性收紧不在本提案范围**（既有目录不回改，须另立迁移提案）
 
 ---
 
@@ -635,22 +654,92 @@
 
 ---
 
+### 提案 9: 配置写盘失败如实上报（不虚报成功）
+
+**Change ID:** `fix-config-save-error-swallow`  
+**优先级:** P0  
+**预计时间:** 0.75 人日（规划估算）  
+**状态:** proposed
+
+**业务目标（Business Goal）**:
+- 消除 `config.save` 的虚报成功：配置文件不可写时用户必须当场看到保存失败，而不是在重启后才发现 Injoys 令牌 / 草稿目录 / 自动同步配置丢失。
+- 满足 `criterion.md` §3.2 MUST「错误不得吞没」与 MUST NOT「虚报成功」，落实 RISK-005 缓解措施 ③「不得吞异常后谎报保存成功」。
+
+**范围边界（In / Out）**:
+
+| 类型 | 内容 |
+|------|------|
+| ✅ In | `src/config-store.ts` 的 `save()` 把配置文件写盘失败**如实上报**（返回值或抛出），不再 `catch {}` 静默吞没 |
+| ✅ In | `src/ops-rpc.ts` 的 `config.save` 让该失败经**统一 RPC 错误边界**映射为 `drafts/storage-unavailable` 失败信封（该码在 `api_strategy.md` §2.3 已声明「覆盖**所有**写入口」） |
+| ✅ In | 同轮同步 `api_strategy.md` §3.6 的 `config.save` 契约：明确「配置文件写盘失败 → 失败信封 + `drafts/storage-unavailable`」，并界定 `success` 字段的失败语义 |
+| ✅ In | 补测试：`ops-manager/` 不可写（或 `config.json` 只读）时 `config.save` 返回 `ok: false` 且 `error.code = 'drafts/storage-unavailable'`；可写时仍 `ok: true` 且确实落盘 |
+| ✅ In | 确认客户端**零改动**即可生效（`plugin-src/client/ops-page.js` 的 `handleSave` 已具备 `catch` → 「保存失败」分支；`plugin-src/management-rpc.mjs` 的 `unwrapRpcResult` 对 `ok: false` 抛错） |
+| ❌ Out | 新增错误码（`drafts/storage-unavailable` 已声明覆盖所有写入口；是否另立 `config/*` 码属独立契约决策） |
+| ❌ Out | `draftsDir` 的前置目录预检语义（`config/invalid-drafts-dir`，不改） |
+| ❌ Out | 客户端提示文案与配置页 UI（`feat-client-engine-config`，Phase 3） |
+| ❌ Out | `OpsConfig.browserosCapabilities` 字段与能力开关（本 Phase 提案 5） |
+
+> [!NOTE]
+> **本缺陷此前无 TD 登记**：`risks_and_debt.md` 的 TD-001 ~ TD-015 无一条覆盖 `ConfigStore.save()` 吞错（最接近的 TD-009 对象是假文档编号）。本提案实施时须**同轮补登**一条 TD 并经 `.context` 工具链刷新 Manifest / history，形成「TD → 提案」的可追溯链。
+
+**关联 Context 资产**:
+
+| Scope | 关联资产 | 关联说明 |
+|-------|---------|----------|
+| criterion | `.context/criterion.md` | §3.2 MUST「错误不得吞没」、MUST NOT「虚报成功」；§3.5 落盘与统一存储错误码；§3.4 令牌返回边界（配置文件含明文令牌，丢失即用户可感）；§6 SSoT-first |
+| architecture | `.context/architecture/risks_and_debt.md` | RISK-005（中）「存储不可用被误报为成功或错误码不一致」，缓解措施 ③「不得吞异常后谎报保存成功」——本提案为该条的实现落点 |
+| architecture | `.context/architecture/api_strategy.md` | §2.3 错误码清单（`drafts/storage-unavailable` 覆盖所有写入口；`config/invalid-drafts-dir` 只管前置预检）、§3.6 `config.save` 契约（`{ success: boolean; config }`） |
+| architecture | `.context/architecture/cross_cutting_concepts.md` | 「前置校验优先：不得先报成功、再让后续写失败」 |
+| architecture | `.context/architecture/runtime_view.md` | 「`config.save` 目标目录不可用」的失败返回路径（本提案把配置文件自身写失败纳入同一失败语义） |
+| domain | `.context/domain/testing_strategy.md` | 模块 6 场景 4 与 RISK-005 覆盖状态（现记为「部分覆盖」；本提案补齐配置文件写失败分支） |
+
+**关键任务**:
+1. `ConfigStore.save()` 上报配置文件写盘失败（0.25 人日）
+2. `config.save` 经统一 RPC 错误边界映射失败信封，并同轮同步 `api_strategy.md` §3.6（0.25 人日）
+3. 补测试：不可写 → `ok: false`（`drafts/storage-unavailable`）、可写 → `ok: true` 且落盘（0.25 人日）
+
+**风险与处理决定（按需）**:
+
+| 风险 | 影响 | 处理决定及理由 |
+|------|------|----------|
+| `config.save` 由「恒成功」变为「可能失败」 | 客户端此前从未收到过该失败 | **接受**：criterion §3.2 要求失败必须如实返回；客户端失败分支已存在（`unwrapRpcResult` 抛错 → `handleSave` catch 展示「保存失败」），无需 UI 改动。该变化属纠错而非破坏性变更（同一信封形状，仅 `ok` / `error.code` 如实） |
+| 该缺陷此前无 TD 登记 | 无「TD → 提案」追溯链 | **同轮补登**：实施时经 `.agents/workflows/context-update.md` 在 `risks_and_debt.md` 新增 TD（对象：`ConfigStore.save()` 吞掉配置文件写盘失败），并刷新 Manifest / history |
+| 与 `feat-browseros-capability-toggle`（本 Phase 提案 5）同改 `src/config-store.ts` | 并行改动同一文件 | 功能点不同（本提案只动 `save()` 的失败上报，不改字段解析与默认值）；按「同文件串行落地或后者变基」处理，**不构成依赖** |
+| 与 `fix-storage-file-permissions`（本 Phase 提案 7）同改 `config-store.ts` 的 `save()` | 同一方法内两轮改动 | 提案 7 改 `mkdirSync` / `writeFileSync` 的参数（权限位），本提案改失败处理（try/catch 与上报）；**建议在提案 7 落地后实施**以最小化变基，但功能上无前置关系 |
+| 失败时不回滚内存配置 | 进程内配置已生效、下次重启回退 | **保持现状并如实上报**：`save()` 已先更新 `inMemory` 再落盘，回滚会让运行中配置与用户刚提交的表单不一致；本提案只解决「不谎报成功」，不回滚语义另属独立决策 |
+
+**验证标准**:
+
+| 验收项 | 验收条件 | 验收方式 |
+|--------|----------|----------|
+| 不虚报成功 | `ops-manager/` 不可写（或 `config.json` 只读）时 `config.save` 返回 `ok: false`，`error.code` 为 `drafts/storage-unavailable` | 单元测试（断言 `error.code`，不得为 `ok: true`） |
+| 正常路径不变 | 目录可写时 `config.save` 仍 `ok: true`，且 `config.json` 已落盘（含令牌字段） | 单元测试 + 文件断言 |
+| 契约一致 | `api_strategy.md` §3.6 写明失败映射；§2.3 无需新增错误码（不引入语义相近的新码） | 逐处比对 + `grep` |
+| 客户端零改动 | `ok: false` 时客户端解包抛错、`handleSave` 进入失败提示分支 | 代码审查（不新增客户端改动） |
+
+**依赖**:
+- 前置: 无（功能上与权限位提案无关；两者同改 `config-store.ts` 的 `save()`，建议在其后实施以减少变基）
+- 被依赖: 无。`feat-client-engine-config`（Phase 3）的「保存失败」提示分支需宿主如实上报才可达，但该分支已存在于客户端，**不构成硬前置**
+- 约束: 契约先行（criterion §6）：先落 `api_strategy.md` §3.6 与 `src/ops-rpc.ts` 的失败映射，再补测试；不得新增错误码；不得改动 `draftsDir` 预检（`config/invalid-drafts-dir`）语义
+
+---
+
 ## 执行顺序与依赖
 
 本 Phase 内可并行推进的四条主线：
 
-1. **数据真实性线**：`fix-overview-metrics-null-semantics` → `feat-storage-metrics-snapshot`（严格顺序）；`fix-storage-file-permissions` 是 `feat-storage-metrics-snapshot` 的**前置**（统一落盘封装的权限位），须先于其完成。
+1. **数据真实性线**：`fix-overview-metrics-null-semantics` → `feat-storage-metrics-snapshot`（严格顺序）；`fix-storage-file-permissions` 是 `feat-storage-metrics-snapshot` 的**前置**（统一落盘封装的权限位），须先于其完成；`fix-config-save-error-swallow`（配置写盘失败如实上报）同属「落盘不说假话」，无前置亦无被依赖，可与本线其余提案并行（建议在其与 `fix-storage-file-permissions` 落地后实施，以减少 `src/config-store.ts` 同方法的变基）。
 2. **内容写入边界线**：`fix-unauthorized-injoys-doc-write` → `fix-doc-id-fabrication`（严格顺序）；覆盖 5 处写入站点（含 `ops_draft_launch_kit`）与 2 处假编号（`ops_generate_review` / `ops_draft_launch_kit`）；`feat-injoys-test-document-count` 与 `fix-storage-file-permissions` 同属基础设施补强，可并行。
 3. **安全边界线**：`feat-browseros-capability-toggle`（能力开关契约与统一执行检查）与 `fix-browser-session-cookie-probe`（会话探测假阳性修复 + 工具登记）**互不重叠**，可并行；二者均为 `feat-client-engine-config`（Phase 3）的前置。
 4. 上述各线之间无相互阻塞，可整体并行。
 
 - 跨阶段前置条件：无（本 Phase 是路线图起点）。
-- 提供给后续阶段的能力：正确的汇总 `null` 语义与环比基准（供 Phase 3 驾驶舱）；只写本地的生成路径与 `InjoysClient` 文档写入能力（供 Phase 2 显式沉淀入口）；对齐后的 BrowserOS 能力开关、统一会话四态与落盘权限（供所有后续落盘与 Phase 3 引擎 / 平台配置页）；`ops_inspect_sessions` 工具名（供 Phase 2 工具目录分类）。
+- 提供给后续阶段的能力：正确的汇总 `null` 语义与环比基准（供 Phase 3 驾驶舱）；只写本地的生成路径与 `InjoysClient` 文档写入能力（供 Phase 2 显式沉淀入口）；对齐后的 BrowserOS 能力开关、统一会话四态与落盘权限（供所有后续落盘与 Phase 3 引擎 / 平台配置页）；`ops_inspect_sessions` 工具名（供 Phase 2 工具目录分类）；配置写盘失败如实上报（使 Phase 3 配置页既有的「保存失败」提示分支可达）。
 
 ## 阶段整体验收
 
 - `criterion.md` §3.2 / §3.4 / §4 相关的 BDD 场景通过：模块 5 场景 4 / 5 / 6、模块 3 场景 1（宿主生成路径未经明确要求不得创建 / 更新 Injoys 文档）、模块 1 场景 1 / 3（会话四态不回退）、模块 6 场景 5 / 6 / 7 / 8（能力开关默认八项 / 未暴露不列出 / 两层开关）。**模块 8 场景 2 / 3 依赖沉淀能力（Phase 2 的 `feat-workbench-sink-to-injoys-doc`）与沉淀界面（Phase 3），不在本 Phase 验收**；本 Phase 只验证宿主路径「未授权写入已移除」「复盘不返回假编号」「未连通不谎报」。
-- `pnpm typecheck` + `pnpm test` 通过；新增用例覆盖「部分缺失 → `null`」「真实 0 参与求和」「未显式触发不写远端（生成 / 复盘 / 海外 Launch）」「未连通不返回成功文档编号（复盘 / 海外 Launch）」「能力开关默认八项 / 启停保持 / 禁用拒绝 / 两层开关」「会话四态与 `loginUrl`」「`reuseHostBrowserProfile=true` 不读本机 Cookie」「文件权限位」「`injoys.test` 文档数为 `null`」。
+- `pnpm typecheck` + `pnpm test` 通过；新增用例覆盖「部分缺失 → `null`」「真实 0 参与求和」「未显式触发不写远端（生成 / 复盘 / 海外 Launch）」「未连通不返回成功文档编号（复盘 / 海外 Launch）」「能力开关默认八项 / 启停保持 / 禁用拒绝 / 两层开关」「会话四态与 `loginUrl`」「`reuseHostBrowserProfile=true` 不读本机 Cookie」「文件权限位」「`injoys.test` 文档数为 `null`」「配置写盘失败不谎报成功（`config.save` 返回失败信封）」。
 - `workbench.overview` 响应不再包含硬编码样例数据；`src/` 内生成 / 复盘 / 海外 Launch 路径无无条件 `document.create` 调用；`src/` 内存在 `callTool` 统一执行检查实现、无宿主 Chrome / Chromium Cookie 库读取路径；`browser.sessions` 不再依据 `reuseHostBrowserProfile` 读取宿主 Cookie（字段保留但已标注「待废弃」）。
 
 ## 待决事项（按需）
