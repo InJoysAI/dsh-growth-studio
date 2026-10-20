@@ -24,6 +24,8 @@ import {
 } from './storage/draft-store.js'
 import { MetricsCollector } from './analytics/metrics-collector.js'
 import { aggregateOverviewMetrics } from './analytics/overview-aggregator.js'
+import { compareMetrics } from './analytics/metrics-comparison.js'
+import { MetricsStore } from './storage/metrics-store.js'
 import type { ContentDraft, PlatformId, PlatformSessionStatus } from './types.js'
 import type { AdapterContext, ArticlePayload, VideoPayload } from './adapters/base.js'
 
@@ -55,6 +57,7 @@ export function registerOpsRpc(
   draftStore?: DraftStore,
   browserOsClient?: BrowserOsMcpClient,
   metricsCollectorOverride?: MetricsCollector,
+  metricsStore?: MetricsStore,
 ): void {
   const connection = ctx?.get ? (ctx.get("connection", false) ?? (ctx as any).connection) : (ctx as any).connection
   if (!connection?.fetch?.register) return
@@ -65,6 +68,7 @@ export function registerOpsRpc(
   const browserDriver = new BrowserDriver(browserOsClient, { allowDryRun: isDryRunAllowed })
   adapters.setBrowserOsClient(browserOsClient, { allowDryRun: isDryRunAllowed })
   const metricsCollector = metricsCollectorOverride ?? new MetricsCollector({ browserOsClient })
+  const actualMetricsStore = metricsStore ?? new MetricsStore(ctx)
 
   connection.fetch.register({
     path: OPS_API_PATH,
@@ -147,12 +151,26 @@ export function registerOpsRpc(
               }
             }
 
-            await configStore.save(toSave)
+            // Hot-update BEFORE persisting: `updateConfig` only mutates in-memory endpoint/token
+            // and never throws, so the runtime client stays consistent with `inMemory` even when
+            // the disk write below fails (criterion §3.2 MUST: config changes take effect at once).
             if (toSave.injoys) {
               injoys.updateConfig({
                 endpoint: toSave.injoys.endpoint,
                 token: toSave.injoys.token,
               })
+            }
+
+            try {
+              await configStore.save(toSave)
+            } catch (err) {
+              // Wrapped here, not in `config-store.ts`: that module must not import
+              // `storage/draft-store.ts` (draft-store already imports it → cycle).
+              throw new DraftStorageError(
+                '配置文件保存失败：配置目录不可写或路径被占用，请检查后重试。',
+                configStore.getConfigDir() ?? 'ops-manager',
+                { cause: err },
+              )
             }
             result = {
               ok: true,
@@ -488,6 +506,8 @@ export function registerOpsRpc(
           }
 
           case 'workbench.overview': {
+            // Pin before any await so a home switch mid-request cannot redirect the write (criterion §3.5).
+            const metricsDir = actualMetricsStore.getDirectory()
             const cfg = configStore.load()
             let activeTabs: Array<{ url: string }> = []
             if (browserOsClient) {
@@ -518,12 +538,28 @@ export function registerOpsRpc(
 
             const readyCount = statuses.filter(s => s.state === 'authenticated' || (s as any).loggedIn).length
 
+            await actualMetricsStore.appendVerified(platformMetrics, { dir: metricsDir })
+            const history = await actualMetricsStore.readAll({ dir: metricsDir })
+
             const overviewMetrics = aggregateOverviewMetrics({
               outcomes: platformMetrics,
               expectedPlatforms,
               calendarItems,
               readyChannelsCount: readyCount,
               totalChannelsCount: expectedPlatforms.length,
+            })
+            overviewMetrics.comparison = compareMetrics({
+              current: {
+                impressions: overviewMetrics.totalImpressions,
+                plays: overviewMetrics.totalPlays,
+                engagements: overviewMetrics.totalEngagements,
+                followers: overviewMetrics.totalFollowersDelta,
+              },
+              history,
+              expectedPlatforms,
+              period: metricsWindow,
+              currentWindowStart: platformMetrics[0]?.windowStart ?? '',
+              currentWindowEnd: platformMetrics[0]?.windowEnd ?? '',
             })
 
             result = {

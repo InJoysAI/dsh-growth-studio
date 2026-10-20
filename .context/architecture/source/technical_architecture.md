@@ -8,7 +8,7 @@
 > | **对应 PRD 基线** | `.context/domain/source/product_requirements.md` **v1.2.2**（MVP 简化裁决版 Approved Baseline） |
 > | **状态** | 评审整改版 |
 > | **初次编写** | 2026-10-13 |
-> | **本次修订** | 2026-10-17（用户裁决 A-1～A-3；追加 BrowserOS 能力管理方案；补齐 PRD↔TAD 契约缺口；收窄 P2-2/P2-6 文案、明确 P2-3 Profile 归属、补 P2-5 映射表；修正映射表目标/现状混用与旧指标卡名；补齐 PlatformId 9 值与 expectedVersion；澄清 A1 排期并发 / A2 能力清单 / A3 落盘失败语义） |
+> | **本次修订** | 2026-10-21（第二次同步已归档提案 `feat-storage-metrics-snapshot`：补齐 §3.1 基准选择 / 可空边界、§5.3 目录固定 / 追加 / 存储失败语义；保留此前配置保存失败与权限封装裁决，完整同步历史见 `.context/history/context-sync.jsonl`；此前 v1.4.5 修订记录见下） |
 >
 > **v1.4.5 的修订（2026-10-17，A1/A2/A3 源契约澄清）**：A1 排期库无乐观锁（`CalendarItem` 无 `version`）；A2 `browseros.capabilities` 只列实时暴露工具（删除 `available`/`unavailableReason`，消失的工具就消失）；A3 生成落盘失败（存储类）统一走 `drafts/storage-unavailable` 错误信封，`draftSaved:false` 仅表「已生成未落盘」、不包装存储错误。
 >
@@ -242,7 +242,7 @@ DSH Desktop 客户端通过 Cordis `slots` 注入扩展机制工作：
 > **当前实现说明（`fix-overview-metrics-null-semantics` 已归档）**：上方响应形状已由 `src/types.ts` 的 `OverviewMetrics` / `MetricsComparison` / `WeeklyPipeline` 与宿主汇总实现承载。请求的 `metricsWindow` 贯穿调用；`windowStart` / `windowEnd` 为该请求的闭区间边界，不构成原始数值属于该周期的证明。
 > `PlatformMetricsOutcome` 是基础 `PlatformMetrics` 之外的宿主采集结果扩展，使用 `source` / `windowScope` / `note` 标注来源与周期可证性。当前 `measuredPlatforms` 仅含应采集合 `P` 中 `source !== 'unmeasured'` 且 `windowScope === 'verified'` 的平台，`unmeasuredPlatforms = P - measuredPlatforms`；不是只凭抓取成功就计入。当前生产 `live` 页面数值属于累计/单日口径，标为 `unverified`，保留原始值但不进入窗口汇总；显式 `mock` 仅用于测试。
 > `weeklyPipeline` 按既有 Injoys 返回列表的本周行派生，筛选后集合为空时返回全零，原始非空列表不能被无条件清空。当前代码以 UTC 推导周一起算的自然周；用户本地周边界的时区对齐尚未实现，此说明记录实现边界，不新增产品时区承诺。
-> 当前尚无本地指标快照读写，`comparison` 五键均为 `null`；下方环比基准来源是 `feat-storage-metrics-snapshot` 待实现的目标契约。本地排期主数据、真实窗口化采集与驾驶舱 UI 均不由本提案新增。
+> `feat-storage-metrics-snapshot` 已归档：`src/storage/metrics-store.ts` 按 `(platform, capturedAt)` 追加 `$DSH_HOME/growth-studio/metrics/{YYYY-MM-DD}.json`；仅 `source === 'live'` 且 `windowScope === 'verified'` 落盘（`mock` / `unmeasured` / `unverified` 不写入）。`comparison` 以上一个等长窗口为基准：窗口长度等于请求周期，`windowStart` / `windowEnd` 的 UTC 日历日对齐；同日桶内取与预期 `windowEnd` 时刻差最小的一条。当前生产 `live` 均为 `unverified`，故生产路径暂不落盘、`comparison` 在生产上仍五键 `null`，直至采集侧能产出窗口可证数据。本地排期主数据、真实窗口化采集与驾驶舱 UI 均不由该提案新增。
 
 **部分缺失汇总规则（服务端强制口径）**：
 
@@ -258,14 +258,17 @@ DSH Desktop 客户端通过 Cordis `slots` 注入扩展机制工作：
 
 **环比基准来源（已明确）**：
 
-* 基准取自本地**历史指标快照**：每次 `ops_fetch_metrics` / `workbench.overview` 采集成功后，
+* 基准取自本地**历史指标快照**：每次 `ops_fetch_metrics` / `workbench.overview` 采集成功且通过可证性门后，
   将 `PlatformMetrics` 按 `(platform, capturedAt)` 追加写入本地指标历史
   `$DSH_HOME/growth-studio/metrics/{YYYY-MM-DD}.json`。
-* `comparison.period` 表示用于对比的**上一个等长窗口**（`7d` 对上一个 7 天，`30d` 同理）。
-* 若历史快照不足以覆盖完整上一个窗口 → 对应 delta 为 **`null`**（UI 显示「暂无环比」），
-  **不得**用不完整历史算出一个近似百分比。
+* **落盘可证性门**：仅 `source === 'live'` 且 `windowScope === 'verified'`；`mock` / `unmeasured` / `unverified` MUST NOT 成为环比基准。
+* `comparison.period` 表示用于对比的**上一个等长窗口**（`7d` 对上一个 7 天，`30d` 同理）。窗口匹配按 UTC 日历日 + 窗口长度，不要求采集瞬间 ISO 字符串全等。
+* **历史充足判定**：应采平台集合 `P` 中每个平台都须有一条窗口长度匹配请求周期、`windowStart` / `windowEnd` 的 UTC 日期分别对齐上一个等长窗口的记录；不要求采集瞬间 ISO 全等，不得以 30d 记录充当 7d 基准。同平台多条候选取 `|windowEnd - 预期 prev.windowEnd|` 最小者，并列时取 `capturedAt` 最新者。
+* 任一应采平台缺少基准时，`comparison.period` 与四个 delta **全部为 `null`**（UI 显示「暂无环比」），不得按天数、记录条数或部分平台之和估算。
+* 历史充足时 `period` 为请求的 `7d` / `30d`，各 delta 按 `(当前值 - 基准值) / 基准值 * 100` 计算。分指标汇总沿用平台覆盖门后的口径：跳过该指标未知的平台贡献，全未知仍为 `null`；互动按点赞 / 评论 / 转发 / 收藏分别汇总，任一分项汇总未知则互动未知。当前值或基准值未知时仅对应 delta 为 `null`；基准为 0 且当前也为 0 时为 0%，基准为 0 而当前非 0 时为 `null`，不输出无穷百分比。
 * 因此环比是**基于本地留存的次级指标**，其可用性取决于用户已积累的历史采集次数；
   首次使用时全部 delta 为 `null` 属**预期行为**，不是缺陷。
+* 实现落点：`src/storage/metrics-store.ts` + `src/analytics/metrics-comparison.ts`（提案 `feat-storage-metrics-snapshot`，已归档）。
 
 ---
 
@@ -736,10 +739,12 @@ interface OpsConfig {
     现统一以平铺为正式契约。若未来要改为嵌套，属于**破坏性变更**，须走版本化迁移方案（新旧字段并存至少一个版本）
     并同步更新客户端后，方可移除旧字段。
   * **令牌返回策略**：当前返回明文 `token`，用于客户端表单回填与显隐切换。
-    该接口仅在**宿主内 RPC**（本机进程内）暴露，不作为对外网络端点。若未来 RPC 可被非本机访问，
-    必须先改为「只回 `hasToken: boolean`，明文另走回填专用通道」。
+    该接口仅面向**本机同一 DSH 实例内的受信任客户端**（客户端在渲染进程，与宿主非同进程），不作为对外网络端点；本机回填例外同样覆盖 `config.save` 返回的完整 `OpsConfig`（含明文 `token`），依据 criterion §3.4，日志与遥测仍须脱敏。若未来 RPC 可被非本机访问，
+    必须先改为「只回 `hasToken: boolean`，明文另走回填专用通道」，不得向本机受信任 DSH 客户端之外返回明文令牌。
 * `config.save`（参数为 `Partial<OpsConfig>`）→ `{ success: boolean; config: OpsConfig }`
-  * 持久化后**实时热更新**运行中的 `InjoysClient`（`endpoint` / `token`），无需重启；
+  * **热更新先于持久化**：`draftsDir` 前置预检通过后、配置文件写盘之前完成 `InjoysClient.updateConfig`（`endpoint` / `token`），无需重启；`ConfigStore.save()` 先合并内存再写盘，写盘失败不回滚已合并内存。**适用边界**：仅保证非空字段与运行中客户端一致；空串提交时 Store 仅合并非空值而 Client 对 `!== undefined` 即赋值，既有分裂不在本次修复范围。
+  * **配置文件写盘失败**：`mkdirSync` / tmp `writeFileSync` / `renameSync` 任一步失败须抛出，由 `config.save` 包装后经统一 RPC 错误边界返回 `ok:false` + `drafts/storage-unavailable`，不得吞错、报成功或漏出 `ops/internal-error`。`error.message` 为中文用户说明，不拼接 errno/栈；`details.dir` 取构造期配置目录访问器，不在 RPC 层重新解析 home。
+  * **成功与失败形状**：成功保持 `ok:true` + `value:{ success:true, config }`，config 为完整 `OpsConfig`；失败不含 `value.success`。草稿目录预检失败仍为 `config/invalid-drafts-dir`，且发生在热更新及配置写盘之前；POSIX 只读文件可被 rename 替换，失败测试使用目录不可写或配置目录路径被普通文件占用。
   * 保存 `injoys` 配置后须清理按目标隔离的缓存，避免跨服务状态污染；
   * 修改 `draftsDir` 后**立即生效**，无需重启（见 §3.10.4）。
 * `injoys.test` → `{ connected: boolean; latencyMs: number; documentCount: number | null; message: string }`
@@ -800,9 +805,9 @@ interface OpsConfig {
 * **配置页切换提示文案**（实现时照此展示，须同时覆盖三件事实）：
   > 新目录对后续操作生效；正在进行的保存仍写入原目录。旧草稿不会自动迁移。
 * **已存在于旧目录的草稿不做自动迁移**（避免大目录复制与部分失败风险）；
-* **写入失败必须如实抛错，且错误码统一**：目录不可写或创建失败返回 `drafts/storage-unavailable`，
+* **写入失败必须如实抛错，且错误码统一**：目录不可写 / 创建失败 / 配置文件写盘失败返回 `drafts/storage-unavailable`，
   不得吞掉异常后谎报保存成功。该映射须在**统一 RPC 错误边界**完成，使
-  `drafts.save`、`drafts.updatePublishUrl`、预填回写等**所有写入口**返回同一错误码，
+  `drafts.save`、`drafts.updatePublishUrl`、预填回写、`config.save` 等**所有写入口**返回同一错误码，
   而不是让部分入口漏出 `ops/internal-error`（否则调用方无法一致识别可恢复的存储错误）；
   配置前置校验失败仍单独使用 `config/invalid-drafts-dir`；
 * 草稿库的「当前生效目录」由 `config.get` 返回，UI 据此展示实际存储位置，避免用户误判数据丢失。
@@ -1170,6 +1175,7 @@ $DSH_HOME/growth-studio/drafts/
 4. **读取与删除**：`drafts.get` 读取当前文件；`drafts.delete` 删除当前文件。MVP 不创建或管理草稿历史目录，也不自动清理用户可能已有的历史文件。
 5. **发布守卫**：编辑保存仍维护服务端治理字段与全渠道不变量，不能借简化历史功能绕过 URL 回填守卫。
 6. **保留边界**：运营指标的历史快照仍按 §3.1 保存，用于环比；此次取消的仅为草稿版本快照。未来若需历史功能，先定义需求与契约再实现。
+7. **统一落盘原语**（`fix-storage-file-permissions` 已实施）：`src/storage/local-fs.ts` 为仅依赖 Node 内置模块的叶子模块，提供权限常量、`mkdirWithMode()`、`writeJsonAtomic()`（同目录随机后缀临时文件 + `rename`）与 `createFileWriteLocks()`。草稿与配置 store 复用，后续指标 / 排期存储同样复用，但不表示其业务已实现。锁工厂每次返回独立锁集，由 store 实例持有，锁键与读改写范围保持不变，不新增跨实例 / 跨进程互斥。封装只抛原始 fs 错误；`DraftStorageError`、`ensureDirectory`、`verifyDirectoryWritable` 仍从 `draft-store.ts` 导出，配置侧仍由 `config.save` RPC 分支包装后交统一边界映射。`mkdirWithMode()` 不替代可写性校验；`local-fs` 不加入 `src/index.ts` 公开导出，不修改 RPC 契约。
 
 ---
 
@@ -1234,10 +1240,12 @@ $DSH_HOME/growth-studio/drafts/
    ├── calendar/
    │   └── {itemId}.json               # CalendarItem 排期项（§4.1）
    └── metrics/
-       └── {YYYY-MM-DD}.json           # 指标历史快照，供环比计算（§3.1）
+       └── {YYYY-MM-DD}.json           # 指标历史快照（仅 live+verified 追加，§3.1）
    ```
 
    > 配置另存于 `$DSH_HOME/ops-manager/config.json`（§3.10）。
+   > 指标历史文件内容为 `MetricsSnapshotFile = PlatformMetrics[]`，按采集时间的 UTC 日期分桶；`source` / `windowScope` 属采集结果扩展，仅用于写入前的可证性门，不写入快照行。每次追加保留既有记录，当前实现不按 `(platform, capturedAt)` 去重，也不修改既有行。
+   > `workbench.overview` / `ops_fetch_metrics` 在请求开始、任何 `await` 之前捕获 `resolveDshHome()` 下的指标目录，贯穿采集后追加及请求内历史读取；`draftsDir` 仅影响草稿库。复用 `local-fs.ts` 的原子写 / 实例级文件锁和 `draft-store.ts` 的目录可写性校验 / `DraftStorageError`，新建目录 `0o700`、文件 `0o600`（权限边界见 §六.1）。追加失败整体调用返回 `drafts/storage-unavailable`，不回滚已发生的采集；历史目录不存在视为无历史，读取失败或非数组 / 损坏 JSON 同样报存储错误，不伪装成历史不足。
 
 3. **导入/导出的冲突与幂等规则**：见 §3.3.3（导出幂等）与 §3.3.4（导入去重与冲突处理）。
 
@@ -1273,7 +1281,9 @@ $DSH_HOME/growth-studio/drafts/
 
 1. **凭证隔离与数据安全**：
    * Injoys MCP 访问令牌在前端支持显隐切换，网络传输使用标准 Bearer 规范；
-   * 本地草稿存储于用户目录 `$DSH_HOME/growth-studio/drafts/`，系统文件权限仅限当前操作系统用户。
+   * 本地草稿存储于用户目录 `$DSH_HOME/growth-studio/drafts/`，配置存于 `$DSH_HOME/ops-manager/config.json`（含 Injoys 令牌），系统文件权限仅限当前操作系统用户。
+   * **创建权限实现与残留**：草稿 / 配置通过 §4.4 的统一原语创建文件 `0o600`、目录 `0o700`，`verifyDirectoryWritable` 的探测文件同样显式设 `0o600`。实际权限为 `mode & ~umask`；不做写后 `chmod`。既有目录不回改，既有文件在再次保存时经原子替换收紧；不再保存的文件可能保持宽权限，一次性收紧另立迁移提案，不能宣称所有既有对象已符合要求。宿主 Cookie 临时副本仍由 `fix-browser-session-cookie-probe` 整体移除，不属于本次权限修复。
+   * **验证边界**：上述为 POSIX 权限位保证，不等于 Windows ACL 或特权用户访问控制。`tests/storage-permissions.spec.ts` 使用独立临时文件 `chmod 0o640` 后 `stat` 读回探测文件系统能力，不依赖被测封装；root 不因身份跳过创建位断言，只有访问拒绝类断言依实际 DAC 探针跳过；win32 或文件系统探测失败明确声明未覆盖。位断言为 `(mode & 0o077) === 0`，仅在 umask 不清除 owner 位时追加精确值。测试由收集前隔离与显式 `profileContext.home` 固定临时目录，不能以仓库 git 状态代替隔离证据。
 2. **会话数据零外发**：
    * BrowserOS 会话在本地沙箱运行，不向任何第三方服务上报 Cookie 数据。
    * 本约束**不因**「启用 `act` / 脚本类 BrowserOS 工具」而解除：能力开关只决定哪些浏览器工具可调用，Cookie 零外发属于业务守卫，独立生效（§3.12.6）。

@@ -17,6 +17,7 @@ import { ScheduleBridge } from '../schedule/schedule-bridge.js'
 import { OverseasStrategyManager } from '../international/overseas-strategy.js'
 import type { BrowserOsMcpClient } from '../browser/browser-driver.js'
 import { DraftStore } from '../storage/draft-store.js'
+import { MetricsStore } from '../storage/metrics-store.js'
 import type {
   CalendarItem,
   PlatformId,
@@ -31,8 +32,10 @@ export function createOpsTools(
   draftStore?: DraftStore,
   metricsCollector?: MetricsCollector,
   browserOsClient?: BrowserOsMcpClient,
+  metricsStore?: MetricsStore,
 ): ToolDefinition[] {
   const actualDraftStore = draftStore ?? new DraftStore(ctx)
+  const actualMetricsStore = metricsStore ?? new MetricsStore(ctx)
   const isMockMetrics = Boolean(ctx?.get ? ctx.get("mockOffline", false) : (ctx as any)?.mockOffline)
   // A caller-supplied collector wins; otherwise build one from the live client so
   // metrics are measured rather than defaulted to zero.
@@ -461,7 +464,7 @@ export function createOpsTools(
   /** 5. Collect multi-channel metrics */
   const fetchMetricsTool = defineTool({
     name: 'ops_fetch_metrics',
-    description: '采集微信公众号、视频号、B站、抖音的运营数据（阅读/播放、互动、新增关注），并同步至 Injoys 指标表格。',
+    description: '采集微信公众号、视频号、B站、抖音的运营数据（阅读/播放、互动、新增关注），将窗口可证实的结果追加到本地 metrics/ 历史快照，并同步至 Injoys 指标表格。',
     parameters: {
       platforms: {
         type: 'array',
@@ -500,6 +503,7 @@ export function createOpsTools(
       ],
     },
     async execute(args) {
+      const metricsDir = actualMetricsStore.getDirectory()
       const targetPlatforms = (args.platforms as PlatformId[] | undefined) ?? [
         'wechat_mp',
         'wechat_channels',
@@ -512,6 +516,7 @@ export function createOpsTools(
         targetPlatforms,
         timeRange,
       )
+      await actualMetricsStore.appendVerified(metrics, { dir: metricsDir })
       const sheetSynced = await injoys.recordMetricsToSheet(metrics)
 
       let totalViews = 0

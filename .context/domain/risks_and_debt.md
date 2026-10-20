@@ -3,7 +3,6 @@
 > **Metadata**
 > - **Source**: `.context/domain/source/product_requirements.md`（PRD 基线 v1.2.2）为主；`.context/domain/source/development_plan.md` 仅用于确认阶段范围与交付节奏
 > - **Generated At**: `2026-10-16 09:00`
-> - **Updated At**: `2026-10-17 13:42`
 > - **Generator**: `Context-Agent v1.0`
 
 ---

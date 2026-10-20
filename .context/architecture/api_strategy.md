@@ -3,8 +3,9 @@
 > **Metadata**
 > - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.4.5 §2.2、§3）
 > - **Generated At**: `2026-10-16 09:44`
-> - **Updated At**: `2026-10-17 13:53`
 > - **Generator**: `Context-Agent v1.0`
+> - **Last Synced At**: `2026-10-21T00:01:50+08:00`
+> - **Sync Authority**: `openspec/changes/archive/2026-10-20-feat-storage-metrics-snapshot/`
 
 > ⚠️ 本文是源文档 §3 的**结构化总结**。契约的**权威定义在 `src/ops-rpc.ts` + `src/types.ts`**（criterion §7.1，手写 TS 契约）。
 > 若本文与源文档或 `../criterion.md` 冲突，**以它们为准**。
@@ -111,7 +112,7 @@ interface RpcEnvelopeResponse {
 | `drafts/published-requires-url` | `drafts.save` 传入 `status: 'published'` | `drafts.save` |
 | `drafts/invalid-published-url` | 回填 URL 不是合法 `http(s)`（须用 **URL 解析器**校验） | `drafts.updatePublishUrl` |
 | `drafts/unknown-channel` | 回填 `platform` 不属于该草稿的 `channelVariants`（**不写盘、不递增版本**） | `drafts.updatePublishUrl` |
-| `drafts/storage-unavailable` | 目录不可写或创建失败（**统一 RPC 错误边界**映射，覆盖**所有**写入口） | 全部写入口 |
+| `drafts/storage-unavailable` | 目录不可写 / 创建失败 / **配置文件写盘失败**（**统一 RPC 错误边界**映射，覆盖**所有**写入口） | 全部写入口 |
 | `config/invalid-drafts-dir` | `config.save` 前置目录准备/可写性校验失败 | `config.save` |
 | `calendar/invalid-transition` | 越级 / 回退 / 经本接口写 `published` | `calendar.updateStatus` |
 | `tools/disabled` | 工具在白名单中为 `enabled === false`（**宿主侧**强制） | `tools.executeSandbox` |
@@ -170,7 +171,7 @@ interface WorkbenchOverviewRequest {
 | `overviewMetrics.weeklyPipeline` | `{ total, completed, byStatus }` | 周一起算自然周的排期进度，`byStatus` 覆盖 `ItemStatus` 五态，`completed = prefilled + published` |
 | `overviewMetrics.measuredPlatforms` | `PlatformId[]` | 应采集合 `P` 内成功采集且可证实属于请求窗口的平台 |
 | `overviewMetrics.unmeasuredPlatforms` | `PlatformId[]` | `P` 中其余平台，含采集失败、不支持或已抓取但窗口周期无法证实的平台 |
-| `overviewMetrics.comparison` | `MetricsComparison`（`src/types.ts`） | `period` 为 `'7d' \| '30d' \| null`；四个可空数值键为 `impressionsDeltaPercent` / `playsDeltaPercent` / `engagementsDeltaPercent` / `followersDeltaPercent`；当前无历史基准，五键均为 `null` |
+| `overviewMetrics.comparison` | `MetricsComparison`（`src/types.ts`） | `period` 为 `'7d' \| '30d' \| null`；四个可空数值键为 `impressionsDeltaPercent` / `playsDeltaPercent` / `engagementsDeltaPercent` / `followersDeltaPercent`；基准取自本地指标历史快照的上一个等长窗口，历史不足时五键为 `null` |
 | `statuses` | `Array<{ id, state, isReady, loginUrl?, ... }>` | 平台就绪状态（`state === 'authenticated'` 才算 ready；`loginUrl` 供 needs_login 时「去登录 ↗」） |
 | `calendarItems` / `trends` / `feedbackItems` | — | 聚合数据 |
 | `injoysConnected` | `boolean` | Injoys 连通性 |
@@ -199,11 +200,13 @@ interface WorkbenchOverviewRequest {
 
 **环比基准来源**
 
-> 下列为目标存储契约。当前提案没有实现 `metrics/` 历史快照读写或环比计算，`comparison` 五键均为 `null`；真实基准由 `feat-storage-metrics-snapshot` 接入，不能把该契约描述视为当前已落盘。
+> ✅ **实现状态（2026-10-20）**：`feat-storage-metrics-snapshot` 已落地 `src/storage/metrics-store.ts` + `src/analytics/metrics-comparison.ts`。仅 `source === 'live'` 且 `windowScope === 'verified'` 的采集结果按 `(platform, capturedAt)` 追加到 `$DSH_HOME/growth-studio/metrics/{YYYY-MM-DD}.json`（`mock` / `unmeasured` / `unverified` 不落盘）。`comparison` 以上一个等长窗口为基准：窗口长度等于请求周期，且 `windowStart` / `windowEnd` 的 UTC 日历日对齐；同日桶内取与预期 `windowEnd` 时刻差最小的一条。当前生产 `live` 均为 `unverified`，故生产路径暂不落盘、`comparison` 在生产上仍五键 `null`，直至采集侧能产出窗口可证数据。正向路径由测试夹具证明。
 
-- 基准取自本地**历史指标快照**：每次采集成功后按 `(platform, capturedAt)` 追加写入 `$DSH_HOME/growth-studio/metrics/{YYYY-MM-DD}.json`；
+- 基准取自本地**历史指标快照**：每次采集成功且通过可证性门后按 `(platform, capturedAt)` 追加写入 `$DSH_HOME/growth-studio/metrics/{YYYY-MM-DD}.json`；
 - `comparison.period` 表示用于对比的**上一个等长窗口**；
-- 历史快照不足以覆盖完整上一个窗口 → 对应 delta 为 **`null`**，**不得**用不完整历史算近似百分比；
+- **历史充足判定**：应采平台集合 `P` 中每个平台都须有一条窗口长度匹配请求周期、`windowStart` / `windowEnd` 的 UTC 日期分别对齐上一个等长窗口的记录；不要求采集瞬间 ISO 全等，不得以 30d 记录充当 7d 基准。同平台多条候选取 `|windowEnd - 预期 prev.windowEnd|` 最小者，并列时取 `capturedAt` 最新者。
+- 任一应采平台缺少基准时，`comparison.period` 与四个 delta **全部为 `null`**（UI 显示「暂无环比」），不得按天数、记录条数或部分平台之和估算。
+- 历史充足时 `period` 为请求的 `7d` / `30d`，各 delta 按 `(当前值 - 基准值) / 基准值 * 100` 计算。分指标汇总沿用平台覆盖门后的口径：跳过该指标未知的平台贡献，全未知仍为 `null`；互动按点赞 / 评论 / 转发 / 收藏分别汇总，任一分项汇总未知则互动未知。当前值或基准值未知时仅对应 delta 为 `null`；基准为 0 且当前也为 0 时为 0%，基准为 0 而当前非 0 时为 `null`，不输出无穷百分比。
 - 因此环比是**基于本地留存的次级指标**；首次使用时全部 delta 为 `null` 属**预期行为，不是缺陷**。
 
 ---
@@ -652,7 +655,8 @@ interface ConfigGetValue extends OpsConfig {
 // → { success: boolean; config: OpsConfig }
 ```
 
-- 持久化后**实时热更新**运行中的 `InjoysClient`（`endpoint` / `token`），**无需重启**；
+- **热更新先于持久化**：`draftsDir` 前置校验通过后、**配置文件写盘之前**完成 `InjoysClient` 热更新（`endpoint` / `token`），**无需重启**；写盘失败时仍保留已合并的内存态并返回失败信封，**不回滚**——使运行中配置与用户刚提交的表单在**非空字段**上一致，不出现「界面显示新配置但真实调用仍走旧令牌」的分裂态。**适用边界**：空串提交（清空 `endpoint`/`token`）时 `ConfigStore` 仅合并非空值、`InjoysClient` 对 `!== undefined` 即赋值，二者语义分裂属**既有行为**，不在本条款保证范围内；
+- **配置文件写盘失败 → 失败信封**：`config.save` 落盘失败（目录不可写 / 创建失败 / 路径被文件占用）时返回 `ok:false` + `error.code='drafts/storage-unavailable'`（经**统一 RPC 错误边界**映射），`error.message` 为面向用户的中文说明、不拼接 `errno` / 调用栈，`details.dir` 指向 `ops-manager` 配置目录；**不得**返回 `ok:true` 或 `ops/internal-error`；`ok:false` 时响应**不含** `value.success`；
 - **响应体含明文 `token`**：`config` 为完整 `OpsConfig`，适用 `criterion §3.4`「令牌返回边界」的本机回填例外（与 `config.get` 同一授权），**不得**向本机 DSH 客户端之外回传；
 - 保存 `injoys` 配置后须清理**按目标隔离的缓存**，避免跨服务状态污染；
 - 修改 `draftsDir` 后**立即生效**，无需重启（详见 §3.7）；
@@ -680,7 +684,7 @@ interface ConfigGetValue extends OpsConfig {
 - **配置页切换提示文案**（实现时照此展示，须同时覆盖三件事实）：
   > 新目录对后续操作生效；正在进行的保存仍写入原目录。旧草稿不会自动迁移。
 - **已存在于旧目录的草稿不做自动迁移**（避免大目录复制与部分失败风险）；
-- **写入失败必须如实抛错，且错误码统一**：目录不可写或创建失败返回 `drafts/storage-unavailable`，**不得**吞掉异常后谎报保存成功。该映射须在**统一 RPC 错误边界**完成，使 `drafts.save`、`drafts.updatePublishUrl`、预填回写等**所有写入口**返回同一错误码，而不是让部分入口漏出 `ops/internal-error`；
+- **写入失败必须如实抛错，且错误码统一**：目录不可写 / 创建失败 / **配置文件写盘失败**返回 `drafts/storage-unavailable`，**不得**吞掉异常后谎报保存成功。该映射须在**统一 RPC 错误边界**完成，使 `drafts.save`、`drafts.updatePublishUrl`、预填回写、`config.save` 等**所有写入口**返回同一错误码，而不是让部分入口漏出 `ops/internal-error`；
 - 配置前置校验失败仍**单独使用** `config/invalid-drafts-dir`；
 - **未来可选增强（本轮不实现）**：若需帮助用户定位某次保存**实际落到哪里**，优先在写入类响应中返回本次真实使用的 `storageDirectory`（字符串），而**不是**布尔标记 —— 它同时覆盖「目录已切换」与「目录未变」两种情形。该字段属**契约变更**，须先更新本节与 `src/types.ts` 再实现。
 
@@ -750,7 +754,7 @@ interface BrowserOsCapabilityDescriptor {
 | `ops_draft_launch_kit` | 无 | OverseasManager | Injoys 读取 | 本地草稿 | 无条件 saveLaunchKitDocument | Phase 2 |
 | `ops_generate_hooks` | 无 | ContentStudioEngine | — | 本地草稿 | 未注册、无实现 | 未定 |
 | `ops_push_drafts` | `workbench.prefillDraft`（§3.1，单草稿） | BrowserDriver/Adapter | BrowserOS | 平台草稿箱 | 批量入口无 RPC | Phase 0 |
-| `ops_fetch_metrics` | 与 `workbench.overview` 共用采集 | MetricsCollector | BrowserOS | 本地 metrics | overview 部分缺失汇总已修复（TD-007 关闭）；`live` 采集窗口可证性待采集能力提案 | Phase 0 |
+| `ops_fetch_metrics` | 与 `workbench.overview` 共用采集 | MetricsCollector | BrowserOS | 本地 metrics | 快照读写已落地（仅 verified 落盘）；`live` 采集窗口可证性待采集能力提案 | Phase 0 |
 | `ops_generate_review` | 无 | ReviewReporter | Injoys 读取 | 本地指标快照 | 假编号回退（TD-009） | Phase 1 |
 | `ops_fetch_comments` | 无 | CommentsCrawler | BrowserOS | — | 无 RPC | Phase 1 |
 | `ops_extract_feedback` | 无 | IssueExtractor | Injoys 需求池 | — | 无 RPC | Phase 1 |
@@ -778,11 +782,14 @@ interface BrowserOsCapabilityDescriptor {
 > `measuredPlatforms` / `unmeasuredPlatforms` / `totalEngagements` / `totalFavorites` /
 > `comparison` / `weeklyPipeline` 均已落地，平台级覆盖门与「真实 `0` 参与求和」判定生效
 > （`src/analytics/overview-aggregator.ts`；`risks_and_debt.md` **TD-007 已关闭**）。
-> 提案归档见 `openspec/changes/archive/2026-10-20-fix-overview-metrics-null-semantics/`，规范见 `openspec/specs/workbench-overview/spec.md`。
+> 指标历史快照与环比基准已由 `feat-storage-metrics-snapshot` 落地（归档
+> `openspec/changes/archive/2026-10-20-feat-storage-metrics-snapshot/`）：仅 `live` + `verified` 追加到
+> `metrics/{YYYY-MM-DD}.json`，`comparison` 按 UTC 日历日对齐上一个等长窗口。
+> 规范见 `openspec/specs/workbench-overview/spec.md` 与 `openspec/specs/metrics-history/spec.md`。
 >
 > ⚠️ **窗口可证性边界**：`windowStart` / `windowEnd` 表达**请求窗口**，不证明数值属于该窗口；
-> 当前采集页面口径为「累计 / 昨日数据」，`live` 结果标记 `windowScope: 'unverified'` 且不计入汇总，
-> 当前生产路径的窗口汇总因此为 `null`（「暂无数据」）。原始抓取成功与窗口贡献可用须分别判断；采集侧窗口化解析能力不在该提案范围。
+> 当前采集页面口径为「累计 / 昨日数据」，`live` 结果标记 `windowScope: 'unverified'` 且不计入汇总、**不写入**快照，
+> 当前生产路径的窗口汇总与 `comparison` 因此为 `null`。原始抓取成功与窗口贡献可用须分别判断；采集侧窗口化解析能力不在该提案范围。
 
 ### 已定义但**尚未实现**（新增须先补契约再实现）
 
@@ -815,7 +822,7 @@ interface BrowserOsCapabilityDescriptor {
 ### 5.3 数据安全
 
 - **敏感字段**：Injoys 令牌、平台账号名、完整正文 —— 遥测**必须脱敏**，不得记录令牌 / Cookie / 完整正文；
-- **存储加密**：N/A – 源文档未提供；依赖**文件系统权限仅限当前操作系统用户**；
+- **存储加密**：N/A – 源文档未提供；依赖**文件系统权限仅限当前操作系统用户**；新建草稿 / 配置的 POSIX 权限位实现与既有对象残留见 `security_policy.md`「存储层加密」，不因本次实现宣称全量对象已收紧；RPC 方法、信封及错误码不变；
 - **审计日志**：`tools.telemetry` 记录工具执行（工具名 / 时间 / 耗时 / 成败 / 错误码），**须脱敏**；保留时长 N/A – 源文档未提供。
 
 ### 5.4 自定义安全条目

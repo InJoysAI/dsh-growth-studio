@@ -1,10 +1,11 @@
 # 测试策略 (Testing Strategy)
 
 > **Metadata**
-> - **Source**: `.context/domain/source/product_requirements.md`（PRD 基线 v1.2.2）、`.context/domain/source/development_plan.md`（验收条件）
+> - **Source**: `.context/domain/source/product_requirements.md`（PRD 基线 v1.2.2）、`.context/domain/source/development_plan.md`（验收条件）、`.context/architecture/source/technical_architecture.md` §3.10.2、`openspec/changes/archive/2026-10-20-fix-config-save-error-swallow/specs/ops-config/spec.md`（配置保存专项）
 > - **Generated At**: `2026-10-16 09:00`
-> - **Updated At**: `2026-10-17 13:41`
 > - **Generator**: `Context-Agent v1.0`
+> - **Last Synced At**: `2026-10-21T00:01:50+08:00`
+> - **Sync Authority**: `openspec/changes/archive/2026-10-20-feat-storage-metrics-snapshot/`
 
 ---
 
@@ -307,7 +308,17 @@ Then 环比应显示为空
   And 不得编造环比结论
 ```
 
-> **场景 4 / 5 / 6 的当前自动化范围**：`tests/overview-metrics.spec.ts` 验证宿主平台覆盖门、真实零值、互动严格空值、本周筛选与无历史空环比；`tests/overview-window-passthrough.spec.ts` 验证 RPC 请求窗口穿透；`tests/metrics-window.spec.ts` 验证实际采集器的窗口字段，包括成功 `live` 分支在 `7d` / `30d` 下的精确起止值、采集时刻，以及窗口不可证实结果不进入汇总。完整覆盖和零值的正向汇总通过显式测试数据验证，不表示当前 `live` 页面已能提供该周期增量。宿主测试也不能替代场景中的驾驶舱 UI 验收，历史快照持久化仍归 TD-010 / `feat-storage-metrics-snapshot`。
+#### 场景 6a: 历史充足时按上一等长周期计算环比（BR-052，提案补充）
+```gherkin
+Given 每个应采渠道均有覆盖上一个等长周期的可证实历史数据
+When 当前周期指标可用且用户查看环比
+Then 根据真实基准计算变化百分比
+  And 当前值或基准未知时该项仍显示「暂无环比」
+  And 基准为零且当前非零时不编造百分比；两者真实为零时显示 0%
+```
+> 宿主自动化见 `tests/metrics-snapshot.spec.ts`：包含 UTC 日期对齐、最近窗口末端 / 并列取最新采集、禁止跨周期混用及零基准分支；测试夹具不证明生产采集窗口已可证实。来源：归档提案 `feat-storage-metrics-snapshot` 的 specs / design；未新增 UI 实现承诺。
+
+> **场景 4 / 5 / 6 的当前自动化范围**：`tests/overview-metrics.spec.ts` 验证宿主平台覆盖门、真实零值、互动严格空值、本周筛选与无历史空环比；`tests/overview-window-passthrough.spec.ts` 验证 RPC 请求窗口穿透；`tests/metrics-window.spec.ts` 验证实际采集器的窗口字段；`tests/metrics-snapshot.spec.ts` 验证快照追加、可证性门、历史不足 / 充足环比、目录固定、权限位与写盘失败信封。完整覆盖和零值的正向汇总通过显式测试数据验证，不表示当前 `live` 页面已能提供该周期增量。宿主测试也不能替代场景中的驾驶舱 UI 验收。
 
 #### 场景 7: 评论抓取为空不伪造（BR-054）
 ```gherkin
@@ -516,22 +527,22 @@ Then 界面应明确提示该能力不可用
 | RISK-001 状态真实性被绕过（假「已发布」） | 模块 2 场景 2 / 3 / 6–10（BR-021） | 已覆盖 |
 | RISK-002 误发布 / 不可控群发 | 模块 4 场景 3「绝不自动确认发布」 | 已覆盖 |
 | RISK-003 会话状态假阳性 | 模块 1 场景 1「渠道会话四态呈现」 | 已覆盖 |
-| RISK-004 配置切换竞态导致跨库覆盖 | —（工程 / 并发路径，无 BDD 场景） | **缺口** |
-| RISK-005 存储不可用被误报 | 模块 6 场景 4「本地草稿存储目录配置」 | 部分覆盖 |
+| RISK-004 配置切换竞态导致跨库覆盖 | —（工程 / 并发路径，无 BDD 场景） | **已有工程自动化覆盖（非 BDD）**：`tests/ops-manager.spec.ts` S2 / T2 / U2 分别覆盖保存、预填回写与知识库等待期间的目录切换；`tests/storage-permissions.spec.ts` 补同一锁集同路径串行、不同库同 ID 内容互不覆盖的回归；不扩大为跨实例共享锁保证 |
+| RISK-005 存储不可用被误报 | 模块 6 场景 4 + 文末「配置保存专项验收补充」 | 部分覆盖（配置文件失败/成功分支已有 C1–C6 单测；提示文案/GUI 仍待验收） |
 | RISK-006 指标汇总以偏概全 | 模块 5 场景 4 / 5（BR-050 / BR-051） | 已覆盖 |
 | RISK-007 环比基准不可用 | 模块 5 场景 6（BR-052） | 已覆盖 |
 | RISK-008 `draftsDir` 变更后旧草稿认知 | 模块 6 场景 4 | 部分覆盖 |
 | RISK-009 两套状态枚举误用 | 模块 2 场景 1「内容状态五态流转」 | 已覆盖 |
-| RISK-010 测试污染真实 `$DSH_HOME` | —（工程层，隔离见 `tests/setup-isolation.ts`） | **缺口**（非 BDD） |
+| RISK-010 测试污染真实 `$DSH_HOME` | —（工程层，无 BDD 场景） | **已有工程自动化覆盖（非 BDD）**：`vitest.config.ts` 在收集前加载 `tests/setup-isolation.ts`；`tests/isolation.spec.ts` 验证隔离目录及一次配置写入前后真实默认配置不变；权限配置用例显式以 `profileContext.home` 固定临时目录。该哨兵不等于审计所有用例的全部文件写入；`git status` 不作为真实 HOME 未被写入的证据 |
 | RISK-011 令牌明文暴露面扩大 | —（工程安全检查：RPC 暴露边界是否仅本机可达 + `config.get` 的 `hasToken` 返回策略；模块 6 场景 2 仅验证 BR-071 的界面掩码，不能证明响应体与可达范围安全） | **缺口**（非 BDD） |
 | RISK-012 Phase 2 CDP 能力未验证 | —（Phase 2 PoC） | **缺口**（非 Phase 0） |
-| TD-007 `workbench.overview` 缺失汇总语义 | 模块 5 场景 4 / 5 的宿主判定与场景 6 的无历史空值分支；`tests/overview-metrics.spec.ts` / `tests/metrics-window.spec.ts` / `tests/overview-window-passthrough.spec.ts` | **宿主修复已覆盖，TD-007 已关闭**；不代表驾驶舱 UI、真实窗口增量采集或历史快照能力已实现 |
+| TD-007 `workbench.overview` 缺失汇总语义 | 模块 5 场景 4 / 5 的宿主判定与场景 6 的无历史空值分支；`tests/overview-metrics.spec.ts` / `tests/metrics-window.spec.ts` / `tests/overview-window-passthrough.spec.ts` | **宿主修复已覆盖，TD-007 已关闭**；不代表驾驶舱 UI 或真实窗口增量采集已实现；历史快照读写已由 `feat-storage-metrics-snapshot` 落地，见 TD-010 与 `tests/metrics-snapshot.spec.ts` |
 | TD-008 生成路径未授权写入 Injoys 文档 | 模块 3 场景 1「未经用户明确要求不得创建或更新 Injoys 文档」（直接约束）；模块 8 场景 2 / 3（BR-033 / BR-073） | **缺口（待实现）** |
 | TD-009 `ops_generate_review` 假文档编号 | 模块 8 场景 3「知识库未连通时沉淀不可用」 | **缺口（待实现）** |
-| TD-010 `calendar/` 与 `metrics/` 持久化契约未落地 | 模块 5 场景 6「历史不足时环比为空」（BR-052） | **缺口（待实现）** |
+| TD-010 `calendar/` 与 `metrics/` 持久化契约未落地 | 模块 5 场景 6「历史不足时环比为空」（BR-052）；`tests/metrics-snapshot.spec.ts` | **部分修复（metrics 已覆盖，calendar 仍待 `feat-storage-calendar-items`）** |
 | TD-011 错误码 `ops/not-found` 与 `ops/draft-not-found` 语义重复 | —（错误码契约层，无对应 BDD 场景） | **缺口**（非 BDD） |
 | TD-012 BrowserOS 能力开关与统一执行检查契约（原「动作白名单」口径已由 PRD §5.7.1 / criterion §4 取代） | —（执行检查：能力存在 / 启用 / 连接可用集中校验；对应 BR-074 场景 5–8，含双开关同时开启的正常执行） | **缺口**（契约已同步、实现待补） |
-| TD-013 criterion 文件权限约束无实现落点 | —（工程检查：落盘文件 `0o600` / 目录 `0o700` 权限位；无对应 BDD 场景） | **缺口**（非 BDD / 待实现） |
+| TD-013 criterion 文件权限约束无实现落点 | —（工程检查：落盘文件 `0o600` / 目录 `0o700` 权限位；无对应 BDD 场景） | **已覆盖（非 BDD）**：`tests/storage-permissions.spec.ts` 断言新建草稿 / 配置的目录与文件权限、既有 `0644` 文件保存后收紧、无临时文件残留、同一锁集同路径串行、不同库同 ID 内容互不覆盖；以独立临时文件 `chmod 0o640` 后 `stat` 读回探测文件系统（不调用被测封装），`root` 不因身份跳过创建位断言，`win32` 或探测失败显式跳过并声明未覆盖；主判据为 `(mode & 0o077) === 0`，仅在 umask 未清除 owner 位时追加精确值；既有目录及不再保存的旧文件仍属未覆盖面 |
 | TD-014 客户端 RPC 消费无测试覆盖 | —（客户端消费（`callOpsRpc` / `unwrapRpcResult`）单元测试与宿主响应 ↔ 客户端解包契约用例；无对应 BDD 场景） | **缺口**（非 BDD / 待补） |
 | PD-006 3 个工具未实现（资产已按名登记于 `api_strategy.md` §3.10） | 模块 7 场景 1（BR-040） | **缺口（待实现）** |
 
@@ -570,3 +581,40 @@ Then 界面应明确提示该能力不可用
 - [ ] UAT 签收完成
 
 > 单元测试覆盖率、代码审查等工程质量门禁见 `.context/criterion.md`。
+
+
+---
+
+## 配置保存专项验收补充
+
+依据已归档提案 `fix-config-save-error-swallow` 的 `specs/ops-config/spec.md` 与架构源文档 §3.10.2；这是配置文件保存失败的新增专项覆盖，不把模块 6 场景 4 冒认为原本已经包含此分支，也不新造业务规则编号。
+
+### 场景 A：配置文件无法保存时当场提示失败
+```gherkin
+Given 用户的配置存储目录不可写或该目录路径被普通文件占用
+When 用户提交新的非空接入地址与凭证
+Then 配置页应显示非空中文保存失败说明，不应显示保存成功
+  And 不向用户展示底层技术错误或调用栈
+  And 当前运行中的接入配置保留新提交的非空值，不因写盘失败回滚
+  And 下次重启读取实际已保存的配置，不能承诺失败的配置已持久保存
+```
+
+### 场景 B：可写配置保存成功且确实持久化
+```gherkin
+Given 用户的配置存储目录可写
+When 用户提交新的接入配置并保存
+Then 保存应成功，配置文件中应有提交的新凭证
+  And 运行中的接入配置即时生效，无需重启
+```
+
+### 场景 C：不可用草稿目录在更改配置前被拒绝
+```gherkin
+Given 用户选择的草稿目录不可写或不能创建
+When 用户提交该草稿目录
+Then 应在更改配置前提示草稿目录不可用
+  And 不应先显示配置保存成功、再在后续保存草稿时才发现目录失败
+```
+
+自动化证据映射：`tests/ops-manager.spec.ts` C1/C2 覆盖场景 A 的真实文件系统失败与失败结果，C1 同时保护中文说明/不泄技术细节/失败目录；C3 实际读取配置文件覆盖场景 B 的持久化，C4 分别读取客户端与配置存储，保护失败后非空字段一致及不回滚；C5 保护场景 C 与配置写盘失败的不同分类，C6 保护其他异常不被错分为存储错误。空串提交的既有分裂不在一致性保证范围内（见 `api_strategy.md` §3.6）。
+
+验收边界：上述自动化证据不是 GUI 手动验收，也不是实际重启测试；归档 tasks 4.3.2 的配置页手测仍未完成。本补充不将其勾选为通过。POSIX 只读文件本身不足以触发保存失败，采用目录权限/路径占用的真实触发方式，权限位不生效的环境显式跳过相关权限用例。

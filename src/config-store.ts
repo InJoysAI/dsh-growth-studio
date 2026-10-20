@@ -3,10 +3,11 @@
  * @module @deepseek-ai/dsh-ops-manager/config-store
  */
 
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { homedir } from 'node:os'
 import type { Context } from '@deepseek-ai/cordis'
+import { mkdirWithMode, writeJsonAtomic } from './storage/local-fs.js'
 
 export interface OpsManagerConfig {
   /** Default product name for knowledge base matching */
@@ -117,6 +118,18 @@ export class ConfigStore {
     }
   }
 
+  /**
+   * Directory holding `config.json`, for callers that must report WHERE a save failed.
+   *
+   * Exposed instead of letting callers re-resolve `resolveDshHome(ctx)`: the RPC layer
+   * receives a different context object than the one this store was built with, so a
+   * second resolution could disagree with `configPath` and misreport `details.dir`.
+   */
+  getConfigDir(): string | undefined {
+    if (!this.configPath) return undefined
+    return join(this.configPath, '..')
+  }
+
   private loadFromFile(): void {
     if (!this.configPath || !existsSync(this.configPath)) return
     try {
@@ -177,14 +190,10 @@ export class ConfigStore {
     }
 
     if (this.configPath) {
-      try {
-        mkdirSync(join(this.configPath, '..'), { recursive: true })
-        const tmp = `${this.configPath}.tmp`
-        writeFileSync(tmp, JSON.stringify(this.inMemory, null, 2), 'utf-8')
-        renameSync(tmp, this.configPath)
-      } catch {
-        // Ignore disk persistence failures
-      }
+      // Disk persistence failures must surface: `config.save` reports them as
+      // `drafts/storage-unavailable` instead of silently claiming success.
+      mkdirWithMode(join(this.configPath, '..'))
+      writeJsonAtomic(this.configPath, this.inMemory)
     }
   }
 }

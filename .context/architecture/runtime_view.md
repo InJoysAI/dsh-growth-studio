@@ -3,8 +3,9 @@
 > **Metadata**
 > - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.4.5 §3、§4.2、§5）
 > - **Generated At**: `2026-10-16 09:44`
-> - **Updated At**: `2026-10-17 12:54`
 > - **Generator**: `Context-Agent v1.0`
+> - **Last Synced At**: `2026-10-21T00:01:50+08:00`
+> - **Sync Authority**: `openspec/changes/archive/2026-10-20-feat-storage-metrics-snapshot/`
 
 ---
 
@@ -255,61 +256,55 @@ stateDiagram-v2
 
 **对应接口**：`workbench.overview` / `ops_fetch_metrics`
 
-> **目标流程与当前实现边界**：下图包含规划中的历史快照和驾驶舱交互，不表示整条链路已实现。`fix-overview-metrics-null-semantics` 已落地宿主 `workbench.overview` 的字段与汇总判定：调用 `MetricsCollector` 后由 `overview-aggregator` 汇总；覆盖数组按应采集合内“抓取成功且窗口可证实”计算。`source: 'live'` 而 `windowScope: 'unverified'` 的原始数值保留，但不进入窗口汇总。
-> 当前没有图中的追加/读取快照步骤，`comparison` 五键均为 `null`；快照实现归 `feat-storage-metrics-snapshot`。`weeklyPipeline` 只从既有 Injoys 列表派生本周计数；本地排期接入和驾驶舱 UI 分别由 `feat-calendar-generate-list`、`feat-client-dashboard` 承接。规范见 `openspec/specs/workbench-overview/spec.md`。
+> **目标流程与当前实现边界**：`fix-overview-metrics-null-semantics` 已落地宿主 `workbench.overview` 的字段与汇总判定；`feat-storage-metrics-snapshot` 已落地图中的追加/读取快照步骤（`src/storage/metrics-store.ts` + `src/analytics/metrics-comparison.ts`）。覆盖数组按应采集合内“抓取成功且窗口可证实”计算。`source: 'live'` 而 `windowScope: 'unverified'` 的原始数值保留，但不进入窗口汇总，也**不写入**指标历史快照。
+> 当前生产 `live` 均为 `unverified`，故生产上仍无快照、`comparison` 五键仍为 `null`，直至采集侧能产出 `verified` 窗口增量。`weeklyPipeline` 只从既有 Injoys 列表派生本周计数；本地排期接入和驾驶舱 UI 分别由 `feat-calendar-generate-list`、`feat-client-dashboard` 承接。规范见 `openspec/specs/workbench-overview/spec.md`。
 
 ```mermaid
 sequenceDiagram
-    autonumber
     participant WB as 驾驶舱 UI
     participant RPC as 宿主 RPC 网关
-    participant MA as MetricsAggregator
-    participant BD as BrowserDriver
+    participant MC as MetricsCollector
     participant BOS as BrowserOS MCP
+    participant MS as MetricsStore
     participant Hist as metrics/{YYYY-MM-DD}.json
+    participant Calc as 汇总与环比纯函数
 
     WB->>RPC: workbench.overview { metricsWindow:'7d' }
-    RPC->>MA: 路由
-    loop 每个应采平台 P
-        MA->>BD: 采集该平台指标
-        BD->>BOS: 导航至平台数据页并抓取
-        alt 采集成功（含真实 0）
-            BOS-->>BD: { impressions, plays, likes, ... }
-            BD-->>MA: 有效值（0 也是有效值）
-        else 采集失败 / 平台不支持
-            BOS-->>BD: 失败 / 不支持
-            BD-->>MA: null
+    RPC->>MS: 请求开始捕获指标目录（任何 await 前）
+    RPC->>MC: 按应采平台 P 与请求窗口采集
+    MC->>BOS: 经统一浏览器入口读取平台指标
+    BOS-->>MC: 真实结果或失败
+    MC-->>RPC: outcomes（含 source / windowScope）
+    RPC->>MS: appendVerified(outcomes, 固定目录)
+    opt 存在 live 且 verified 记录
+        MS->>Hist: 文件锁内读取、追加、原子替换
+    end
+    alt 存储失败
+        MS-->>RPC: DraftStorageError
+        RPC-->>WB: drafts/storage-unavailable 失败信封
+    else 追加成功或无可落盘记录
+        RPC->>MS: readAll(同一固定目录)
+        MS->>Hist: 读取历史（目录不存在则空历史）
+        alt 历史读取失败
+            MS-->>RPC: DraftStorageError
+            RPC-->>WB: drafts/storage-unavailable 失败信封
+        else 历史读取成功
+            MS-->>RPC: PlatformMetrics[]
+            RPC->>Calc: 汇总覆盖门 + 选择上一等长窗口基准
+            Calc-->>RPC: 汇总与 comparison（保留可空语义）
+            RPC-->>WB: 成功信封，客户端局部替换
         end
     end
-    MA->>Hist: 按 (platform, capturedAt) 追加快照
-    MA->>MA: 汇总判定
-    alt measuredPlatforms == P（全部成功）
-        MA->>MA: 汇总值 = 各平台之和
-    else measuredPlatforms ⊂ P（部分缺失）
-        MA->>MA: 汇总值 = null + 填充 unmeasuredPlatforms
-    end
-    MA->>Hist: 读取上一个等长窗口快照
-    alt 历史覆盖完整对比窗口
-        MA->>MA: 计算 delta 百分比
-    else 历史不足
-        MA->>MA: delta = null（UI 显示「暂无环比」）
-    end
-    MA-->>RPC: { overviewMetrics, statuses, ... }
-    RPC-->>WB: 局部替换（不整页重载）
 ```
 
 ### 关键决策点
 
-| 步骤 | 决策 | 失败处理 |
-|------|------|---------|
-| 5 | 真实返回 `0` 是**有效值** | 参与求和；`0` 与 `null` 语义**严格区分** |
-| 8 | 采集失败 / 不支持 → `null` | **不得**按 0 或估算值伪造填充 |
-| 11 | 部分缺失 → 汇总 **`null`** | **不得**只汇总已成功平台冒充全网总量；须填充 `measuredPlatforms` / `unmeasuredPlatforms` |
-| 13 | 互动汇总 | `totalEngagements` 在点赞/评论/转发/收藏**任一为 null 时为 null** |
-| 16 | 历史不足 → delta `null` | **不得**用不完整历史算近似百分比 |
-| 18 | UI 局部替换 | 同一卡片并发刷新须做 **in-flight 去重** |
-
-> **首次使用时全部 delta 为 `null` 属预期行为，不是缺陷。**
+- 真实 `0` 是有效值；抓取成功但窗口不可证实的结果不进入周期汇总、不写快照。
+- 平台覆盖不足时汇总为 `null`，填充覆盖数组；互动分项任一汇总未知则互动为 `null`。
+- 任一应采平台缺少上一等长窗口基准时，`comparison.period` 与四个 delta 全 `null`。候选按 UTC 起止日期 / 长度匹配，取距预期末端最近者，并列取采集时间最新者。
+- `period` 有值不保证每个 delta 都可用：当前值 / 基准未知仍为 `null`；基准与当前均为零时为 0%，基准零且当前非零时为 `null`。
+- `ops_fetch_metrics` 共用采集与追加路径，但不执行 overview 的历史读取和环比计算。存储失败不回滚已发生的采集，整体调用如实报错。
+- 首次使用无历史是正常情况；同一卡片并发刷新须做 in-flight 去重。图中 UI 是目标交互，不表示驾驶舱 UI 已验收。
 
 ---
 
@@ -362,34 +357,34 @@ sequenceDiagram
     participant RPC as 宿主 RPC 网关
     participant CS as ConfigStore
     participant Op as 在途草稿操作（如 prefillDraft）
-    participant Old as 原目录
     participant New as 新目录
-
-    Note over Op,Old: 在途操作已捕获原目录并贯穿全程
-    U->>WB: 修改 draftsDir
-    WB->>RPC: config.save { draftsDir }
-    RPC->>CS: 前置校验
-    CS->>New: 创建目录 + 写探测文件并删除（验证可写）
-    alt 目录不可用（含已存在但只读）
-        CS-->>RPC: error: config/invalid-drafts-dir
-        RPC-->>WB: ⛔ 拒绝保存（不先报成功）
-    else 校验通过
-        CS->>CS: 持久化配置
-        CS-->>RPC: { success:true, config }
-        RPC-->>WB: 保存成功
+    U->>WB: 修改 draftsDir（可同时提交 injoys 配置）
+    WB->>RPC: config.save
+    RPC->>New: 前置准备目录 + 写入并删除唯一探测文件
+    alt draftsDir 不可用（含已存在但只读）
+        RPC-->>WB: ok:false + config/invalid-drafts-dir（不更新配置）
+    else 预检通过或未修改 draftsDir
+        Note over RPC,CS: 若提交 injoys，先 updateConfig 热更新并清理目标缓存
+        RPC->>CS: save：先合并 inMemory，再 mkdir → 写 tmp → rename
+        alt 配置文件写盘失败
+            CS-->>RPC: 原生落盘异常（保留已合并内存，不回滚）
+            RPC-->>WB: 统一边界返回 ok:false + drafts/storage-unavailable
+        else 配置文件写盘成功
+            CS-->>RPC: save 完成
+            RPC-->>WB: ok:true + value:{ success:true, config }
+        end
     end
-    Note over Op,New: 在途操作继续写原目录（确定语义，非异常）
-    Note over RPC,New: 仅新发起的操作使用新目录
+    Note over Op,New: 在途草稿操作继续写原目录；仅新发起操作使用新目录（确定语义）
 ```
 
 ### 关键决策点
 
 | 步骤 | 决策 | 失败处理 |
 |------|------|---------|
-| 5 | **仅检查「目录存在」不够** | 已存在但只读的目录会让 `mkdir` 成功却在首次写入时失败 |
-| 5 | 校验方式 | 在目标目录创建并删除一个**唯一命名**的探测文件 |
-| 7 | 失败**拒绝保存** | 返回 `config/invalid-drafts-dir`；**不得**先返回成功、再让 `drafts.save` 以 `ENOENT` 失败 |
-| 10 | 在途操作写原目录是**确定行为** | **不引入** `dirChangedDuringSave` 告警标记，不当作错误上报 |
+| 前置预检 | **仅检查「目录存在」不够** | 已存在但只读的目录会让 `mkdir` 成功却在首次写入时失败 |
+| 前置预检 | 校验方式 | 在目标目录创建并删除一个**唯一命名**的探测文件 |
+| 预检失败 | 失败**拒绝保存** | 返回 `config/invalid-drafts-dir`；**不得**先返回成功、再让 `drafts.save` 以 `ENOENT` 失败 |
+| 在途操作 | 在途操作写原目录是**确定行为** | **不引入** `dirChangedDuringSave` 告警标记，不当作错误上报 |
 | — | 配置页提示文案（须覆盖三件事实） | 「新目录对后续操作生效；正在进行的保存仍写入原目录。旧草稿不会自动迁移。」 |
 | — | 旧目录草稿 | **不做自动迁移**（避免大目录复制与部分失败风险） |
 
@@ -472,6 +467,7 @@ sequenceDiagram
 |---------|---------|---------|
 | **草稿目录不可写** | 目录只读 / 创建失败 | 统一错误边界返回 `drafts/storage-unavailable`（**所有写入口一致**）；**不吞异常、不谎报成功** |
 | **`config.save` 目标目录不可用** | 已存在但只读 / 无法创建 | 前置探测文件校验失败 → **拒绝保存** `config/invalid-drafts-dir` |
+| **配置文件自身写盘失败** | `$DSH_HOME/ops-manager/` 目录不可写 / 路径被普通文件占用 / tmp 写入或 rename 失败 | `ConfigStore.save()` 落盘异常**如实抛出**，经**统一 RPC 错误边界**映射为 `drafts/storage-unavailable`（`details.dir` 指向 `ops-manager` 配置目录）；`error.message` 为面向用户的中文说明、不拼接 `errno`/调用栈；**不得**吞异常后谎报保存成功。热更新在写盘**之前**完成，失败时不回滚已合并的内存态（非空字段与 `InjoysClient` 一致） |
 | **配置在操作中途切换** | 用户在复合 RPC 期间改 `draftsDir` | 在途操作**继续写原目录**（确定语义）；新操作才用新目录 |
 | **Injoys 未配置** | 无令牌 | `injoys.test` 返回「尚未配置令牌」提示，**不得**发出请求并谎报「认证失败」 |
 | **Injoys 沉淀失败** | 网络 / 服务错误 | `sinkToInjoysDoc` 返回 `success:false` 与真实错误；**不得**谎报成功或写本地假 ID |

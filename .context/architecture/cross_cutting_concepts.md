@@ -3,7 +3,6 @@
 > **Metadata**
 > - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.4.5 §3.9、§5.5、§六）
 > - **Generated At**: `2026-10-16 09:44`
-> - **Updated At**: `2026-10-17 12:54`
 > - **Generator**: `Context-Agent v1.0`
 
 > 源文档未定义完整的可观测性体系（无 Prometheus / Jaeger / 日志级别规范）。
@@ -36,7 +35,7 @@ interface RpcEnvelopeResponse<T = unknown> {
 | `drafts/published-requires-url` | `drafts.save` 传入 `published` | 发布守卫 |
 | `drafts/invalid-published-url` | URL 非法 | 发布守卫 |
 | `drafts/unknown-channel` | 渠道不属于该草稿 | 发布守卫 |
-| `drafts/storage-unavailable` | 目录不可写 / 创建失败 | **统一 RPC 错误边界** |
+| `drafts/storage-unavailable` | 目录不可写 / 创建失败 / 配置文件写盘失败 | **统一 RPC 错误边界** |
 | `config/invalid-drafts-dir` | 前置目录校验失败 | 配置服务（**单独使用**） |
 | `calendar/invalid-transition` | 越级 / 回退 / 写 `published` | 排期服务 |
 | `tools/disabled` | 工具被白名单禁用 | 工具沙箱 |
@@ -176,9 +175,9 @@ interface TelemetryEntry {
 | 机制 | 规则 |
 |------|------|
 | **串行写锁** | 同一草稿的写操作串行化 |
-| **锁归属** | 按**绝对文件路径**归属 → 不同库同 ID 草稿互不阻塞、互不覆盖 |
+| **锁归属** | 按**绝对文件路径**归属 → 不同库同 ID 草稿互不阻塞、互不覆盖；`local-fs.ts` 的 `createFileWriteLocks()` 每次返回独立锁集，由 store 实例持有，保持原实例级语义，不提供跨实例 / 跨进程互斥 |
 | **乐观锁** | `version` 自增 + `expectedVersion` 校验 |
-| **原子写** | 临时文件 + `rename` |
+| **原子写** | `local-fs.ts` 的 `writeJsonAtomic()` 写同目录随机后缀临时文件再 `rename`；文件以 `0o600`、目录以 `0o700` 创建（实际受 umask 收紧），既有对象残留见 `security_policy.md`「存储层加密」；封装抛原始 fs 错误，草稿侧包装 `DraftStorageError`、配置侧由 `config.save` RPC 包装，统一 RPC 边界映射保持不变 |
 | **目录固定** | 单次操作内固定，**覆盖跨 `await` 的复合 RPC** 与**请求内每一次落盘** |
 | **全渠道不变量** | 渠道集合变化须在**同一写锁内**重算状态 |
 
@@ -188,7 +187,7 @@ interface TelemetryEntry {
 
 | 类型 | 存储位置 | 更新方式 |
 |------|---------|---------|
-| **应用配置（`OpsConfig`）** | `$DSH_HOME/ops-manager/config.json` | **热更新**（`config.save` 后立即生效，无需重启） |
+| **应用配置（`OpsConfig`）** | `$DSH_HOME/ops-manager/config.json` | **热更新**（预检通过后、配置写盘前生效，无需重启；写失败不回滚，非空字段一致性边界见 `api_strategy.md` §3.6） |
 | **BrowserOS 能力开关（`browserosCapabilities`）** | 同上（可选字段） | 默认八项；用户显式保存优先、重启不重置；缺失时按默认集合解析 |
 | **Injoys 令牌** | 同上（⛔ **无内置默认值**） | 用户配置或环境变量 `INJOYS_MCP_TOKEN` 回退 |
 | **Injoys 端点** | 同上 | 用户配置或环境变量 `INJOYS_MCP_ENDPOINT` 回退 |
@@ -201,7 +200,7 @@ interface TelemetryEntry {
 |------|------|
 | **禁止硬编码** | 禁止硬编码密钥 / 令牌 / 敏感配置 |
 | **无内置默认** | ⛔ 令牌**无内置默认值**；不得内置全局通用 Master Key 或任何形式的通用凭据 |
-| **热更新** | 配置变更须**实时**传给 `InjoysClient`（`updateConfig`），无需重启 |
+| **热更新** | `draftsDir` 预检通过后、配置写盘前传给 `InjoysClient`（`updateConfig`），无需重启；失败不回滚已合并内存，一致性保证仅适用于非空字段（见 `api_strategy.md` §3.6） |
 | **缓存隔离** | 保存 `injoys` 配置后须清理**按目标隔离的缓存** |
 | **目录前置校验** | 改 `draftsDir` 必须先创建 + **验证可写**（唯一命名探测文件），失败拒绝保存 |
 | **路径解析统一** | 一律经 `resolveDshHome`（`profileContext.home` → `DSH_HOME` → `~/.dsh` 回退） |

@@ -1846,10 +1846,11 @@ describe('Ops Manager (Stage 4: Overseas Expansion & Multi-Language)', () => {
       }
       const configStore = new conn.ConfigStore(ctx, { draftsDir })
       const draftStore = new DraftStore(ctx, () => configStore.load().draftsDir)
+      const injoys = new InjoysClient({ endpoint: 'http://127.0.0.1:1/mcp', token: 't' })
       mod.registerOpsRpc(
         ctx,
         configStore,
-        new InjoysClient({ endpoint: 'http://127.0.0.1:1/mcp', token: 't' }),
+        injoys,
         new AdapterRegistry(),
         draftStore as any,
       )
@@ -1862,7 +1863,7 @@ describe('Ops Manager (Stage 4: Overseas Expansion & Multi-Language)', () => {
         }))
         return (await res.json()) as any
       }
-      return { call, configStore, draftStore }
+      return { call, configStore, draftStore, injoys }
     }
 
     /**
@@ -2061,6 +2062,160 @@ describe('Ops Manager (Stage 4: Overseas Expansion & Multi-Language)', () => {
 
       expect(data.result.ok).toBe(false)
       expect(data.result.error.code).toBe('config/invalid-drafts-dir')
+    })
+
+    it('C1: ops-manager 路径被普通文件占用时 config.save 如实失败（跨平台 EEXIST）', async () => {
+      const os = await import('node:os')
+      const fs = await import('node:fs')
+      const path = await import('node:path')
+
+      const base = fs.mkdtempSync(path.join(os.tmpdir(), 'gs-c1-'))
+      // Occupy the config directory path with a regular file: mkdirSync(recursive) then
+      // fails with EEXIST regardless of platform or permission bits.
+      const home = path.join(base, 'home')
+      fs.mkdirSync(home, { recursive: true })
+      fs.writeFileSync(path.join(home, 'ops-manager'), 'not a directory')
+
+      const { call } = await buildIsolatedRpcStack(home, path.join(base, 'drafts'))
+      const data = await call('config.save', { injoys: { endpoint: 'http://127.0.0.1:9/mcp', token: 'newtok' } })
+
+      fs.rmSync(base, { recursive: true, force: true })
+
+      expect(data.result.ok).toBe(false)
+      expect(data.result.error.code).toBe('drafts/storage-unavailable')
+      // User-facing message only: no errno / stack leakage into the client-facing string.
+      expect(data.result.error.message).not.toMatch(/EEXIST|ENOENT|EACCES|errno|at Object|\.ts:\d+/)
+      // Positive assertion: the message must actually be a non-empty Chinese explanation.
+      // Without this, an English or empty message would still satisfy the negative check above.
+      expect(data.result.error.message).toMatch(/[\u4e00-\u9fa5]/)
+      expect(data.result.error.message.trim().length).toBeGreaterThan(0)
+      // Exact directory, not just truthy: catches `$DSH_HOME`, the config.json file path, and
+      // the `'ops-manager'` literal fallback that `ops-rpc.ts` uses when getConfigDir() is undefined.
+      expect(data.result.error.details?.dir).toBe(path.join(home, 'ops-manager'))
+    })
+
+    it.skipIf(!permissionBitsEnforced)('C2: ops-manager 目录只读时 config.save 如实失败（EACCES）', async () => {
+      const os = await import('node:os')
+      const fs = await import('node:fs')
+      const path = await import('node:path')
+
+      const base = fs.mkdtempSync(path.join(os.tmpdir(), 'gs-c2-'))
+      const home = path.join(base, 'home')
+      const configDir = path.join(home, 'ops-manager')
+      fs.mkdirSync(configDir, { recursive: true })
+      const { call } = await buildIsolatedRpcStack(home, path.join(base, 'drafts'))
+      fs.chmodSync(configDir, 0o500)
+
+      const data = await call('config.save', { injoys: { endpoint: 'http://127.0.0.1:9/mcp', token: 'newtok' } })
+
+      fs.chmodSync(configDir, 0o700)
+      fs.rmSync(base, { recursive: true, force: true })
+
+      expect(data.result.ok).toBe(false)
+      expect(data.result.error.code).toBe('drafts/storage-unavailable')
+    })
+
+    it('C3: 可写时 config.save 仍成功且 config.json 确实落盘（含令牌字段）', async () => {
+      const os = await import('node:os')
+      const fs = await import('node:fs')
+      const path = await import('node:path')
+
+      const base = fs.mkdtempSync(path.join(os.tmpdir(), 'gs-c3-'))
+      const { call } = await buildIsolatedRpcStack(base, path.join(base, 'drafts'))
+
+      const data = await call('config.save', {
+        injoys: { endpoint: 'http://127.0.0.1:9/mcp', token: 'tok-c3' },
+      })
+
+      const configFile = path.join(base, 'ops-manager', 'config.json')
+      const onDisk = JSON.parse(fs.readFileSync(configFile, 'utf-8'))
+      fs.rmSync(base, { recursive: true, force: true })
+
+      expect(data.result.ok).toBe(true)
+      expect(data.result.value.success).toBe(true)
+      expect(onDisk.injoys.token).toBe('tok-c3')
+    })
+
+    it('C4: 落盘失败时 updateConfig 已先行生效（非空字段），内存态与客户端不分叉', async () => {
+      const os = await import('node:os')
+      const fs = await import('node:fs')
+      const path = await import('node:path')
+
+      const base = fs.mkdtempSync(path.join(os.tmpdir(), 'gs-c4-'))
+      const home = path.join(base, 'home')
+      fs.mkdirSync(home, { recursive: true })
+      fs.writeFileSync(path.join(home, 'ops-manager'), 'blocker')
+
+      const { call, injoys, configStore } = await buildIsolatedRpcStack(home, path.join(base, 'drafts'))
+      const data = await call('config.save', {
+        injoys: { endpoint: 'http://127.0.0.1:9/mcp', token: 'tok-c4' },
+      })
+      // Two INDEPENDENT sources must both hold the submitted values after a failed write:
+      // - `injoys.getConfig()` proves updateConfig ran before save() (catches deletion/reorder);
+      // - `configStore.load()` proves inMemory was NOT rolled back (catches rollback on failure).
+      // Reading only one of them leaves the other behaviour unprotected.
+      const clientCfg = injoys.getConfig()
+      const storeCfg = configStore.load()
+
+      fs.rmSync(base, { recursive: true, force: true })
+
+      expect(data.result.ok).toBe(false)
+      // Hot-update precedes the failed write, so the submitted token is live on the client.
+      expect(clientCfg.token).toBe('tok-c4')
+      expect(clientCfg.endpoint).toBe('http://127.0.0.1:9/mcp')
+      // No rollback on failure: in-memory config keeps the merged values.
+      expect(storeCfg.injoys.token).toBe('tok-c4')
+      expect(storeCfg.injoys.endpoint).toBe('http://127.0.0.1:9/mcp')
+    })
+
+    it('C5: 写盘失败不得降级为 ops/internal-error，且不影响 draftsDir 预检码', async () => {
+      const os = await import('node:os')
+      const fs = await import('node:fs')
+      const path = await import('node:path')
+
+      const base = fs.mkdtempSync(path.join(os.tmpdir(), 'gs-c5-'))
+      const home = path.join(base, 'home')
+      fs.mkdirSync(home, { recursive: true })
+      fs.writeFileSync(path.join(home, 'ops-manager'), 'blocker')
+
+      const { call } = await buildIsolatedRpcStack(home, path.join(base, 'drafts'))
+
+      const writeFail = await call('config.save', { tone: 'concise' })
+      // draftsDir pre-check must still own its own code, unchanged by the new mapping.
+      const blocker = path.join(base, 'blocker')
+      fs.writeFileSync(blocker, 'x')
+      const precheckFail = await call('config.save', { draftsDir: path.join(blocker, 'nope') })
+
+      fs.rmSync(base, { recursive: true, force: true })
+
+      expect(writeFail.result.ok).toBe(false)
+      expect(writeFail.result.error.code).toBe('drafts/storage-unavailable')
+      expect(writeFail.result.error.code).not.toBe('ops/internal-error')
+      expect(precheckFail.result.error.code).toBe('config/invalid-drafts-dir')
+    })
+
+    it('C6: 非存储类异常仍映射为 ops/internal-error（兜底分支不被新映射吞并）', async () => {
+      const os = await import('node:os')
+      const fs = await import('node:fs')
+      const path = await import('node:path')
+
+      const base = fs.mkdtempSync(path.join(os.tmpdir(), 'gs-c6-'))
+      const { call, configStore } = await buildIsolatedRpcStack(base, path.join(base, 'drafts'))
+
+      // Throw a plain Error from OUTSIDE the save() wrap (here: the post-save `load()`).
+      // The unified boundary must keep mapping it to `ops/internal-error`; a broken fallback
+      // would silently relabel every unknown failure as a storage problem.
+      const original = configStore.load.bind(configStore)
+      ;(configStore as any).load = () => {
+        throw new Error('boom-not-a-storage-error')
+      }
+      const data = await call('config.save', { tone: 'concise' })
+      ;(configStore as any).load = original
+
+      fs.rmSync(base, { recursive: true, force: true })
+
+      expect(data.result.ok).toBe(false)
+      expect(data.result.error.code).toBe('ops/internal-error')
     })
 
     it('T2: 预填回写固定在发起时的草稿库，不污染同 ID 的其他库', async () => {

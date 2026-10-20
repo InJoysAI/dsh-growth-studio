@@ -9,6 +9,7 @@ import { InjoysClient } from './injoys/client.js'
 import { AdapterRegistry } from './adapters/registry.js'
 import { ConfigStore } from './config-store.js'
 import { DraftStore } from './storage/draft-store.js'
+import { MetricsStore } from './storage/metrics-store.js'
 import { registerOpsRpc } from './ops-rpc.js'
 import { createOpsTools } from './tools/index.js'
 import { MetricsCollector } from './analytics/metrics-collector.js'
@@ -77,9 +78,10 @@ export function apply(ctx: Context, config: Config): void {
   // Resolve the drafts directory from live config so a `draftsDir` change takes
   // effect immediately without recreating the plugin (architecture §3.10.4).
   const draftStore = new DraftStore(ctx, () => configStore.load().draftsDir)
+  const metricsStore = new MetricsStore(ctx)
 
   ctx.inject(['connection'], (connectionCtx) => {
-    registerOpsRpc(connectionCtx, configStore, injoys, adapters, draftStore, browserOsClient)
+    registerOpsRpc(connectionCtx, configStore, injoys, adapters, draftStore, browserOsClient, undefined, metricsStore)
   })
 
   ctx.systemPrompt.section({
@@ -91,7 +93,7 @@ export function apply(ctx: Context, config: Config): void {
       'Use `ops_draft_article` for WeChat Official Account in-depth copywriting and Injoys documents.',
       'Use `ops_draft_video_meta` for video titles, tags, and chapter timestamps from local finished videos.',
       'Use `ops_push_drafts` to automatically prefill platform draft boxes via BrowserOS and provide review URLs.',
-      'Use `ops_fetch_metrics` to collect creator metrics across channels and sync to Injoys metrics spreadsheets.',
+      'Use `ops_fetch_metrics` to collect creator metrics across channels, append window-verified snapshots under local metrics/, and sync to Injoys metrics spreadsheets.',
       'Use `ops_generate_review` to calculate viral rates and output weekly/monthly ops reviews into Injoys documents.',
       'Use `ops_fetch_comments` to crawl audience comments and questions from video and article channels.',
       'Use `ops_extract_feedback` to cluster comments into bugs/features and update Injoys backlog and FAQ.',
@@ -106,7 +108,7 @@ export function apply(ctx: Context, config: Config): void {
   // unmeasured even though BrowserOS is reachable.
   const metricsCollector = new MetricsCollector({ browserOsClient })
 
-  const tools = createOpsTools(injoys, adapters, ctx, draftStore, metricsCollector)
+  const tools = createOpsTools(injoys, adapters, ctx, draftStore, metricsCollector, undefined, metricsStore)
   for (const tool of tools) {
     ctx.tools.register(tool)
   }
@@ -131,4 +133,6 @@ export * from './feedback/issue-extractor.js'
 export * from './feedback/trends-discoverer.js'
 export * from './schedule/schedule-bridge.js'
 export * from './storage/draft-store.js'
+export * from './storage/metrics-store.js'
+export * from './analytics/metrics-comparison.js'
 export * from './tools/index.js'

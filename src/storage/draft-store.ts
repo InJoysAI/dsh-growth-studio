@@ -5,12 +5,13 @@
  * @module @deepseek-ai/dsh-ops-manager/storage/draft-store
  */
 
-import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, unlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync, unlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { randomBytes } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
 import type { ContentDraft, PlatformId } from '../types.js'
 import { resolveDshHome, defaultDraftsDir } from '../config-store.js'
+import { FILE_MODE, mkdirWithMode, writeJsonAtomic, createFileWriteLocks, type FileWriteLock } from './local-fs.js'
 
 export class DraftConcurrencyError extends Error {
   constructor(
@@ -120,7 +121,7 @@ export function getPublishProgress(draft: Pick<ContentDraft, 'channelVariants' |
  */
 export function ensureDirectory(dir: string): void {
   try {
-    mkdirSync(dir, { recursive: true })
+    mkdirWithMode(dir)
   } catch (err) {
     throw new DraftStorageError(
       `草稿目录不可用或无法创建（${dir}）：${(err as Error)?.message ?? '未知错误'}`,
@@ -146,7 +147,7 @@ export function verifyDirectoryWritable(dir: string): void {
   ensureDirectory(dir)
   const probePath = join(dir, `.draftstore-probe-${randomBytes(6).toString('hex')}`)
   try {
-    writeFileSync(probePath, '', 'utf-8')
+    writeFileSync(probePath, '', { encoding: 'utf-8', mode: FILE_MODE })
   } catch (err) {
     throw new DraftStorageError(
       `草稿目录不可写（${dir}）：${(err as Error)?.message ?? '未知错误'}`,
@@ -189,7 +190,7 @@ export class DraftStore {
    */
   private readonly dirProvider: () => string
   /** Locks keyed by absolute file path, so the same ID in different libraries is independent. */
-  private readonly writeLocks = new Map<string, Promise<void>>()
+  private readonly writeLocks: FileWriteLock = createFileWriteLocks()
 
   constructor(ctx?: Context, customDir?: string | (() => string)) {
     if (typeof customDir === 'function') {
@@ -219,31 +220,10 @@ export class DraftStore {
     return join(dir, `${safeId}.json`)
   }
 
-  private async withFileLock<T>(filePath: string, fn: () => Promise<T>): Promise<T> {
-    const prevLock = this.writeLocks.get(filePath) ?? Promise.resolve()
-    let releaseLock!: () => void
-    const nextLock = new Promise<void>((resolve) => {
-      releaseLock = resolve
-    })
-    this.writeLocks.set(filePath, nextLock)
-
-    try {
-      await prevLock
-      return await fn()
-    } finally {
-      releaseLock()
-      if (this.writeLocks.get(filePath) === nextLock) {
-        this.writeLocks.delete(filePath)
-      }
-    }
-  }
-
   /** Atomic write: temp file + rename, inside an already-prepared directory. */
   private writeDraftFile(filePath: string, dir: string, draft: ContentDraft): void {
-    const tmpPath = `${filePath}.tmp.${Date.now()}`
     try {
-      writeFileSync(tmpPath, JSON.stringify(draft, null, 2), 'utf-8')
-      renameSync(tmpPath, filePath)
+      writeJsonAtomic(filePath, draft)
     } catch (err) {
       throw new DraftStorageError(
         `草稿目录不可写或写入失败（${dir}）：${(err as Error)?.message ?? '未知错误'}`,
@@ -283,7 +263,7 @@ export class DraftStore {
     const dir = options?.dir ?? this.getDirectory()
     const filePath = this.filePathIn(dir, id)
 
-    return this.withFileLock(filePath, async () => {
+    return this.writeLocks.withFileLock(filePath, async () => {
       try {
         ensureDirectory(dir)
       } catch (err) {
@@ -433,7 +413,7 @@ export class DraftStore {
     const targetDir = dir ?? this.getDirectory()
     const filePath = this.filePathIn(targetDir, draftId)
 
-    return this.withFileLock(filePath, async () => {
+    return this.writeLocks.withFileLock(filePath, async () => {
       const freshDraft = await this.getDraft(draftId, targetDir)
       if (!freshDraft) return null
 
@@ -488,7 +468,7 @@ export class DraftStore {
     const targetDir = dir ?? this.getDirectory()
     const filePath = this.filePathIn(targetDir, draftId)
 
-    return this.withFileLock(filePath, async () => {
+    return this.writeLocks.withFileLock(filePath, async () => {
       const freshDraft = await this.getDraft(draftId, targetDir)
       if (!freshDraft) return null
 

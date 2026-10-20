@@ -67,6 +67,17 @@ interface PlatformScrapeSpec {
   emptyNote?: string
 }
 
+/** Closed `[windowStart, windowEnd]` ending at `capturedAt`, length `7d` / `30d`. */
+export function resolveMetricsWindow(
+  timeRange: '7d' | '30d',
+  capturedAt: string,
+): { windowStart: string; windowEnd: string } {
+  const days = timeRange === '30d' ? 30 : 7
+  const end = new Date(capturedAt)
+  const start = new Date(end.getTime() - days * 24 * 60 * 60 * 1000)
+  return { windowStart: start.toISOString(), windowEnd: end.toISOString() }
+}
+
 /**
  * Collects metrics from creator dashboards across WeChat MP, Bilibili, etc.
  * Supports distinguishing between text impressions and video plays with nullable semantics.
@@ -129,10 +140,7 @@ export class MetricsCollector {
     timeRange: '7d' | '30d',
     capturedAt: string,
   ): { windowStart: string; windowEnd: string } {
-    const days = timeRange === '30d' ? 30 : 7
-    const end = new Date(capturedAt)
-    const start = new Date(end.getTime() - days * 24 * 60 * 60 * 1000)
-    return { windowStart: start.toISOString(), windowEnd: end.toISOString() }
+    return resolveMetricsWindow(timeRange, capturedAt)
   }
 
   /** A metrics row that states plainly that nothing was measured. */

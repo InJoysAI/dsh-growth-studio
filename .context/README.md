@@ -3,7 +3,6 @@
 > **Metadata**
 > - **Source**: `.context/domain/source/product_requirements.md`, `.context/domain/source/development_plan.md`, `.context/architecture/source/technical_architecture.md`
 > - **Generated At**: `2026-10-15 20:23`
-> - **Updated At**: `2026-10-17 15:26`
 > - **Generator**: `Context-Dev-Agent v1.0`
 
 > **用途**: 为 AI 代理提供 `dsh-growth-studio`（Growth Studio）项目的结构化上下文资产。

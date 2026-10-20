@@ -3,8 +3,9 @@
 > **Metadata**
 > - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.4.5 §4、§5.3）
 > - **Generated At**: `2026-10-16 09:44`
-> - **Updated At**: `2026-10-17 13:53`
 > - **Generator**: `Context-Agent v1.0`
+> - **Last Synced At**: `2026-10-21T00:01:50+08:00`
+> - **Sync Authority**: `openspec/changes/archive/2026-10-20-feat-storage-metrics-snapshot/`
 
 > ⚠️ **权威定义在 `src/types.ts`**（criterion §5.5）。若本文与源文档冲突，**以源文档为准**。
 > **本项目无数据库** —— 数据层未启用（criterion §7.3），持久化为本地 JSON 文件。
@@ -164,7 +165,7 @@ export interface UserFeedbackItem {
 源契约为 `source/technical_architecture.md` §3.1 的 `overviewMetrics`，实现统一引用 `src/types.ts`：
 
 - `OverviewMetrics`：可空的曝光、播放、点赞、评论、转发、收藏、净增关注及互动总量；保留既有计数和口径说明，新增覆盖数组、`comparison` 与 `weeklyPipeline`。
-- `MetricsComparison`：`period: '7d' | '30d' | null`；`impressionsDeltaPercent` / `playsDeltaPercent` / `engagementsDeltaPercent` / `followersDeltaPercent` 均为 `number | null`。无历史基准时五键均为 `null`，不代表指标历史快照已落盘。
+- `MetricsComparison`：`period: '7d' | '30d' | null`；`impressionsDeltaPercent` / `playsDeltaPercent` / `engagementsDeltaPercent` / `followersDeltaPercent` 均为 `number | null`。基准取自本地 `metrics/{YYYY-MM-DD}.json`（`src/storage/metrics-store.ts`，仅 `source === 'live'` 且 `windowScope === 'verified'` 落盘；UTC 日历日对齐上一个等长窗口）；历史不足时五键为 `null`。当前生产 `live` 均为 `unverified`，故生产上仍恒为 `null`，直至采集侧能产出窗口可证数据。
 - `WeeklyPipeline`：`total` / `completed` 为数字，`byStatus: Record<ItemStatus, number>`；筛选后的本周集合为空才为全零，`completed = prefilled + published`。当前从既有远端 `calendarItems` 派生，非本地主数据接入；本周边界的当前 UTC 实现见 `api_strategy.md` §3.1。
 
 `src/analytics/metrics-collector.ts` 的 `PlatformMetricsOutcome extends PlatformMetrics` 另含 `source`、`windowScope`、`note` 等带明确注释的采集结果扩展。`windowScope: 'verified' | 'unverified'` 不属于 `PlatformMetrics` 基础契约；汇总仅接受来源不是 `unmeasured` 且窗口已验证的结果，现有 `live` 页面数值保留，但窗口未验证时不计入窗口汇总。可选 `favorites` / `followerDelta` 的 `undefined` 与 `null` 同属未知，不回退为真实 `0`。
@@ -262,7 +263,7 @@ $DSH_HOME/
     ├── calendar/
     │   └── {itemId}.json
     └── metrics/
-        └── {YYYY-MM-DD}.json          # 指标历史快照仍保留
+        └── {YYYY-MM-DD}.json          # 指标历史快照（`feat-storage-metrics-snapshot` 已落地读写）
 ```
 
 | 路径 | 实体 | 说明 |
@@ -270,7 +271,14 @@ $DSH_HOME/
 | `ops-manager/config.json` | `OpsConfig` | 配置；`draftsDir` 可由用户修改 |
 | `growth-studio/drafts/{id}.json` | `ContentDraft` | 只保留当前内容，`version` 用于并发控制 |
 | `growth-studio/calendar/{id}.json` | `CalendarItem` | 排期黄金主数据源 |
-| `growth-studio/metrics/{YYYY-MM-DD}.json` | `PlatformMetrics[]` | 按 `(platform, capturedAt)` 追加，供环比 |
+| `growth-studio/metrics/{YYYY-MM-DD}.json` | `PlatformMetrics[]` | 按 `(platform, capturedAt)` 追加，供环比；仅 `source === 'live'` 且 `windowScope === 'verified'` 的结果写入（`src/storage/metrics-store.ts`） |
+
+### 指标历史存取边界
+
+- `MetricsSnapshotFile` 是 `PlatformMetrics[]` 的契约别名；按 `capturedAt` 的 UTC 日期分桶，`source` / `windowScope` 不落盘。仅通过 live + verified 门的行追加，现有实现不按 `(platform, capturedAt)` 去重；既有记录保持不变。
+- 请求开始捕获 `resolveDshHome()` 下的指标目录，贯穿采集、追加和历史读取；不受 `draftsDir` 影响。`MetricsStore` 复用统一原子写、每实例一套的文件锁及目录可写性校验，不承诺跨实例 / 跨进程互斥。
+- 追加失败返回 `drafts/storage-unavailable` 失败信封，不回滚采集；目录不存在按无历史处理，读取失败 / 损坏 JSON / 非数组文件报存储错误，不冒充正常空历史。
+- 上一等长窗口基准须覆盖每个应采平台、UTC 起止日期对齐且窗口长度匹配。同平台候选按距预期末端最近、并列时采集时间最新选择。缺任一平台时五键全 `null`；历史充足时仍逐指标保留未知与零基准语义（见 `api_strategy.md` §3.1）。
 
 ### MVP 单份草稿存储设计
 
@@ -307,7 +315,7 @@ $DSH_HOME/
 | 草稿库（本地 JSON） | **单机强一致** | 临时文件 + `rename` 原子写 + 串行写锁 + `expectedVersion` 乐观锁（`ContentDraft.version`） |
 | 排期库（本地 JSON） | **单机强一致** | 临时文件 + `rename` 原子写 + 串行写锁（**无乐观锁**，`CalendarItem` 无 `version`） |
 | 指标历史（本地 JSON） | 追加写 | 按 `(platform, capturedAt)` 追加，供环比 |
-| 配置（本地 JSON） | 单机强一致 | `config.save` 后热更新 |
+| 配置（本地 JSON） | 单文件原子替换，内存/磁盘分阶段生效 | 预检通过后先热更新再写盘；失败如实返回且不回滚已合并内存，重启读取实际磁盘配置；非空边界见 `api_strategy.md` §3.6，不承诺跨介质事务 |
 | **Injoys Spreadsheet** | **最终一致** | 单向导出（以 `externalRowId` 幂等）；导入本地状态优先 |
 | **Injoys Document** | 最终一致 | 幂等更新（已有 `injoysDocId` 时更新而非新建） |
 
@@ -358,7 +366,7 @@ $DSH_HOME/
 | **删除权** | `drafts.delete` 删除当前草稿；MVP 不创建或管理历史快照；旧目录草稿**不做自动迁移**，由用户自行处置 |
 | **产品切换** | `defaultProduct` **仅切换生成上下文**，**不做数据隔离**；`ContentDraft` / `CalendarItem` **不新增 `productId`** |
 | **数据源归属** | 本地为**黄金主数据源**；Injoys Spreadsheet / Document 为**导出目标**（单向） |
-| **文件权限** | 系统文件权限**仅限当前操作系统用户** |
+| **文件权限** | 系统文件权限**仅限当前操作系统用户**（要求不变）；草稿 / 配置新建文件以 `mode: 0o600`、新建目录以 `0o700` 创建，实际受 umask 进一步收紧；既有目录不回改、未再保存的旧文件不收紧，不能宣称全量对象已合规（详见 `security_policy.md`「存储层加密」） |
 | **路径解析** | 统一经 `resolveDshHome`（`profileContext.home` → `DSH_HOME` → `~/.dsh` 回退） |
 
 ### 产品切换语义（已裁决）

@@ -3,8 +3,9 @@
 > **Metadata**
 > - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.4.5）
 > - **Generated At**: `2026-10-16 09:44`
-> - **Updated At**: `2026-10-17 12:54`
 > - **Generator**: `Context-Agent v1.0`
+> - **Last Synced At**: `2026-10-21T00:01:50+08:00`
+> - **Sync Authority**: `openspec/changes/archive/2026-10-20-feat-storage-metrics-snapshot/`
 
 > ⚠️ **本文只记录源文档中有明确依据的风险与债务**。源文档未提供的字段标注 `N/A – 源文档未提供`，
 > 不编造负责人、工作量或日期。业务层风险另见 `.context/domain/risks_and_debt.md`（本文聚焦**技术**风险）。
@@ -84,8 +85,8 @@
 | **影响程度** | 中 |
 | **风险等级** | **中风险** |
 | **负责人** | N/A – 源文档未提供 |
-| **描述** | ① 仅检查「目录存在」不足：**已存在但只读**的目录会让 `mkdir` 成功却在首次写入时失败；② `config.save` 先报成功、再由 `drafts.save` 以 `ENOENT` 失败，用户体验为「保存时才发现目录不可用」；③ 部分写入口漏出 `ops/internal-error`，调用方**无法一致识别可恢复的存储错误**。 |
-| **缓解措施** | ① `config.save` 前**先准备并校验**目标目录（创建并删除唯一命名的探测文件），失败**拒绝保存**并返回 `config/invalid-drafts-dir`；② 写盘失败统一返回 `drafts/storage-unavailable`，须在**统一 RPC 错误边界**映射，覆盖 **所有**写入口；③ 不得吞异常后谎报保存成功。 |
+| **描述** | ① 仅检查「目录存在」不足：**已存在但只读**的目录会让 `mkdir` 成功却在首次写入时失败；② `config.save` 先报成功、再由 `drafts.save` 以 `ENOENT` 失败，用户体验为「保存时才发现目录不可用」；③ 部分写入口漏出 `ops/internal-error`，调用方**无法一致识别可恢复的存储错误**；④ 草稿目录预检不能覆盖配置文件自身的 mkdir/tmp/rename 失败，若吞没该异常，用户重启后才发现配置回退。 |
+| **缓解措施** | ① `config.save` 前**先准备并校验**目标目录（创建并删除唯一命名的探测文件），失败**拒绝保存**并返回 `config/invalid-drafts-dir`；② 写盘失败统一返回 `drafts/storage-unavailable`，须在**统一 RPC 错误边界**映射，覆盖 **所有**写入口；③ 不得吞异常后谎报保存成功；配置文件失败也由统一边界返回 `drafts/storage-unavailable`，`draftsDir` 前置预检仍独立返回 `config/invalid-drafts-dir`；TD-016 已修复该配置分支，失败不回滚内存，非空字段与 `InjoysClient` 一致。 |
 | **应急预案** | 用户收到明确错误码后可切换至可写目录；旧目录草稿不做自动迁移。 |
 
 #### RISK-006: 指标汇总以偏概全（用部分数据冒充全网总量）
@@ -113,6 +114,8 @@
 | **描述** | 环比是**基于本地留存的次级指标**，其可用性取决于用户已积累的历史采集次数。若历史快照不足以覆盖完整上一个窗口，用不完整历史算出的近似百分比会产生误导。 |
 | **缓解措施** | ① 基准取自本地**历史指标快照**（`metrics/{YYYY-MM-DD}.json`，按 `(platform, capturedAt)` 追加）；② `comparison.period` 表示**上一个等长窗口**；③ 历史不足 → 对应 delta 为 **`null`**（UI 显示「暂无环比」），**不得**用不完整历史算近似值。 |
 | **应急预案** | 首次使用时全部 delta 为 `null`，UI 明确显示「暂无环比」而非 0%。 |
+
+> **实现边界（`feat-storage-metrics-snapshot`）**：本地基准读写与等长窗口计算已落地。每个应采平台均须有匹配窗口记录；缺任一平台时 `period` 和四个 delta 全 `null`。当前生产 `live` 均为 `unverified`，不会写快照；历史充足正向路径由测试夹具证明，不表示生产已能提供环比。写盘失败整体返回 `drafts/storage-unavailable`，不能当作历史不足；无历史目录才是正常空历史。
 
 #### RISK-008: `draftsDir` 变更后旧草稿「丢失」的用户认知风险
 
@@ -308,6 +311,8 @@
 
 ### TD-010: `calendar/` 与 `metrics/` 持久化契约未落地
 
+> ✅ **metrics 部分已落地（2026-10-20）**：由 `feat-storage-metrics-snapshot` 实现 `$DSH_HOME/growth-studio/metrics/{YYYY-MM-DD}.json` 读写（`src/storage/metrics-store.ts`，复用 `src/storage/local-fs.ts`），仅 `source === 'live'` 且 `windowScope === 'verified'` 的结果落盘；`workbench.overview` 的 `comparison` 按上一个等长窗口读取基准（UTC 日历日对齐 + 窗口长度等于请求周期；同日桶内取与预期 `windowEnd` 时刻差最小的一条），历史不足时 delta 为 `null`。当前生产 `live` 采集均为 `unverified`，故生产路径暂不落盘、`comparison` 在生产上仍恒 `null`，直至采集侧能产出窗口可证数据。`calendar/` 仍未落地，归 `feat-storage-calendar-items`。下方描述保留为历史记录（metrics 段已过时）。
+
 | 属性 | 值 |
 |------|-----|
 | **类型** | 文档债务 / 实现债务 |
@@ -348,10 +353,10 @@
 |------|-----|
 | **类型** | 实现债务 |
 | **严重性** | 中 |
-| **描述** | criterion §3.5 MUST 声明「系统文件权限仅限当前操作系统用户」（`criterion.md` §3.5），但 `src/storage/draft-store.ts` 与 `src/config-store.ts` 的 `writeFileSync` / `mkdirSync` 均未传 `mode`（`grep -rn "mode:" src/` 为空），实际权限取决于进程 umask。 |
-| **影响** | 多用户主机上草稿与配置（含 Injoys 令牌）可能对同机其他用户可读，与 MUST 声明不符。 |
-| **目标解决时间** | N/A – 源文档未提供 |
-| **解决方案** | 补实现：草稿 / 配置文件写入显式 `mode: 0o600`、目录 `0o700`（或在统一落盘封装内集中设定），并补权限位断言测试。属实现变更，须走提案。 |
+| **描述** | criterion §3.5 MUST 声明「系统文件权限仅限当前操作系统用户」（`criterion.md` §3.5），修复前 `src/storage/draft-store.ts` 与 `src/config-store.ts` 的 `writeFileSync` / `mkdirSync` 均未传 `mode`，权限完全取决于进程 umask。2026-10-20 已由 `fix-storage-file-permissions` 落地新建对象的显式权限位（见「解决方案」）；不代表既有对象已全部收紧。 |
+| **影响** | 多用户主机上草稿与配置（含 Injoys 令牌）可能对同机其他用户可读，与 MUST 声明不符。修复后**新建对象**以显式 `mode` 限制组 / 其他用户权限，实际权限仍为 `mode & ~umask`；**既有目录**不回改，**既有文件**仅在再次保存时收紧，不再保存的文件保持原权限，属已知未覆盖面。 |
+| **目标解决时间** | 创建权限实现已解决（2026-10-20）；既有对象一次性收紧另案，未完成迁移 |
+| **解决方案** | 已落地（2026-10-20，`fix-storage-file-permissions`）：新增 `src/storage/local-fs.ts` 作为统一落盘封装，单点定义 `FILE_MODE = 0o600` / `DIR_MODE = 0o700`、`mkdirWithMode()`、`writeJsonAtomic()`（随机后缀临时文件 + `rename`）与 `createFileWriteLocks()`（按绝对文件路径归属、每次调用返回独立锁集；保持原有实例级锁语义，不承诺跨实例 / 跨进程互斥）；`draft-store.ts` / `config-store.ts` 经该封装落盘，`verifyDirectoryWritable` 探测文件同样显式设 `mode`。权限位以创建期 `mode` 传递，不做写后 `chmod`（实际位为 `mode & ~umask`，umask 只能更严格）。**范围为新建对象**：既有目录不回改、既有文件在下一次保存时经原子替换收紧；一次性收紧既有对象须另立迁移提案。测试见 `tests/storage-permissions.spec.ts`（含既有 `0644` 文件保存后收紧、无临时文件残留、运行期探测文件系统是否保留 POSIX 位）。 |
 | **估算工作量** | N/A – 源文档未提供 |
 
 ### TD-014: 客户端 RPC 消费无测试覆盖（契约同步机制未闭环）
@@ -378,6 +383,18 @@
 | **解决方案** | 二选一：① 若近期不需 `xiaohongshu`，维持现状并保留本债务条目（不改契约枚举，避免与 criterion §5.5 冲突）；② 若需支持，新增 `XiaohongshuAdapter`（`src/adapters/`）并经 `AdapterRegistry` 注册、补测试。二者均属**新增能力 / 实现变更**，须走 SSoT-first 提案。 |
 | **估算工作量** | N/A – 源文档未提供 |
 
+### TD-016: `ConfigStore.save()` 吞掉配置文件写盘失败，`config.save` 虚报成功
+
+| 属性 | 值 |
+|------|-----|
+| **类型** | 实现债务 / 错误传播 |
+| **严重性** | 高 |
+| **描述** | `src/config-store.ts` 的 `save()` 原以 `try { mkdirSync; writeFileSync(tmp); renameSync } catch { /* Ignore disk persistence failures */ }` 吞掉配置文件落盘异常，`src/ops-rpc.ts` 的 `config.save` case 随后照常返回 `{ ok:true, value:{ success:true, config } }`。用户在配置页看到「保存成功」，实际 `config.json` 未落盘，重启后配置（含明文 Injoys 令牌）整体回退——违反 criterion §3.2 MUST「错误不得吞没」与 MUST NOT「虚报成功」。 |
+| **影响** | 配置写入失败对用户完全不可见，令牌/草稿目录/自动同步开关的丢失只能在重启后才发现；同时使 RISK-005「存储不可用被误报为成功」的缓解措施 ③ 无实现落点。 |
+| **目标解决时间** | 已解决（2026-10-20） |
+| **解决方案** | 由提案 `fix-config-save-error-swallow` 修复：`save()` 移除吞错 `catch`，落盘异常如实抛出；`config.save` case 将其包装为 `DraftStorageError`（`details.dir` 取 `ConfigStore.getConfigDir()`）交既有**统一 RPC 错误边界**映射为 `ok:false` + `drafts/storage-unavailable`；`injoys.updateConfig` 提前到 `save()` 之前，保证失败路径下 `InjoysClient` 与 `inMemory` 在**非空字段**上一致（空串提交的既有语义分裂不在本次修复范围）。契约同轮同步 `api_strategy.md` §2.3 / §3.6 / §3.7 与 `cross_cutting_concepts.md`。 |
+| **估算工作量** | 0.75 人日（规划估算） |
+
 > ⚠️ 本文档**只记录债务，不在架构资产内修改实现**。生成资产已忠实于源文档契约；
 > 修复须由实现侧按 criterion §6 的顺序完成。
 
@@ -391,9 +408,9 @@
 | RISK-002 | 风险 | 误发布 / 不可控群发 | 高 | N/A | 已由能力移除缓解 | 2026-10-16 |
 | RISK-003 | 风险 | 会话状态假阳性 | 高 | N/A | 未缓解 / 待修复（Cookie 探测分支待提案移除） | 2026-10-16 |
 | RISK-004 | 风险 | 配置切换竞态跨库覆盖 | 高 | N/A | 已由目录固定缓解 | 2026-10-16 |
-| RISK-005 | 风险 | 存储不可用误报 | 中 | N/A | 已由前置校验缓解 | 2026-10-16 |
+| RISK-005 | 风险 | 存储不可用误报 | 中 | N/A | 已由前置校验与配置写盘失败上报缓解（TD-016 已修复；GUI 验收仍按任务清单） | 2026-10-20 |
 | RISK-006 | 风险 | 指标汇总以偏概全 | 中 | N/A | 已由 `overview-aggregator` 平台级覆盖门缓解（TD-007 已关闭） | 2026-10-20 |
-| RISK-007 | 风险 | 环比基准不可用误读 | 中 | N/A | 已由 null 语义缓解 | 2026-10-16 |
+| RISK-007 | 风险 | 环比基准不可用误读 | 中 | N/A | 已落地快照与等长窗口计算；生产窗口可证性仍待采集能力提案，空环比为预期 | 2026-10-21 |
 | RISK-008 | 风险 | 旧草稿「丢失」认知 | 中 | N/A | 已由提示文案缓解 | 2026-10-16 |
 | RISK-009 | 风险 | 两套状态枚举误用 | 中 | N/A | 监控中（依赖映射表） | 2026-10-16 |
 | RISK-010 | 风险 | 测试污染真实 `$DSH_HOME` | 高 | N/A | 已由模块级隔离缓解 | 2026-10-16 |
@@ -408,12 +425,13 @@
 | TD-007 | 技术债 | `workbench.overview` 未实现部分缺失汇总语义（**违反铁律 3**） | **高** | N/A | **已修复（2026-10-20，`fix-overview-metrics-null-semantics`）** | 2026-10-20 |
 | TD-008 | 技术债 | 生成路径未授权写入 Injoys 文档（**越过内容写入边界**） | **高** | N/A | **待处理（优先）** | 2026-10-16 |
 | TD-009 | 技术债 | `ops_generate_review` 以字面量 `doc_review` 冒充文档编号（**虚报成功**） | **高** | N/A | **待处理（优先）** | 2026-10-16 |
-| TD-010 | 技术债 | `calendar/` 与 `metrics/` 持久化契约未落地 | 中 | N/A | 待处理 | 2026-10-16 |
+| TD-010 | 技术债 | `calendar/` 与 `metrics/` 持久化契约未落地 | 中 | N/A | **部分修复（2026-10-20，`feat-storage-metrics-snapshot` 偿还 metrics；calendar 仍待 `feat-storage-calendar-items`）** | 2026-10-20 |
 | TD-011 | 技术债 | 错误码 `ops/not-found` 与 `ops/draft-not-found` 语义重复 | 低 | N/A | 待处理 | 2026-10-16 |
 | TD-012 | 技术债 | BrowserOS 能力开关契约与实现尚未对齐（安全边界缺口） | 高 | N/A | 待处理 | 2026-10-16 |
-| TD-013 | 技术债 | criterion 文件权限约束无实现落点 | 中 | N/A | 待处理 | 2026-10-16 |
+| TD-013 | 技术债 | criterion 文件权限约束无实现落点 | 中 | N/A | **已修复（2026-10-20，`fix-storage-file-permissions`；既有对象收紧另案）** | 2026-10-20 |
 | TD-014 | 技术债 | 客户端 RPC 消费无测试覆盖（契约同步机制未闭环） | 中 | N/A | 待处理 | 2026-10-16 |
 | TD-015 | 技术债 | `PlatformId` 含 `xiaohongshu`（9 值）但适配器未注册 | 中 | N/A | 待处理 | 2026-10-17 |
+| TD-016 | 技术债 | `ConfigStore.save()` 吞掉配置文件写盘失败，`config.save` 虚报成功（**违反 criterion §3.2 错误不得吞没**） | **高** | N/A | **已修复（2026-10-20，`fix-config-save-error-swallow`）** | 2026-10-20 |
 
 ---
 
