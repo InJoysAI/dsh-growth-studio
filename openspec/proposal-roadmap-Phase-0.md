@@ -659,7 +659,7 @@
 **Change ID:** `fix-config-save-error-swallow`  
 **优先级:** P0  
 **预计时间:** 0.75 人日（规划估算）  
-**状态:** proposed
+**状态:** in-progress
 
 **业务目标（Business Goal）**:
 - 消除 `config.save` 的虚报成功：配置文件不可写时用户必须当场看到保存失败，而不是在重启后才发现 Injoys 令牌 / 草稿目录 / 自动同步配置丢失。
