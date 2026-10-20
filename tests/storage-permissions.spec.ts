@@ -11,8 +11,12 @@
  *    (DAC checks are skipped), so those cases use the existing probe used elsewhere in
  *    the suite. This file has no such case.
  *
- * `win32` (and filesystems without POSIX mode bits) cannot answer (1) at all, so the
- * whole file skips there and says so instead of pretending to cover it.
+ * "Are POSIX mode bits actually stored?" is a property of the *filesystem*, not of the
+ * platform: `win32` obviously cannot answer it, but neither can a POSIX kernel mounted on
+ * a filesystem without mode bits (vfat/exfat, some FUSE/network mounts, some container
+ * volume drivers). It is therefore probed at runtime rather than assumed from
+ * `process.platform`, and the whole file skips with an explicit notice when the probe
+ * says mode bits do not persist — a green run there must not be read as coverage.
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
@@ -29,8 +33,39 @@ import {
   createFileWriteLocks,
 } from '../src/storage/local-fs.js'
 
-/** True when POSIX permission bits are meaningful on this platform. */
-const posixModeSupported = process.platform !== 'win32'
+/**
+ * Probe whether the temporary filesystem actually stores POSIX mode bits.
+ *
+ * Deliberately independent of the modules under test: it writes its own scratch file
+ * with `chmod`, so a bug that drops `mode` in the production wrapper cannot make this
+ * probe report "unsupported" and silently disable the assertions it is supposed to guard.
+ *
+ * `chmod` is used instead of `writeFile(mode:)` so an unfavourable umask cannot be
+ * mistaken for a filesystem that ignores the bits: if the widened group/other bits do
+ * not read back, the filesystem is not storing modes at all.
+ */
+const posixModeSupported = (() => {
+  if (process.platform === 'win32') return false
+  let probeDir: string | undefined
+  try {
+    probeDir = mkdtempSync(join(tmpdir(), 'gs-mode-probe-'))
+    const probeFile = join(probeDir, 'probe')
+    writeFileSync(probeFile, '')
+    chmodSync(probeFile, 0o640)
+    const widened = (statSync(probeFile).mode & 0o777) === 0o640
+    return widened
+  } catch {
+    return false
+  } finally {
+    if (probeDir) {
+      try {
+        rmSync(probeDir, { recursive: true, force: true })
+      } catch {
+        // Best-effort cleanup; a leftover probe directory must not fail the run.
+      }
+    }
+  }
+})()
 
 /**
  * Exact-value assertions are only meaningful under a "standard" umask that does not
@@ -240,14 +275,19 @@ describe.skipIf(!posixModeSupported)('Local storage permission bits', () => {
 })
 
 /**
- * Keep the suite honest on platforms we skip: this prints a single explicit notice so a
- * green run on win32 is not mistaken for cross-platform permission coverage.
+ * Keep the suite honest when it is skipped: this prints one explicit notice so a green
+ * run on a platform/filesystem without POSIX mode bits is not mistaken for coverage.
+ * The message names which of the two conditions caused the skip, so a bare "skipped"
+ * cannot hide a filesystem that silently drops the bits.
  */
 if (!posixModeSupported) {
-  describe('Local storage permission bits (unsupported platform)', () => {
+  describe('Local storage permission bits (unsupported filesystem)', () => {
     it('skips POSIX permission assertions and reports the gap', () => {
       expect(posixModeSupported).toBe(false)
-      console.warn(`[storage-permissions] POSIX mode bits unavailable on ${process.platform}; permission assertions not covered here.`)
+      const reason = process.platform === 'win32'
+        ? `platform ${process.platform} does not expose POSIX mode bits`
+        : `the temporary filesystem (${tmpdir()}) does not preserve POSIX mode bits`
+      console.warn(`[storage-permissions] permission assertions NOT covered: ${reason}.`)
     })
   })
 }

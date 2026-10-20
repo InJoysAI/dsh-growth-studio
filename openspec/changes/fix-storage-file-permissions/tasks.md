@@ -48,7 +48,7 @@
   - [x] 4.1.4 既有文件在下一次保存时收紧：预置一份权限为 `0644` 的草稿文件，经保存后断言变为 `0o600`；既有**目录**不被回改属已知范围外行为，若需记录则在用例注释中标注「非验收项」（不在断言中把它当作通过条件）
   - [x] 4.1.5 写入成功路径不残留 `*.tmp.*` 文件（保存后列出目录，断言无临时文件残留）
   - [x] 4.1.6 探测文件不残留：`verifyDirectoryWritable` 在目录可写时不留 `.draftstore-probe-*` 文件
-  - [x] 4.1.7 跳过边界（分两类，不可一概跳过）：① 上述 `stat` 创建位断言（4.1.1–4.1.4）**不因 `root` 跳过**——`stat` 读取 `0600` / `0700` 与进程身份无关，跳过会让 root CI 上漏设 `mode` 也能通过；② 只有「只读目录下写入是否被拒绝」这类 EACCES 断言才复用 `tests/ops-manager.spec.ts` 既有的 `permissionBitsEnforced` 探针跳过（该探针检测的是 DAC 是否生效，正是其原始场景）；③ `process.platform === 'win32'` 或不支持 POSIX 权限位的文件系统，显式跳过并输出原因，按「未覆盖该平台」如实声明，不得宣称跨平台 MUST 已完成
+  - [x] 4.1.7 跳过边界（分两类，不可一概跳过）：① 上述 `stat` 创建位断言（4.1.1–4.1.4）**不因 `root` 跳过**——`stat` 读取 `0600` / `0700` 与进程身份无关，跳过会让 root CI 上漏设 `mode` 也能通过；② 只有「只读目录下写入是否被拒绝」这类 EACCES 断言才复用 `tests/ops-manager.spec.ts` 既有的 `permissionBitsEnforced` 探针跳过（该探针检测的是 DAC 是否生效，正是其原始场景）；③ 对 POSIX 权限位是否可用须**运行期探测文件系统**，不得仅凭 `process.platform !== 'win32'` 假定——`win32` 之外，无 mode 位的文件系统（vfat/exfat、部分 FUSE/网络挂载、部分容器卷驱动）同样不支持；探测用独立临时文件 `chmod` 到 `0o640` 后读回校验（**不**使用被测封装，避免漏设 `mode` 时被误判为「不支持」而整体跳过），探测失败则整套跳过并输出具体原因（平台不支持 / 文件系统不保留 mode 位），按「未覆盖」如实声明，不得宣称跨平台 MUST 已完成
   - [x] 4.1.8 隔离：用例使用独立 `DSH_HOME`（或用例内设置 `process.env.DSH_HOME` / 显式 `profileContext.home` 并在 `finally` 恢复）；隔离须在测试文件被导入 / 收集之前生效（`tests/setup-isolation.ts` 模块作用域），不得写入开发者真实 `$DSH_HOME`（criterion §3.5 MUST NOT；RISK-010）
 
 ## 5. 手工核对
