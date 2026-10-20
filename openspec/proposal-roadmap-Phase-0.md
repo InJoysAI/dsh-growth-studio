@@ -140,6 +140,11 @@
 | architecture | `.context/architecture/risks_and_debt.md` | TD-010（metrics 部分）、RISK-007 |
 | architecture | `.context/architecture/data_architecture.md` | `metrics/{YYYY-MM-DD}.json` 布局 |
 | architecture | `.context/architecture/api_strategy.md` | §3.1「环比基准来源」 |
+| architecture | `.context/architecture/adr_008_version_snapshot_storage.md` | 快照历史边界裁决（运营指标历史保留用于环比） |
+| domain | `.context/domain/business_rules.md` | BR-050（指标真实性）、BR-052（环比走势） |
+| domain | `.context/domain/data_strategy.md` | 「环比走势」数据源 = 本地历史指标快照 |
+| domain | `.context/domain/edge_cases.md` | §4「历史不足 → 环比为空」 |
+| domain | `.context/domain/testing_strategy.md` | 模块 5 场景 6「历史不足时环比为空」 |
 
 **关键任务**:
 1. 补 `src/storage/` 下 metrics 快照读写服务（目录创建、按日文件追加）（0.75 人日）
@@ -154,6 +159,8 @@
 | 快照落盘 | 采集成功后 `metrics/{YYYY-MM-DD}.json` 按 `(platform, capturedAt)` 追加 | 单元测试 / 文件断言 |
 | 历史不足为 null | 不足以覆盖完整对比窗口时 delta 为 `null`，不编造近似值 | 单元测试 |
 | 目录固定语义 | 单次操作内目录固定，配置切换只对新操作生效 | 单元测试（参照 `criterion.md` §3.5） |
+| 权限位 | 新建快照文件权限为 `0o600`、目录 `0o700` | 单元测试断言 `stat().mode` |
+| 写盘失败错误映射 | 写盘失败按 `drafts/storage-unavailable` 如实报错，不虚报成功 | 单元测试 |
 
 **验收场景（按需，建议 BDD）**:
 

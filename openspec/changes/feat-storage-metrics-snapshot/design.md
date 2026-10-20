@@ -28,19 +28,27 @@
   - 同一文件的并发追加由按绝对文件路径的串行写锁保证不互相覆盖。
   - Alternatives considered：逐条一行 JSON 追加（被否：与 `data_architecture.md` 声明的 `PlatformMetrics[]` 文件形状不一致）。
 
+- **Decision: 快照只落盘可证实的窗口数据（可证性门）**
+  - 仅 `source !== 'unmeasured'` 且 `windowScope === 'verified'` 的采集结果落盘；`windowScope: 'unverified'`（累计 / 昨日口径）与 `source: 'unmeasured'` 不落盘，避免未来「历史充足」时由不可证数据算出环比。
+  - 这使快照行保持纯 `PlatformMetrics[]` 形状（`windowScope` 是 `PlatformMetricsOutcome` 的非契约扩展，不入快照），不新增快照行字段。
+  - Alternatives considered：快照行扩展持久化 `windowScope` 标记、基准读取时过滤（被否：与 `data_architecture.md` 的 `PlatformMetrics[]` 契约形状不一致，需新增非契约字段）。
+  - **上游出处说明**：快照的窗口可证性规则在上游权威文档中**未被约束** —— `.context/architecture/source/technical_architecture.md` §3.1「环比基准来源」与 `.context/architecture/api_strategy.md` §3.1「环比基准来源」只规定「按 `(platform, capturedAt)` 追加」，均未要求过滤 `windowScope: 'unverified'` 结果，属上游口径缺口（提案系忠实复刻该缺口，非自创）。本决策为提案层补口径；待后续 `.agents/workflows/context-update.md` 回填 TAD §3.1 / `api_strategy.md` §3.1 权威表述，届时可据本条追溯。
+
 - **Decision: 环比基准读取落在 `src/analytics/` 纯函数，快照存取落在 `src/storage/`**
   - 与既有 `overview-aggregator.ts` 的分层一致：计算（delta、覆盖判定）纯函数化可脱离 RPC 管道测试，I/O 收敛在 storage 层。
   - 「上一个等长窗口」的判定与 delta 计算在纯函数中完成，输入为当前窗口结果 + 历史记录集合，输出 `MetricsComparison`。
   - Alternatives considered：把环比计算内联在 `ops-rpc.ts` 的 `workbench.overview` 分支（被否：测试隔离成本高，与上一提案的分层决策不一致）。
 
-- **Decision: 「历史不足以覆盖完整对比窗口」按窗口覆盖判定，不按记录条数**
-  - 以「上一个等长窗口内是否有该平台的快照记录、且能构成完整对比基准」为准；任一必需基准缺失即判定不足，对应 delta 为 `null` 且 `period` 为 `null`。
+- **Decision: 「历史不足以覆盖完整对比窗口」按平台级窗口覆盖判定，不按记录条数**
+  - 判定规则（可测试）：设应采平台集合 `P`，对每个 `p ∈ P`，在上一个等长窗口内**至少存在一条**已落盘快照记录（因可证性门而必然是 `source !== 'unmeasured'` 且 `windowScope === 'verified'`），且其 `windowStart` / `windowEnd` 完整覆盖该窗口；任一 `p ∈ P` 缺少这样的记录即判定为「历史不足」，对应 delta 为 `null` 且 `period` 为 `null`。
+  - 与汇总覆盖门（`measuredPlatforms == P`）同源的平台级判定，保持两条口径一致。
   - 不得以部分记录求和后当作基准（RISK-007 描述的误导路径）。
-  - Alternatives considered：只要有任意历史记录就计算 delta（被否：会用不完整历史算近似百分比，违反 criterion §4 与 RISK-007）。
+  - Alternatives considered：只要有任意历史记录就计算 delta（被否：会用不完整历史算近似百分比，违反 criterion §4 与 RISK-007）；按记录条数判定（被否：条数不等于窗口覆盖，可能由同一平台多次采集凑数）。
 
-- **Decision: 快照写入失败不阻断「采集结果」本身，但不得谎报「已落盘」**
-  - 采集结果（`overviewMetrics` 汇总）与快照落盘是两件事：写盘失败按统一存储错误码如实返回，调用方可据此识别「未落盘」；不得静默吞掉后继续宣称已落盘（criterion §3.2）。
-  - Alternatives considered：写盘失败时整体回滚采集结果（被否：采集本身已成功，回滚会让真实的指标数据丢失，扩大阻断范围；局部失败不自动阻断无关操作）。
+- **Decision: 快照写入失败按统一存储错误码整体失败返回，不回滚已发生的采集副作用**
+  - 响应形态以 spec Requirement 2 为准：写盘失败经统一 RPC 错误边界返回 `drafts/storage-unavailable`（`{ ok: false, error: { code: 'drafts/storage-unavailable' } }`），**不得**返回成功信封附带落盘失败标注（否则需新增 RPC 字段，违反「不新增 RPC 字段」承诺）。
+  - 「不阻断」仅指**不回滚**已发生的采集副作用（采集本身已成功，回滚会让真实指标数据丢失，扩大阻断范围）；响应形态仍是失败信封，调用方据此识别「未落盘」。
+  - Alternatives considered：成功信封 + 落盘失败标注字段（被否：需新增 RPC 字段，违反提案承诺）；写盘失败时整体回滚采集结果（被否：局部失败不自动阻断无关操作）。
 
 ## Risks / Trade-offs
 
@@ -54,4 +62,4 @@
 
 ## Open Questions
 
-- 无。窗口覆盖判定的具体边界（「完整对比窗口」的最小记录要求）以 `api_strategy.md` §3.1「环比基准来源」为准，实现按「上一个等长窗口内该平台有可用基准」判定。
+- 无。「完整对比窗口」的最小记录要求已落为可测试判定（见 Decisions 第 4 条：每个 `p ∈ P` 在上一个等长窗口内至少一条 `windowStart` / `windowEnd` 完整覆盖该窗口且可证性达标的快照记录）。

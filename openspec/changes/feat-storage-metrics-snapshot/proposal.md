@@ -16,13 +16,14 @@
 
 ### 新增功能
 
-- `src/storage/` 新增指标历史快照读写服务（`metrics-store.ts`）：维护 `$DSH_HOME/growth-studio/metrics/{YYYY-MM-DD}.json`，采集成功后按 `(platform, capturedAt)` 追加写入当日文件，同日重复追加不覆盖既有记录。
+- `src/storage/` 新增指标历史快照读写服务（`metrics-store.ts`）：维护 `$DSH_HOME/growth-studio/metrics/{YYYY-MM-DD}.json`，采集成功后按 `(platform, capturedAt)` 追加写入当日文件，同日重复追加不丢弃既有记录。
+- **落盘可证性门**：仅 `source !== 'unmeasured'` 且 `windowScope === 'verified'` 的采集结果落盘；不可证实的累计 / 昨日口径结果不落盘，避免未来「历史充足」时由不可证数据算出环比（快照行保持纯 `PlatformMetrics[]` 形状，不新增字段）。
 - `workbench.overview` 的 `comparison` 接入真实基准：按请求窗口 `metricsWindow`（`'7d'` / `'30d'`）读取**上一个等长窗口**的快照作为对比基准，计算 `impressionsDeltaPercent` / `playsDeltaPercent` / `engagementsDeltaPercent` / `followersDeltaPercent`，`period` 置为对应的 `'7d'` / `'30d'`。
-- 历史快照不足以覆盖完整上一个等长窗口时，对应 delta 为 `null` 且 `period` 为 `null`（「暂无环比」），不得用不完整历史算近似百分比。
+- **「历史充足」判定（可测试）**：对每个应采平台 `p ∈ P`，在上一个等长窗口内至少有一条 `windowStart` / `windowEnd` 完整覆盖该窗口且可证性达标的快照记录；任一平台缺失即为「历史不足」，对应 delta 为 `null` 且 `period` 为 `null`（「暂无环比」），不得用不完整历史算近似百分比。
 
 ### 修改功能
 
-- 指标采集成功路径（`ops_fetch_metrics` 与 `workbench.overview` 共用的 `MetricsCollector` 调用方）在采集完成后追加快照写入；写入失败按统一存储错误口径如实上报，不得虚报成功（criterion §3.2）。
+- 指标采集成功路径（`ops_fetch_metrics` 与 `workbench.overview` 共用的 `MetricsCollector` 调用方）在采集完成后追加快照写入；写入失败按统一存储错误口径如实上报（整体调用以 `drafts/storage-unavailable` 失败信封返回），不得虚报成功（criterion §3.2）。
 - 环比 delta 为纯函数计算，落于 `src/analytics/`，与既有汇总判定同层，可脱离 RPC 管道测试。
 
 ### 技术实现
@@ -43,7 +44,7 @@
 
 ### 涉及的规范（Specs）
 
-- **新增**：`specs/metrics-history/spec.md` — 指标历史快照的追加写入、按 `(platform, capturedAt)` 唯一追加、上一个等长窗口基准读取、历史不足时 delta 为 `null`、目录固定语义。
+- **新增**：`specs/metrics-history/spec.md` — 指标历史快照的追加写入（含落盘可证性门）、按 `(platform, capturedAt)` 唯一追加且不丢弃既有记录、写盘失败统一错误口径、上一个等长窗口基准读取、历史不足时 delta 为 `null`、目录固定语义。
 - **修改**：`specs/workbench-overview/spec.md` — 「覆盖标注与环比 / 本周排期字段契约」中环比部分由「无历史快照时五键为 `null`」扩展为「接真实基准后按覆盖情况给出 delta，不足时仍为 `null`」。
 
 ### 涉及的代码
@@ -54,9 +55,10 @@
   - `tests/metrics-snapshot.spec.ts`（落盘与环比用例）
 - **修改**：
   - `src/types.ts`（快照行契约类型）
-  - `src/storage/draft-store.ts` / `src/config-store.ts`（统一落盘封装：权限位由前置提案提供，本提案复用）
   - `src/ops-rpc.ts`（`workbench.overview` 采集成功后追加快照、`comparison` 消费基准）
-  - `src/tools/index.ts`（`ops_fetch_metrics` 采集成功后追加快照）
+  - `src/tools/index.ts`（`ops_fetch_metrics` 采集成功后追加快照，并校正工具描述提及本地 `metrics/` 落盘）
+- **不修改（由前置提案 `fix-storage-file-permissions` 提供）**：
+  - `src/storage/draft-store.ts` / `src/config-store.ts` 的权限位（`mode: 0o600` / `0o700`）改动归前置提案；本提案仅**调用**其统一落盘封装（原子写 + 写锁 + 目录准备 / 可写性校验 + `DraftStorageError` → `drafts/storage-unavailable`），不重复修改这两文件。若实施需从中抽取可导出写盘原语供 `metrics-store.ts` 调用，属前置提案的实现细节，不在本提案 diff 范围。
 
 ### 依赖关系
 
@@ -68,16 +70,20 @@
 
 - **首次使用与历史不足时全部 delta 为 `null` 被误报为缺陷**：依 RISK-007 应急预案，`null` 属**预期行为**，UI 显示「暂无环比」而非 0%；测试以此为准。
 - **以不完整历史算近似百分比**：历史快照不足以覆盖完整上一个等长窗口时必须整体 `null`，不得部分求和后当作基准（RISK-007 描述的误导路径）。
-- **快照写入失败影响采集返回**：写盘失败须如实报错（统一 `drafts/storage-unavailable`），不得静默吞掉后继续宣称「已落盘」；这是新增的存储写入口，必须纳入统一 RPC 错误边界。
+- **不可证数据冒充窗口基准**：落盘可证性门确保只有 `source !== 'unmeasured'` 且 `windowScope === 'verified'` 的结果进入快照，避免未来由累计口径历史算出环比。
+- **快照写入失败影响采集返回**：写盘失败须如实报错（统一 `drafts/storage-unavailable` 失败信封，不回滚已发生的采集副作用），不得静默吞掉后继续宣称「已落盘」；这是新增的存储写入口，必须纳入统一 RPC 错误边界。
 - **同日多次采集的并发回写**：按绝对文件路径的串行写锁 + 临时文件 `rename` 原子替换，避免并发覆盖既有快照行。
+- **前置提案未完成即实施的风险**：`fix-storage-file-permissions` 是显式硬前置，须先落地统一落盘封装的权限位；本提案不重复修改 `draft-store.ts` / `config-store.ts`，避免两提案重叠改同一文件。
 
 ### 验证标准
 
 - ✅ 采集成功后 `metrics/{YYYY-MM-DD}.json` 按 `(platform, capturedAt)` 追加写入，同日重复追加不丢既有记录（单元测试 + 文件断言）。
+- ✅ 不可证实（`windowScope: 'unverified'`）的结果不落盘，历史看似充足时 delta 仍为 `null`（单元测试）。
 - ✅ 历史不足以覆盖完整对比窗口时 delta 为 `null`，不编造近似值（单元测试）。
 - ✅ 历史充足时 delta 按「上一个等长窗口」基准计算正确（单元测试）。
 - ✅ 单次操作内目录固定，配置切换只对新操作生效（单元测试，参照 criterion §3.5）。
-- ✅ 新建快照文件权限为 `0o600`、目录 `0o700`（复用统一落盘封装的权限位）。
+- ✅ 新建快照文件权限为 `0o600`、目录 `0o700`（复用统一落盘封装的权限位，`stat().mode` 断言）。
+- ✅ 快照写入失败时调用以 `drafts/storage-unavailable` 失败信封返回（单元测试断言 `error.code`）。
 - ✅ `pnpm typecheck` + `pnpm test` 通过。
 
 ### 提案大纲对齐（Roadmap Alignment）
