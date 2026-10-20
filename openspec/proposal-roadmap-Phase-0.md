@@ -543,7 +543,7 @@
 **Change ID:** `fix-storage-file-permissions`  
 **优先级:** P1  
 **预计时间:** 1.25 人日（规划估算；含统一落盘封装的写锁原语抽取，供提案 2 复用）  
-**状态:** in-progress
+**状态:** done
 
 **业务目标（Business Goal）**:
 - 使 `criterion.md` §3.5「系统文件权限仅限当前操作系统用户」在实现层对**新写入**成立，避免多用户主机上草稿与配置（含 Injoys 令牌）被同机其他用户读取。
