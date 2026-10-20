@@ -307,6 +307,8 @@
 
 ### TD-010: `calendar/` 与 `metrics/` 持久化契约未落地
 
+> ✅ **metrics 部分已落地（2026-10-20）**：由 `feat-storage-metrics-snapshot` 实现 `$DSH_HOME/growth-studio/metrics/{YYYY-MM-DD}.json` 读写（`src/storage/metrics-store.ts`，复用 `src/storage/local-fs.ts`），仅 `source !== 'unmeasured'` 且 `windowScope === 'verified'` 的结果落盘；`workbench.overview` 的 `comparison` 按上一个等长窗口读取基准，历史不足时 delta 为 `null`。当前生产 `live` 采集均为 `unverified`，故生产路径暂不落盘、`comparison` 在生产上仍恒 `null`，直至采集侧能产出窗口可证数据。`calendar/` 仍未落地，归 `feat-storage-calendar-items`。下方描述保留为历史记录（metrics 段已过时）。
+
 | 属性 | 值 |
 |------|-----|
 | **类型** | 文档债务 / 实现债务 |
@@ -419,7 +421,7 @@
 | TD-007 | 技术债 | `workbench.overview` 未实现部分缺失汇总语义（**违反铁律 3**） | **高** | N/A | **已修复（2026-10-20，`fix-overview-metrics-null-semantics`）** | 2026-10-20 |
 | TD-008 | 技术债 | 生成路径未授权写入 Injoys 文档（**越过内容写入边界**） | **高** | N/A | **待处理（优先）** | 2026-10-16 |
 | TD-009 | 技术债 | `ops_generate_review` 以字面量 `doc_review` 冒充文档编号（**虚报成功**） | **高** | N/A | **待处理（优先）** | 2026-10-16 |
-| TD-010 | 技术债 | `calendar/` 与 `metrics/` 持久化契约未落地 | 中 | N/A | 待处理 | 2026-10-16 |
+| TD-010 | 技术债 | `calendar/` 与 `metrics/` 持久化契约未落地 | 中 | N/A | **部分修复（2026-10-20，`feat-storage-metrics-snapshot` 偿还 metrics；calendar 仍待 `feat-storage-calendar-items`）** | 2026-10-20 |
 | TD-011 | 技术债 | 错误码 `ops/not-found` 与 `ops/draft-not-found` 语义重复 | 低 | N/A | 待处理 | 2026-10-16 |
 | TD-012 | 技术债 | BrowserOS 能力开关契约与实现尚未对齐（安全边界缺口） | 高 | N/A | 待处理 | 2026-10-16 |
 | TD-013 | 技术债 | criterion 文件权限约束无实现落点 | 中 | N/A | **已修复（2026-10-20，`fix-storage-file-permissions`；既有对象收紧另案）** | 2026-10-20 |

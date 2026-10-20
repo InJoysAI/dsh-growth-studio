@@ -169,7 +169,7 @@ interface WorkbenchOverviewRequest {
 | `overviewMetrics.weeklyPipeline` | `{ total, completed, byStatus }` | 周一起算自然周的排期进度，`byStatus` 覆盖 `ItemStatus` 五态，`completed = prefilled + published` |
 | `overviewMetrics.measuredPlatforms` | `PlatformId[]` | 应采集合 `P` 内成功采集且可证实属于请求窗口的平台 |
 | `overviewMetrics.unmeasuredPlatforms` | `PlatformId[]` | `P` 中其余平台，含采集失败、不支持或已抓取但窗口周期无法证实的平台 |
-| `overviewMetrics.comparison` | `MetricsComparison`（`src/types.ts`） | `period` 为 `'7d' \| '30d' \| null`；四个可空数值键为 `impressionsDeltaPercent` / `playsDeltaPercent` / `engagementsDeltaPercent` / `followersDeltaPercent`；当前无历史基准，五键均为 `null` |
+| `overviewMetrics.comparison` | `MetricsComparison`（`src/types.ts`） | `period` 为 `'7d' \| '30d' \| null`；四个可空数值键为 `impressionsDeltaPercent` / `playsDeltaPercent` / `engagementsDeltaPercent` / `followersDeltaPercent`；基准取自本地指标历史快照的上一个等长窗口，历史不足时五键为 `null` |
 | `statuses` | `Array<{ id, state, isReady, loginUrl?, ... }>` | 平台就绪状态（`state === 'authenticated'` 才算 ready；`loginUrl` 供 needs_login 时「去登录 ↗」） |
 | `calendarItems` / `trends` / `feedbackItems` | — | 聚合数据 |
 | `injoysConnected` | `boolean` | Injoys 连通性 |
@@ -198,9 +198,9 @@ interface WorkbenchOverviewRequest {
 
 **环比基准来源**
 
-> 下列为目标存储契约。当前提案没有实现 `metrics/` 历史快照读写或环比计算，`comparison` 五键均为 `null`；真实基准由 `feat-storage-metrics-snapshot` 接入，不能把该契约描述视为当前已落盘。
+> ✅ **实现状态（2026-10-20）**：`feat-storage-metrics-snapshot` 已落地 `src/storage/metrics-store.ts` + `src/analytics/metrics-comparison.ts`。仅 `source !== 'unmeasured'` 且 `windowScope === 'verified'` 的采集结果按 `(platform, capturedAt)` 追加到 `$DSH_HOME/growth-studio/metrics/{YYYY-MM-DD}.json`；`comparison` 以上一个等长窗口（`windowStart`/`windowEnd` **等于**该窗口）为基准。当前生产 `live` 均为 `unverified`，故生产路径暂不落盘、`comparison` 在生产上仍五键 `null`，直至采集侧能产出窗口可证数据。正向路径由测试夹具证明。
 
-- 基准取自本地**历史指标快照**：每次采集成功后按 `(platform, capturedAt)` 追加写入 `$DSH_HOME/growth-studio/metrics/{YYYY-MM-DD}.json`；
+- 基准取自本地**历史指标快照**：每次采集成功且通过可证性门后按 `(platform, capturedAt)` 追加写入 `$DSH_HOME/growth-studio/metrics/{YYYY-MM-DD}.json`；
 - `comparison.period` 表示用于对比的**上一个等长窗口**；
 - 历史快照不足以覆盖完整上一个窗口 → 对应 delta 为 **`null`**，**不得**用不完整历史算近似百分比；
 - 因此环比是**基于本地留存的次级指标**；首次使用时全部 delta 为 `null` 属**预期行为，不是缺陷**。
@@ -750,7 +750,7 @@ interface BrowserOsCapabilityDescriptor {
 | `ops_draft_launch_kit` | 无 | OverseasManager | Injoys 读取 | 本地草稿 | 无条件 saveLaunchKitDocument | Phase 2 |
 | `ops_generate_hooks` | 无 | ContentStudioEngine | — | 本地草稿 | 未注册、无实现 | 未定 |
 | `ops_push_drafts` | `workbench.prefillDraft`（§3.1，单草稿） | BrowserDriver/Adapter | BrowserOS | 平台草稿箱 | 批量入口无 RPC | Phase 0 |
-| `ops_fetch_metrics` | 与 `workbench.overview` 共用采集 | MetricsCollector | BrowserOS | 本地 metrics | overview 部分缺失汇总已修复（TD-007 关闭）；`live` 采集窗口可证性待采集能力提案 | Phase 0 |
+| `ops_fetch_metrics` | 与 `workbench.overview` 共用采集 | MetricsCollector | BrowserOS | 本地 metrics | 快照读写已落地（仅 verified 落盘）；`live` 采集窗口可证性待采集能力提案 | Phase 0 |
 | `ops_generate_review` | 无 | ReviewReporter | Injoys 读取 | 本地指标快照 | 假编号回退（TD-009） | Phase 1 |
 | `ops_fetch_comments` | 无 | CommentsCrawler | BrowserOS | — | 无 RPC | Phase 1 |
 | `ops_extract_feedback` | 无 | IssueExtractor | Injoys 需求池 | — | 无 RPC | Phase 1 |

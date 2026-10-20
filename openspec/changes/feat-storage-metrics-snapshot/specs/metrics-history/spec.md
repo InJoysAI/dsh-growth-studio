@@ -4,14 +4,14 @@
 
 指标历史快照 MUST 落盘于 `$DSH_HOME/growth-studio/metrics/{YYYY-MM-DD}.json`（`YYYY-MM-DD` 为采集当日日期），文件内容为 `PlatformMetrics[]`（与 `data_architecture.md` 物理数据模型一致，不新增快照行字段）。
 
-**落盘范围（可证性门）**：仅 `source !== 'unmeasured'` 且 `windowScope === 'verified'` 的采集结果 MUST 落盘；`source: 'unmeasured'`（未测得）与 `windowScope: 'unverified'`（数值无法证实属于请求窗口）的记录 MUST NOT 写入快照。二者均为「未知贡献」，其原始抓取值不得成为未来环比基准的依据（`.context/criterion.md` §4「指标真实性 / 环比基准」；`.context/architecture/api_strategy.md` §3.1「指标口径」：`windowStart` / `windowEnd` 表达请求窗口，不构成「数值属于该窗口」的证明）。
+**落盘范围（可证性门）**：仅 `source === 'live'` 且 `windowScope === 'verified'` 的采集结果 MUST 落盘；`source: 'unmeasured'`、`source: 'mock'` 与 `windowScope: 'unverified'` 的记录 MUST NOT 写入快照（合成 / 未知贡献不得成为未来环比基准，`.context/criterion.md` §3.2 / §4）。`.context/architecture/api_strategy.md` §3.1「指标口径」：`windowStart` / `windowEnd` 表达请求窗口，不构成「数值属于该窗口」的证明。
 
 每次指标采集成功且通过可证性门后 MUST 按 `(platform, capturedAt)` 追加一条记录；同日再次追加 MUST 只新增记录，MUST NOT 覆盖、修改或删除既有记录，MUST NOT 丢弃既有记录（`.context/criterion.md` §4「环比基准」；`.context/architecture/data_architecture.md` 物理数据模型；`.context/architecture/source/technical_architecture.md` §5.3 本地数据布局）。本要求对应验收项「快照落盘」。
 
 #### Scenario: 采集成功后按 (platform, capturedAt) 追加快照
 
 - **GIVEN** 本次指标采集已成功得到平台指标结果
-- **AND** 该结果满足 `source !== 'unmeasured'` 且 `windowScope === 'verified'`
+- **AND** 该结果满足 `source === 'live'` 且 `windowScope === 'verified'`
 - **WHEN** 采集完成并写入指标历史快照
 - **THEN** 当日 `metrics/{YYYY-MM-DD}.json` MUST 追加一条含 `platform` 与 `capturedAt` 的记录
 - **AND** 文件内容 MUST 为 `PlatformMetrics[]`，既有记录 MUST 保持不变
@@ -53,7 +53,7 @@
 
 `workbench.overview` 的 `comparison` MUST 以本地指标历史快照中**上一个等长窗口**的记录作为对比基准：请求 `metricsWindow = '7d'` 时对比上一个 7 天窗口，`'30d'` 时对比上一个 30 天窗口，`comparison.period` MUST 置为对应的 `'7d'` / `'30d'`。
 
-**「历史足以覆盖完整对比窗口」的判定（可测试）**：设应采平台集合为 `P`（与汇总覆盖门一致），对**每一个** `p ∈ P`，在上一个等长窗口的时间范围内**至少存在一条**已落盘的快照记录（该记录因可证性门而必然是 `source !== 'unmeasured'` 且 `windowScope === 'verified'`），且该记录的 `windowStart` / `windowEnd` **等于**上一个等长窗口（即与当前请求窗口同一长度；MUST NOT 用 30d 记录充当 7d 基准，反之亦然）。任一 `p ∈ P` 缺少这样的记录即判定为「历史不足」。同一 `p` 存在多条满足条件的记录时，取 `capturedAt` **最新**的一条（见下一条要求的基准选取规则）。
+**「历史足以覆盖完整对比窗口」的判定（可测试）**：设应采平台集合为 `P`（与汇总覆盖门一致），对**每一个** `p ∈ P`，在上一个等长窗口内**至少存在一条**已落盘的快照记录（因可证性门而为 live + verified）。窗口匹配 MUST 按 **UTC 日历日 + 窗口长度**，而不是采集瞬间的 ISO 字符串全等：记录的窗口长度 MUST 等于请求的 `'7d'` / `'30d'`（MUST NOT 用 30d 记录充当 7d 基准），且记录的 `windowStart` / `windowEnd` 的 UTC 日期 MUST 分别等于上一个等长窗口起止的 UTC 日期。因此两次采集只要落在对应日历日、即使时刻差若干分钟，仍可匹配。任一 `p ∈ P` 缺少这样的记录即判定为「历史不足」。同一 `p` 存在多条满足条件的记录时，取 `capturedAt` **最新**的一条。
 
 历史不足以覆盖完整对比窗口时，四个 delta MUST 全部为 `null` 且 `comparison.period` MUST 为 `null`，MUST NOT 用不完整历史算近似百分比、MUST NOT 以 `0` 冒充「无变化」、MUST NOT 以缺失平台按 `0` 参与基准计算（`.context/criterion.md` §4「环比基准」；`.context/architecture/api_strategy.md` §3.1「环比基准来源」；RISK-007）。本要求对应验收项「历史不足为 null」。
 
@@ -74,9 +74,9 @@
 
 ### Requirement: 历史充足时环比 delta 按等长窗口基准计算
 
-当且仅当「历史足以覆盖完整对比窗口」（见上一条要求的判定：每个 `p ∈ P` 在上一个等长窗口内至少有一条 `windowStart` / `windowEnd` **等于**该窗口且可证性达标的快照记录）时，`comparison` MUST 以该窗口的基准值与当前窗口值计算 `impressionsDeltaPercent` / `playsDeltaPercent` / `engagementsDeltaPercent` / `followersDeltaPercent`（`period` 为 `'7d'` / `'30d'`）。
+当且仅当「历史足以覆盖完整对比窗口」（见上一条要求：UTC 日历日对齐且窗口长度等于请求周期）时，`comparison` MUST 以该窗口的基准值与当前窗口值计算 `impressionsDeltaPercent` / `playsDeltaPercent` / `engagementsDeltaPercent` / `followersDeltaPercent`（`period` 为 `'7d'` / `'30d'`）。
 
-**基准选取规则（唯一可判定）**：「完整覆盖」指记录的 `windowStart` / `windowEnd` **等于**上一个等长窗口（同一窗口长度；MUST NOT 用 30d 记录充当 7d 基准，反之亦然）。同一 `p` 存在多条满足条件的记录时，MUST 取 `capturedAt` **最新**的一条作为该平台基准值。`impressions` / `plays` 与互动、净增关注口径 MUST 与汇总口径一致（缺失项为 `null`，不按 `0` 计算）。本要求对应验收项「历史充足 → delta 计算正确」。
+**基准选取规则（唯一可判定）**：窗口长度 MUST 等于请求周期；`windowStart` / `windowEnd` 的 UTC 日期 MUST 对齐上一个等长窗口。同一 `p` 存在多条满足条件的记录时，MUST 取 `capturedAt` **最新**的一条。`impressions` / `plays` 与互动、净增关注口径 MUST 与汇总口径一致：平台级覆盖门已要求每个 `p ∈ P` 有记录；某一平台对该指标为 `null`（图文无播放、视频无曝光）时 MUST 与 `overview-aggregator` 一样跳过该平台贡献、不得把 `null` 当 `0`，也不得因此把混合渠道的合法分口径总和打成 `null`。本要求对应验收项「历史充足 → delta 计算正确」。
 
 #### Scenario: 历史充足时 delta 计算正确
 

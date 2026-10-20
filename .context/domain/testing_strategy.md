@@ -306,7 +306,7 @@ Then 环比应显示为空
   And 不得编造环比结论
 ```
 
-> **场景 4 / 5 / 6 的当前自动化范围**：`tests/overview-metrics.spec.ts` 验证宿主平台覆盖门、真实零值、互动严格空值、本周筛选与无历史空环比；`tests/overview-window-passthrough.spec.ts` 验证 RPC 请求窗口穿透；`tests/metrics-window.spec.ts` 验证实际采集器的窗口字段，包括成功 `live` 分支在 `7d` / `30d` 下的精确起止值、采集时刻，以及窗口不可证实结果不进入汇总。完整覆盖和零值的正向汇总通过显式测试数据验证，不表示当前 `live` 页面已能提供该周期增量。宿主测试也不能替代场景中的驾驶舱 UI 验收，历史快照持久化仍归 TD-010 / `feat-storage-metrics-snapshot`。
+> **场景 4 / 5 / 6 的当前自动化范围**：`tests/overview-metrics.spec.ts` 验证宿主平台覆盖门、真实零值、互动严格空值、本周筛选与无历史空环比；`tests/overview-window-passthrough.spec.ts` 验证 RPC 请求窗口穿透；`tests/metrics-window.spec.ts` 验证实际采集器的窗口字段；`tests/metrics-snapshot.spec.ts` 验证快照追加、可证性门、历史不足 / 充足环比、目录固定、权限位与写盘失败信封。完整覆盖和零值的正向汇总通过显式测试数据验证，不表示当前 `live` 页面已能提供该周期增量。宿主测试也不能替代场景中的驾驶舱 UI 验收。
 
 #### 场景 7: 评论抓取为空不伪造（BR-054）
 ```gherkin

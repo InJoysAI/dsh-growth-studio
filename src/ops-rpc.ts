@@ -24,6 +24,8 @@ import {
 } from './storage/draft-store.js'
 import { MetricsCollector } from './analytics/metrics-collector.js'
 import { aggregateOverviewMetrics } from './analytics/overview-aggregator.js'
+import { compareMetrics } from './analytics/metrics-comparison.js'
+import { MetricsStore } from './storage/metrics-store.js'
 import type { ContentDraft, PlatformId, PlatformSessionStatus } from './types.js'
 import type { AdapterContext, ArticlePayload, VideoPayload } from './adapters/base.js'
 
@@ -55,6 +57,7 @@ export function registerOpsRpc(
   draftStore?: DraftStore,
   browserOsClient?: BrowserOsMcpClient,
   metricsCollectorOverride?: MetricsCollector,
+  metricsStore?: MetricsStore,
 ): void {
   const connection = ctx?.get ? (ctx.get("connection", false) ?? (ctx as any).connection) : (ctx as any).connection
   if (!connection?.fetch?.register) return
@@ -65,6 +68,7 @@ export function registerOpsRpc(
   const browserDriver = new BrowserDriver(browserOsClient, { allowDryRun: isDryRunAllowed })
   adapters.setBrowserOsClient(browserOsClient, { allowDryRun: isDryRunAllowed })
   const metricsCollector = metricsCollectorOverride ?? new MetricsCollector({ browserOsClient })
+  const actualMetricsStore = metricsStore ?? new MetricsStore(ctx)
 
   connection.fetch.register({
     path: OPS_API_PATH,
@@ -532,12 +536,29 @@ export function registerOpsRpc(
 
             const readyCount = statuses.filter(s => s.state === 'authenticated' || (s as any).loggedIn).length
 
+            const metricsDir = actualMetricsStore.getDirectory()
+            await actualMetricsStore.appendVerified(platformMetrics, { dir: metricsDir })
+            const history = await actualMetricsStore.readAll({ dir: metricsDir })
+
             const overviewMetrics = aggregateOverviewMetrics({
               outcomes: platformMetrics,
               expectedPlatforms,
               calendarItems,
               readyChannelsCount: readyCount,
               totalChannelsCount: expectedPlatforms.length,
+            })
+            overviewMetrics.comparison = compareMetrics({
+              current: {
+                impressions: overviewMetrics.totalImpressions,
+                plays: overviewMetrics.totalPlays,
+                engagements: overviewMetrics.totalEngagements,
+                followers: overviewMetrics.totalFollowersDelta,
+              },
+              history,
+              expectedPlatforms,
+              period: metricsWindow,
+              currentWindowStart: platformMetrics[0]?.windowStart ?? '',
+              currentWindowEnd: platformMetrics[0]?.windowEnd ?? '',
             })
 
             result = {

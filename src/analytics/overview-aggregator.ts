@@ -16,6 +16,7 @@ import type {
   WeeklyPipeline,
 } from '../types.js'
 import type { PlatformMetricsOutcome } from './metrics-collector.js'
+import { EMPTY_COMPARISON } from './metrics-comparison.js'
 
 /** Every `ItemStatus`, in lifecycle order; used to seed `byStatus`. */
 const ITEM_STATUSES: readonly ItemStatus[] = [
@@ -29,14 +30,7 @@ const ITEM_STATUSES: readonly ItemStatus[] = [
 /** Statuses that count as done for the week's pipeline progress. */
 const COMPLETED_STATUSES: readonly ItemStatus[] = ['prefilled', 'published']
 
-/** No local metrics snapshot exists yet, so no delta can be computed honestly. */
-const NO_COMPARISON: OverviewMetrics['comparison'] = {
-  period: null,
-  impressionsDeltaPercent: null,
-  playsDeltaPercent: null,
-  engagementsDeltaPercent: null,
-  followersDeltaPercent: null,
-}
+
 
 export interface AggregateOverviewInput {
   /** Per-platform collection outcomes, including their window provenance. */
@@ -184,6 +178,6 @@ export function aggregateOverviewMetrics(input: AggregateOverviewInput): Overvie
     measuredPlatforms,
     unmeasuredPlatforms,
     metricsAnnotation: '全网非去重曝光与播放累计人次',
-    comparison: NO_COMPARISON,
+    comparison: { ...EMPTY_COMPARISON },
   }
 }

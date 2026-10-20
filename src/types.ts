@@ -177,6 +177,14 @@ export interface PlatformMetrics {
 }
 
 /**
+ * On-disk shape of `$DSH_HOME/growth-studio/metrics/{YYYY-MM-DD}.json`.
+ *
+ * Rows are appended by `(platform, capturedAt)` and never rewritten in place.
+ * Only window-verified collection results are persisted (see metrics-store).
+ */
+export type MetricsSnapshotFile = PlatformMetrics[]
+
+/**
  * Week-to-date content pipeline progress (PRD §5.1.2「6 / 7 篇」口径).
  *
  * Counting scope is the CURRENT natural week (Monday-based). `completed` is

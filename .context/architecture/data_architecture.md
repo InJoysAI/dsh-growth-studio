@@ -163,7 +163,7 @@ export interface UserFeedbackItem {
 源契约为 `source/technical_architecture.md` §3.1 的 `overviewMetrics`，实现统一引用 `src/types.ts`：
 
 - `OverviewMetrics`：可空的曝光、播放、点赞、评论、转发、收藏、净增关注及互动总量；保留既有计数和口径说明，新增覆盖数组、`comparison` 与 `weeklyPipeline`。
-- `MetricsComparison`：`period: '7d' | '30d' | null`；`impressionsDeltaPercent` / `playsDeltaPercent` / `engagementsDeltaPercent` / `followersDeltaPercent` 均为 `number | null`。无历史基准时五键均为 `null`，不代表指标历史快照已落盘。
+- `MetricsComparison`：`period: '7d' | '30d' | null`；`impressionsDeltaPercent` / `playsDeltaPercent` / `engagementsDeltaPercent` / `followersDeltaPercent` 均为 `number | null`。基准取自本地 `metrics/{YYYY-MM-DD}.json`（`src/storage/metrics-store.ts`，仅窗口可证实的采集结果落盘）；历史不足以覆盖完整上一个等长窗口时五键为 `null`。当前生产 `live` 均为 `unverified`，故生产上仍恒为 `null`，直至采集侧能产出 `windowScope: 'verified'` 的数据。
 - `WeeklyPipeline`：`total` / `completed` 为数字，`byStatus: Record<ItemStatus, number>`；筛选后的本周集合为空才为全零，`completed = prefilled + published`。当前从既有远端 `calendarItems` 派生，非本地主数据接入；本周边界的当前 UTC 实现见 `api_strategy.md` §3.1。
 
 `src/analytics/metrics-collector.ts` 的 `PlatformMetricsOutcome extends PlatformMetrics` 另含 `source`、`windowScope`、`note` 等带明确注释的采集结果扩展。`windowScope: 'verified' | 'unverified'` 不属于 `PlatformMetrics` 基础契约；汇总仅接受来源不是 `unmeasured` 且窗口已验证的结果，现有 `live` 页面数值保留，但窗口未验证时不计入窗口汇总。可选 `favorites` / `followerDelta` 的 `undefined` 与 `null` 同属未知，不回退为真实 `0`。
@@ -261,7 +261,7 @@ $DSH_HOME/
     ├── calendar/
     │   └── {itemId}.json
     └── metrics/
-        └── {YYYY-MM-DD}.json          # 指标历史快照仍保留
+        └── {YYYY-MM-DD}.json          # 指标历史快照（`feat-storage-metrics-snapshot` 已落地读写）
 ```
 
 | 路径 | 实体 | 说明 |
@@ -269,7 +269,7 @@ $DSH_HOME/
 | `ops-manager/config.json` | `OpsConfig` | 配置；`draftsDir` 可由用户修改 |
 | `growth-studio/drafts/{id}.json` | `ContentDraft` | 只保留当前内容，`version` 用于并发控制 |
 | `growth-studio/calendar/{id}.json` | `CalendarItem` | 排期黄金主数据源 |
-| `growth-studio/metrics/{YYYY-MM-DD}.json` | `PlatformMetrics[]` | 按 `(platform, capturedAt)` 追加，供环比 |
+| `growth-studio/metrics/{YYYY-MM-DD}.json` | `PlatformMetrics[]` | 按 `(platform, capturedAt)` 追加，供环比；仅 `source !== 'unmeasured'` 且 `windowScope === 'verified'` 的结果写入（`src/storage/metrics-store.ts`） |
 
 ### MVP 单份草稿存储设计
 

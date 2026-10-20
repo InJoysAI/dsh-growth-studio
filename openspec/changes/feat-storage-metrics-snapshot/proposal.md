@@ -17,9 +17,9 @@
 ### 新增功能
 
 - `src/storage/` 新增指标历史快照读写服务（`metrics-store.ts`）：维护 `$DSH_HOME/growth-studio/metrics/{YYYY-MM-DD}.json`，采集成功后按 `(platform, capturedAt)` 追加写入当日文件，同日重复追加不丢弃既有记录。
-- **落盘可证性门**：仅 `source !== 'unmeasured'` 且 `windowScope === 'verified'` 的采集结果落盘；不可证实的累计 / 昨日口径结果不落盘，避免未来「历史充足」时由不可证数据算出环比（快照行保持纯 `PlatformMetrics[]` 形状，不新增字段）。
+- **落盘可证性门**：仅 `source === 'live'` 且 `windowScope === 'verified'` 的采集结果落盘；`unverified` / `unmeasured` / `mock` 不落盘（快照行保持纯 `PlatformMetrics[]` 形状，不新增字段）。
 - `workbench.overview` 的 `comparison` 接入真实基准：按请求窗口 `metricsWindow`（`'7d'` / `'30d'`）读取**上一个等长窗口**的快照作为对比基准，计算 `impressionsDeltaPercent` / `playsDeltaPercent` / `engagementsDeltaPercent` / `followersDeltaPercent`，`period` 置为对应的 `'7d'` / `'30d'`。
-- **「历史充足」判定（可测试）**：对每个应采平台 `p ∈ P`，在上一个等长窗口内至少有一条 `windowStart` / `windowEnd` **等于**该窗口（同一窗口长度）且可证性达标的快照记录；任一平台缺失即为「历史不足」，对应 delta 为 `null` 且 `period` 为 `null`（「暂无环比」），不得用不完整历史算近似百分比。
+- **「历史充足」判定（可测试）**：对每个应采平台 `p ∈ P`，在上一个等长窗口内至少有一条窗口长度匹配、UTC 日历日起止对齐的快照记录（不要求采集瞬间 ISO 全等）；任一平台缺失即为「历史不足」，对应 delta 为 `null` 且 `period` 为 `null`（「暂无环比」），不得用不完整历史算近似百分比。
 
 ### 修改功能
 
