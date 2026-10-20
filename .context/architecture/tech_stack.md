@@ -3,7 +3,6 @@
 > **Metadata**
 > - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.4.5）
 > - **Generated At**: `2026-10-16 09:44`
-> - **Updated At**: `2026-10-17 12:54`
 > - **Generator**: `Context-Agent v1.0`
 
 > ⚠️ 版本号取自 `package.json`（实际依赖，2026-10-16 核对）。若与源文档冲突，**以源文档为准**；

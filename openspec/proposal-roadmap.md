@@ -153,7 +153,7 @@ graph LR
 | `fix-browser-session-cookie-probe` | 0 | 统一 BrowserOS 会话探测并登记会话探活工具 | P0 | 无 | proposed | [Phase-0](./proposal-roadmap-Phase-0.md) |
 | `fix-storage-file-permissions` | 0 | 落盘文件与目录权限位实现 | P1 | 无 | in-progress | [Phase-0](./proposal-roadmap-Phase-0.md) |
 | `feat-injoys-test-document-count` | 0 | `injoys.test` 补文档数（可空）契约 | P1 | 无 | proposed | [Phase-0](./proposal-roadmap-Phase-0.md) |
-| `fix-config-save-error-swallow` | 0 | 配置写盘失败如实上报（不虚报成功） | P0 | 无 | in-progress | [Phase-0](./proposal-roadmap-Phase-0.md) |
+| `fix-config-save-error-swallow` | 0 | 配置写盘失败如实上报（不虚报成功） | P0 | 无 | done | [Phase-0](./proposal-roadmap-Phase-0.md) |
 | `feat-storage-calendar-items` | 1 | 排期主数据本地落盘服务 | P0 | 无 | proposed | [Phase-1](./proposal-roadmap-Phase-1.md) |
 | `feat-calendar-generate-list` | 1 | 排期生成、读取与生成时立即导出 | P0 | `feat-storage-calendar-items`、`feat-calendar-injoys-export`、`fix-overview-metrics-null-semantics` | proposed | [Phase-1](./proposal-roadmap-Phase-1.md) |
 | `feat-calendar-status-transitions` | 1 | 排期状态前向推进与校验 | P1 | `feat-storage-calendar-items` | proposed | [Phase-1](./proposal-roadmap-Phase-1.md) |

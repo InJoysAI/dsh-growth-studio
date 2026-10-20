@@ -659,7 +659,7 @@
 **Change ID:** `fix-config-save-error-swallow`  
 **优先级:** P0  
 **预计时间:** 0.75 人日（规划估算）  
-**状态:** in-progress
+**状态:** done
 
 **业务目标（Business Goal）**:
 - 消除 `config.save` 的虚报成功：配置文件不可写时用户必须当场看到保存失败，而不是在重启后才发现 Injoys 令牌 / 草稿目录 / 自动同步配置丢失。
@@ -689,8 +689,8 @@
 | criterion | `.context/criterion.md` | §3.2 MUST「错误不得吞没」、MUST NOT「虚报成功」；§3.5 落盘与统一存储错误码；§3.4 令牌返回边界（配置文件含明文令牌，丢失即用户可感）；§6 SSoT-first |
 | architecture | `.context/architecture/risks_and_debt.md` | RISK-005（中）「存储不可用被误报为成功或错误码不一致」，缓解措施 ③「不得吞异常后谎报保存成功」——本提案为该条的实现落点 |
 | architecture | `.context/architecture/api_strategy.md` | §2.3 错误码清单（`drafts/storage-unavailable` 覆盖所有写入口；`config/invalid-drafts-dir` 只管前置预检）、§3.6 `config.save` 契约（`{ success: boolean; config }`） |
-| architecture | `.context/architecture/cross_cutting_concepts.md` | 「前置校验优先：不得先报成功、再让后续写失败」 |
-| architecture | `.context/architecture/runtime_view.md` | 「`config.save` 目标目录不可用」的失败返回路径（本提案把配置文件自身写失败纳入同一失败语义） |
+| architecture | `.context/architecture/cross_cutting_concepts.md` | 前置校验优先：不得先报成功、再让后续写失败（释义；`cross_cutting_concepts.md:83` 原文为「`config.save` 须先校验目录可写，**不得**先报成功、再让后续 `drafts.save` 以 `ENOENT` 失败」） |
+| architecture | `.context/architecture/runtime_view.md` | 「`config.save` 目标目录不可用」的失败返回路径（`runtime_view.md:473` 描述的是 `draftsDir` 前置预检、返回 `config/invalid-drafts-dir`；本提案把配置文件自身写失败纳入**同一诚实失败原则**，但**错误码不同**——配置文件失败为 `drafts/storage-unavailable`） |
 | domain | `.context/domain/testing_strategy.md` | 模块 6 场景 4 覆盖「切换可用草稿目录 + 提示文案」，**不含**配置文件写盘失败；RISK-005 现记为「部分覆盖」——本提案为配置文件写盘失败**新增专项用例**（不声称原场景已有该分支） |
 
 **关键任务**:

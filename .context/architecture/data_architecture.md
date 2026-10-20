@@ -3,7 +3,6 @@
 > **Metadata**
 > - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.4.5 §4、§5.3）
 > - **Generated At**: `2026-10-16 09:44`
-> - **Updated At**: `2026-10-17 13:53`
 > - **Generator**: `Context-Agent v1.0`
 
 > ⚠️ **权威定义在 `src/types.ts`**（criterion §5.5）。若本文与源文档冲突，**以源文档为准**。

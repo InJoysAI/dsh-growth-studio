@@ -3,7 +3,6 @@
 > **Metadata**
 > - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.4.5 §3.9、§5.5、§六）
 > - **Generated At**: `2026-10-16 09:44`
-> - **Updated At**: `2026-10-17 12:54`
 > - **Generator**: `Context-Agent v1.0`
 
 > 源文档未定义完整的可观测性体系（无 Prometheus / Jaeger / 日志级别规范）。

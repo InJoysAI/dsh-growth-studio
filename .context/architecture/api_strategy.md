@@ -3,7 +3,6 @@
 > **Metadata**
 > - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.4.5 §2.2、§3）
 > - **Generated At**: `2026-10-16 09:44`
-> - **Updated At**: `2026-10-17 13:53`
 > - **Generator**: `Context-Agent v1.0`
 
 > ⚠️ 本文是源文档 §3 的**结构化总结**。契约的**权威定义在 `src/ops-rpc.ts` + `src/types.ts`**（criterion §7.1，手写 TS 契约）。
@@ -652,7 +651,7 @@ interface ConfigGetValue extends OpsConfig {
 // → { success: boolean; config: OpsConfig }
 ```
 
-- **热更新先于持久化**：`draftsDir` 前置校验通过后、**配置文件写盘之前**完成 `InjoysClient` 热更新（`endpoint` / `token`），**无需重启**；写盘失败时仍保留已合并的内存态并返回失败信封，**不回滚**（保证运行中配置与用户刚提交的表单一致，不出现「界面显示新配置但真实调用仍走旧令牌」的分裂态）；
+- **热更新先于持久化**：`draftsDir` 前置校验通过后、**配置文件写盘之前**完成 `InjoysClient` 热更新（`endpoint` / `token`），**无需重启**；写盘失败时仍保留已合并的内存态并返回失败信封，**不回滚**——使运行中配置与用户刚提交的表单在**非空字段**上一致，不出现「界面显示新配置但真实调用仍走旧令牌」的分裂态。**适用边界**：空串提交（清空 `endpoint`/`token`）时 `ConfigStore` 仅合并非空值、`InjoysClient` 对 `!== undefined` 即赋值，二者语义分裂属**既有行为**，不在本条款保证范围内；
 - **配置文件写盘失败 → 失败信封**：`config.save` 落盘失败（目录不可写 / 创建失败 / 路径被文件占用）时返回 `ok:false` + `error.code='drafts/storage-unavailable'`（经**统一 RPC 错误边界**映射），`error.message` 为面向用户的中文说明、不拼接 `errno` / 调用栈，`details.dir` 指向 `ops-manager` 配置目录；**不得**返回 `ok:true` 或 `ops/internal-error`；`ok:false` 时响应**不含** `value.success`；
 - **响应体含明文 `token`**：`config` 为完整 `OpsConfig`，适用 `criterion §3.4`「令牌返回边界」的本机回填例外（与 `config.get` 同一授权），**不得**向本机 DSH 客户端之外回传；
 - 保存 `injoys` 配置后须清理**按目标隔离的缓存**，避免跨服务状态污染；

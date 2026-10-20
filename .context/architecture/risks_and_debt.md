@@ -3,7 +3,6 @@
 > **Metadata**
 > - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.4.5）
 > - **Generated At**: `2026-10-16 09:44`
-> - **Updated At**: `2026-10-17 12:54`
 > - **Generator**: `Context-Agent v1.0`
 
 > ⚠️ **本文只记录源文档中有明确依据的风险与债务**。源文档未提供的字段标注 `N/A – 源文档未提供`，
@@ -387,7 +386,7 @@
 | **描述** | `src/config-store.ts` 的 `save()` 原以 `try { mkdirSync; writeFileSync(tmp); renameSync } catch { /* Ignore disk persistence failures */ }` 吞掉配置文件落盘异常，`src/ops-rpc.ts` 的 `config.save` case 随后照常返回 `{ ok:true, value:{ success:true, config } }`。用户在配置页看到「保存成功」，实际 `config.json` 未落盘，重启后配置（含明文 Injoys 令牌）整体回退——违反 criterion §3.2 MUST「错误不得吞没」与 MUST NOT「虚报成功」。 |
 | **影响** | 配置写入失败对用户完全不可见，令牌/草稿目录/自动同步开关的丢失只能在重启后才发现；同时使 RISK-005「存储不可用被误报为成功」的缓解措施 ③ 无实现落点。 |
 | **目标解决时间** | 已解决（2026-10-20） |
-| **解决方案** | 由提案 `fix-config-save-error-swallow` 修复：`save()` 移除吞错 `catch`，落盘异常如实抛出；`config.save` case 将其包装为 `DraftStorageError`（`details.dir` 取 `ConfigStore.getConfigDir()`）交既有**统一 RPC 错误边界**映射为 `ok:false` + `drafts/storage-unavailable`；`injoys.updateConfig` 提前到 `save()` 之前，保证失败路径下 `InjoysClient` 与 `inMemory` 一致。契约同轮同步 `api_strategy.md` §2.3 / §3.6 / §3.7 与 `cross_cutting_concepts.md`。 |
+| **解决方案** | 由提案 `fix-config-save-error-swallow` 修复：`save()` 移除吞错 `catch`，落盘异常如实抛出；`config.save` case 将其包装为 `DraftStorageError`（`details.dir` 取 `ConfigStore.getConfigDir()`）交既有**统一 RPC 错误边界**映射为 `ok:false` + `drafts/storage-unavailable`；`injoys.updateConfig` 提前到 `save()` 之前，保证失败路径下 `InjoysClient` 与 `inMemory` 在**非空字段**上一致（空串提交的既有语义分裂不在本次修复范围）。契约同轮同步 `api_strategy.md` §2.3 / §3.6 / §3.7 与 `cross_cutting_concepts.md`。 |
 | **估算工作量** | 0.75 人日（规划估算） |
 
 > ⚠️ 本文档**只记录债务，不在架构资产内修改实现**。生成资产已忠实于源文档契约；

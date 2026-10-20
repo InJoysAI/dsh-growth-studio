@@ -2085,6 +2085,10 @@ describe('Ops Manager (Stage 4: Overseas Expansion & Multi-Language)', () => {
       expect(data.result.error.code).toBe('drafts/storage-unavailable')
       // User-facing message only: no errno / stack leakage into the client-facing string.
       expect(data.result.error.message).not.toMatch(/EEXIST|ENOENT|EACCES|errno|at Object|\.ts:\d+/)
+      // Positive assertion: the message must actually be a non-empty Chinese explanation.
+      // Without this, an English or empty message would still satisfy the negative check above.
+      expect(data.result.error.message).toMatch(/[\u4e00-\u9fa5]/)
+      expect(data.result.error.message.trim().length).toBeGreaterThan(0)
       // Exact directory, not just truthy: catches `$DSH_HOME`, the config.json file path, and
       // the `'ops-manager'` literal fallback that `ops-rpc.ts` uses when getConfigDir() is undefined.
       expect(data.result.error.details?.dir).toBe(path.join(home, 'ops-manager'))
@@ -2142,13 +2146,16 @@ describe('Ops Manager (Stage 4: Overseas Expansion & Multi-Language)', () => {
       fs.mkdirSync(home, { recursive: true })
       fs.writeFileSync(path.join(home, 'ops-manager'), 'blocker')
 
-      const { call, injoys } = await buildIsolatedRpcStack(home, path.join(base, 'drafts'))
+      const { call, injoys, configStore } = await buildIsolatedRpcStack(home, path.join(base, 'drafts'))
       const data = await call('config.save', {
         injoys: { endpoint: 'http://127.0.0.1:9/mcp', token: 'tok-c4' },
       })
-      // Assert the CLIENT itself, not `config.get`: the latter reads ConfigStore.inMemory only
-      // and would pass even with updateConfig deleted or moved back after save().
+      // Two INDEPENDENT sources must both hold the submitted values after a failed write:
+      // - `injoys.getConfig()` proves updateConfig ran before save() (catches deletion/reorder);
+      // - `configStore.load()` proves inMemory was NOT rolled back (catches rollback on failure).
+      // Reading only one of them leaves the other behaviour unprotected.
       const clientCfg = injoys.getConfig()
+      const storeCfg = configStore.load()
 
       fs.rmSync(base, { recursive: true, force: true })
 
@@ -2156,6 +2163,9 @@ describe('Ops Manager (Stage 4: Overseas Expansion & Multi-Language)', () => {
       // Hot-update precedes the failed write, so the submitted token is live on the client.
       expect(clientCfg.token).toBe('tok-c4')
       expect(clientCfg.endpoint).toBe('http://127.0.0.1:9/mcp')
+      // No rollback on failure: in-memory config keeps the merged values.
+      expect(storeCfg.injoys.token).toBe('tok-c4')
+      expect(storeCfg.injoys.endpoint).toBe('http://127.0.0.1:9/mcp')
     })
 
     it('C5: 写盘失败不得降级为 ops/internal-error，且不影响 draftsDir 预检码', async () => {

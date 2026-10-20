@@ -3,7 +3,6 @@
 > **Metadata**
 > - **Source**: `.context/domain/source/product_requirements.md`, `.context/domain/source/development_plan.md`, `.context/architecture/source/technical_architecture.md`
 > - **Generated At**: `2026-10-15 20:23`
-> - **Updated At**: `2026-10-17 13:53`
 > - **Generator**: `Context-Dev-Agent v1.0`
 
 > **用途**: 定义 AI 代理必须遵守的工程约束和技术规范。

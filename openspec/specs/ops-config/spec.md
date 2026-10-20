@@ -1,7 +1,11 @@
-## ADDED Requirements
+# ops-config Specification
 
+## Purpose
+TBD
+
+## Requirements
 ### Requirement: 配置文件写盘失败如实上报
-系统必须（MUST）在 `ConfigStore.save()` 的 `mkdirSync` / `writeFileSync` / `renameSync` 任一步失败时如实上报失败，不得（MUST NOT）以 `catch` 吞没后让 `config.save` 返回 `ok:true`。依据 `.context/criterion.md` §3.2 MUST「错误不得吞没」与 MUST NOT「虚报成功（无客户端或执行失败时严禁返回成功）」，以及 `.context/architecture/risks_and_debt.md` RISK-005 缓解措施 ③「不得吞异常后谎报保存成功」。**追溯说明**：总体依据是 RISK-005（`risks_and_debt.md:88`）；`testing_strategy.md` 模块 6 场景 4（`:347-353`）与 `system_design.md` QS-6（`:45`）是**邻近但未覆盖**配置文件写盘失败的既有场景（前者只覆盖切换可用草稿目录与提示文案，后者覆盖 `draftsDir` 预检返回 `config/invalid-drafts-dir`）——本需求为配置文件写盘失败**新增专项覆盖**，不声称原场景已含该分支。
+系统必须（MUST）在 `ConfigStore.save()` 的 `mkdirSync` / `writeFileSync` / `renameSync` 任一步失败时如实上报失败，不得（MUST NOT）以 `catch` 吞没后让 `config.save` 返回 `ok:true`。依据 `.context/criterion.md` §3.2 MUST「错误不得吞没」与 MUST NOT「虚报成功（无客户端或执行失败时严禁返回成功）」，以及 `.context/architecture/risks_and_debt.md:87` RISK-005 缓解措施 ③「不得吞异常后谎报保存成功」。**追溯说明**：总体依据是 RISK-005（`risks_and_debt.md:87` 缓解措施 ③）；`testing_strategy.md` 模块 6 场景 4（`:346-352`）与 `system_design.md` QS-6（`:44`）是**邻近但未覆盖**配置文件写盘失败的既有场景（前者只覆盖切换可用草稿目录与提示文案，后者覆盖 `draftsDir` 预检返回 `config/invalid-drafts-dir`）——本需求为配置文件写盘失败**新增专项覆盖**，不声称原场景已含该分支。
 
 #### Scenario: 配置目录不可写
 - **WHEN** `$DSH_HOME/ops-manager/` 目录只读（`writeFileSync` tmp 抛 `EACCES`；POSIX 下 `rename` 可覆盖只读**文件**，故触发条件取目录级不可写而非 `config.json` 只读）
@@ -21,8 +25,8 @@
 #### Scenario: 失败路径下热更新与内存态一致
 - **WHEN** `config.save` 落盘失败返回 `ok:false`
 - **THEN** `InjoysClient` 已先经 `injoys.updateConfig` 热更新为提交的新配置（`updateConfig` 在 `save()` 之前执行，只更新内存态、不抛错）
-- **AND** `inMemory`/`InjoysClient` 保持与用户刚提交的表单一致，避免「界面显示新配置但真实调用仍走旧令牌」的分裂态（`criterion.md:104` MUST「配置热更新须实时生效并传给 `InjoysClient`（`updateConfig`）」）
-- **AND** 本断言对**非空字段**成立——`ops-page.js:77-78` 允许清空提交（`trim()` 后为 `''`）：`config-store.ts:171` 只在 `length>0` 时合并（`inMemory` 保留旧值）而 `client.ts:80` 只在 `!== undefined` 时赋值（`InjoysClient` 采纳 `''`），空串提交的既有语义分裂不在本提案范围内
+- **AND** `inMemory`/`InjoysClient` 保持与用户刚提交的表单一致，避免「界面显示新配置但真实调用仍走旧令牌」的分裂态（`criterion.md:103` MUST「配置热更新须实时生效并传给 `InjoysClient`（`updateConfig`）」）
+- **AND** 本断言对**非空字段**成立——`ops-page.js:77-78` 允许清空提交（`trim()` 后为 `''`）：`config-store.ts:180`/`:183` 只在 `length>0` 时合并（`inMemory` 保留旧值）而 `client.ts:80` 只在 `!== undefined` 时赋值（`InjoysClient` 采纳 `''`），空串提交的既有语义分裂不在本提案范围内
 
 #### Scenario: 失败不回滚内存配置
 - **WHEN** `config.save` 落盘失败返回 `ok:false`
