@@ -43,7 +43,7 @@
 - **既有对象权限位的一次性收紧**：不回改既有文件与既有目录（见 Why 的范围界定与 `design.md` 决策 3）；需另立迁移提案。**因此本提案不宣称 criterion §3.5 MUST 已在既有对象上成立。**
 - **`src/browser/session-guard.ts` 中把宿主 Cookie 库复制到 `os.tmpdir()` 的 `copyFileSync`**：该路径由本 Phase 提案 6 `fix-browser-session-cookie-probe` **整体移除**（criterion §4 铁律 4 会话数据零外发）。本提案不修改它，避免两个 Phase 0 提案重叠改同一文件。**时序依赖须注意**：`openspec/changes/fix-browser-session-cookie-probe/` 目前尚未创建（仅有 roadmap 条目），在它落地前该 `copyFileSync` 仍会创建未显式设权的临时文件；本提案的「无遗漏」验收按下方验证标准显式排除该项，不以未创建的下游提案作为本提案的硬前置。
 - **`plugin-src/client/build.mjs` 对 `lib/` 的构建产物写入**：不在 `src/` 运行时落盘范围，且为构建产物而非用户数据。
-- **`ConfigStore.save()` 吞掉写盘失败的行为**：属**独立缺陷**，本提案不修复，理由与登记去向见「风险与注意事项」。
+- **`ConfigStore.save()` 的失败上报语义**：已由 Phase 0 提案 9 `fix-config-save-error-swallow` 落地（`save()` 不再吞掉落盘失败，`config.save` 经统一边界返回 `drafts/storage-unavailable`；`.context/architecture/risks_and_debt.md` TD-016 已标记修复）。本提案**不得回退**该语义：`config-store.ts` 改用统一落盘封装时，写盘失败仍须如实抛出。
 
 ## Impact
 
@@ -77,7 +77,7 @@
 
 - **多用户主机读取（本提案要消除的对象）**：umask 宽松时草稿正文与含 Injoys 令牌的配置文件可被同机其他用户读取；显式 `mode` 后新写入不再依赖 umask。
 - **既有对象残留（已知未覆盖面）**：升级前已存在的 `drafts/`、`ops-manager/` 目录可能长期保持 `0755`（`mkdir` 不修正已存在目录）；既有文件在下一次保存时被收紧为 `0o600`，但不再被保存的 `config.json`（含令牌）会保持原权限。缓解与去向：记入本节，一次性收紧须另立迁移提案（本提案 Out of Scope）；验收只覆盖新建对象，不把残留当作已解决。
-- **`ConfigStore.save()` 吞错属独立缺陷（本提案不修复，须独立登记）**：`src/config-store.ts` 的 `save()` 以 `catch {}` 吞掉配置文件写盘失败，故 `ops-manager` 目录不可写或配置文件只读时 `config.save` 仍返回 `ok: true`。该行为违反 criterion §3.2 MUST「错误不得吞没」与 MUST NOT「虚报成功」，并命中 RISK-005 缓解措施 ③「不得吞异常后谎报保存成功」。**必须澄清**：criterion §3.5 保存前的 `verifyDirectoryWritable` 预检（`src/ops-rpc.ts`）只覆盖 `draftsDir` 的可用性并返回 `config/invalid-drafts-dir`，**不覆盖配置文件自身的写盘失败**，因此本提案**不声称该缺陷已被覆盖**。本提案不改动它（修它会变更 RPC 成功 / 失败语义，属 API 层契约变更），其修复须另立提案（建议 change-id `fix-config-save-error-swallow`，或经 `.agents/workflows/context-update.md` 在 `.context/architecture/risks_and_debt.md` 新增 TD 后纳入路线图）。
+- **`ConfigStore.save()` 的失败上报是既有前提，不是本提案的待偿债务**：Phase 0 提案 9 `fix-config-save-error-swallow` 已归档——`save()` 不再吞掉落盘失败，`config.save` 失败经统一 RPC 边界返回 `drafts/storage-unavailable`（TD-016 已修复）。本提案在该语义之上只做一件事：把 `mkdirSync` / `writeFileSync` + `renameSync` 换成统一落盘封装以取得权限位与原子写；**不得**因改用封装而重新吞掉失败。`config-store.ts` 仍不得 import `storage/draft-store.ts`（否则成环），故失败包装保持在 `config.save` case 处，与现状一致。
 - **umask 与权限断言的关系**：实际权限位为 `mode & ~umask`，umask 只可能更严格、不可能放宽，故 MUST 成立；权限位断言以「`(mode & 0o077) === 0`」为主判据，并在标准 umask 下追加精确 `0o600` / `0o700` 断言，避免异常 umask 下误报失败；`root` 运行与 `win32` 平台下权限位无意义，显式跳过并输出原因（沿用 `tests/ops-manager.spec.ts` 既有的 `permissionBitsEnforced` 探测口径）。
 - **测试污染真实 `$DSH_HOME`（RISK-010，高）**：新用例须使用独立 `DSH_HOME` 或显式 `profileContext.home`，隔离在模块作用域生效（`tests/setup-isolation.ts`），用例内在 `finally` 恢复环境变量，不得写入开发者真实 `$DSH_HOME`。
 - **循环依赖**：封装若放进 `draft-store.ts`，`config-store.ts` 复用它即与既有的 `draft-store.ts → config-store.ts` 依赖成环；故置于不 import 项目内模块的叶子模块，由 `pnpm typecheck` 验证。
@@ -112,8 +112,8 @@
 
 | Scope | 资产路径 | 关联说明 |
 |-------|---------|---------|
-| criterion | `.context/criterion.md` | §3.5「系统文件权限仅限当前操作系统用户」MUST 及落盘 MUST/MUST NOT 的权威来源；§3.2「错误不得吞没」与不虚报成功（用于界定 `ConfigStore.save()` 吞错的独立缺陷）；§3.4「令牌返回边界」（明文令牌落盘的邻近约束）；§6 SSoT-first 执行顺序 |
-| architecture | `.context/architecture/risks_and_debt.md` | TD-013（中）「criterion 文件权限约束无实现落点」——本提案偿还该条；RISK-005（存储不可用被误报，含缓解措施 ③「不得吞异常后谎报保存成功」）；RISK-010（测试污染真实 `$DSH_HOME`） |
+| criterion | `.context/criterion.md` | §3.5「系统文件权限仅限当前操作系统用户」MUST 及落盘 MUST/MUST NOT 的权威来源；§3.2「错误不得吞没」与不虚报成功（本提案须保持、不得回退）；§3.4「令牌返回边界」（明文令牌落盘的邻近约束）；§6 SSoT-first 执行顺序 |
+| architecture | `.context/architecture/risks_and_debt.md` | TD-013（中）「criterion 文件权限约束无实现落点」——本提案偿还该条；TD-016（`config.save` 虚报成功，已由前置提案修复，本提案在其上补权限位）；RISK-005（含缓解措施 ③）；RISK-010（测试污染真实 `$DSH_HOME`） |
 | architecture | `.context/architecture/constraints.md` | §架构铁律的四条定义（本提案触碰「存储」，须逐条声明保持方式） |
 | architecture | `.context/architecture/security_policy.md` | 「存储层加密」表：Injoys Token 与草稿内容的保护方式均为文件系统权限 |
 | architecture | `.context/architecture/data_architecture.md` | 「数据治理 / 文件权限」行；物理数据模型给出 `ops-manager/config.json` 与 `drafts/{id}.json` 两个落盘位置 |

@@ -34,7 +34,7 @@
 - [ ] 3.3 `src/config-store.ts` 改用统一落盘封装
   - [ ] 3.3.1 `save()` 的 `mkdirSync(join(this.configPath, '..'), …)` 改为调用 `mkdirWithMode` 并保留 `mode`
   - [ ] 3.3.2 `save()` 的 `writeFileSync` + `renameSync` 改为调用 `writeJsonAtomic(this.configPath, this.inMemory)`
-  - [ ] 3.3.3 不改变 `save()` 既有的「写盘失败不抛出」行为（该行为属独立缺陷，见 `proposal.md` 风险与 `design.md` 决策 5，**不在本提案修复**）；仅同步 `node:fs` import，移除不再使用的 `writeFileSync` / `renameSync` / `mkdirSync`
+  - [ ] 3.3.3 **保留** `save()` 的失败如实抛出语义（由归档提案 `fix-config-save-error-swallow` 落地，TD-016 已修复）：改用封装原语后抛出的仍是 fs 原始错误，`config.save` case 处包装为 `DraftStorageError` 并附 `details.dir`（取 `getConfigDir()`）的现状不变；**不得**在 `config-store.ts` 内新增 `try/catch` 把失败重新吞掉或改回静默。仅同步 `node:fs` import，移除不再使用的 `writeFileSync` / `renameSync` / `mkdirSync`
 - [ ] 3.4 全量核对 `src/` 落盘调用无遗漏
   - [ ] 3.4.1 执行 `grep -rn "writeFileSync\|mkdirSync\|appendFileSync\|copyFileSync\|createWriteStream" src/` 与 `grep -rn "from 'node:fs/promises'" src/`（含 `writeFile` / `mkdir` 用法）：剩余调用均须显式设定模式（或经 `writeJsonAtomic` / `mkdirWithMode`），逐条给出结论
   - [ ] 3.4.2 确认排除项未被误改：`src/browser/session-guard.ts` 的宿主 Cookie 临时 `copyFileSync` 属 `fix-browser-session-cookie-probe` 的移除范围（该提案目录尚未创建，属**时序依赖**：本提案先落地时该临时文件仍为未显式设权，需在交付说明中如实标注，不以未创建的下游提案阻塞本提案）；`plugin-src/client/build.mjs` 的 `lib/` 构建产物写入不在 `src/` 范围

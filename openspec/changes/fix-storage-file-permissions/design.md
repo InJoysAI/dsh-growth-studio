@@ -15,7 +15,7 @@
   - `metrics/` / `calendar/` 的业务实现（分属 Phase 0 提案 2 与 Phase 1）。
   - 一次性收紧**既有**文件与目录的权限位（见决策 3）。
   - 修改 `src/browser/session-guard.ts` 的宿主 Cookie 临时副本（由 `fix-browser-session-cookie-probe` 整体移除）。
-  - 修改 `ConfigStore.save()` 吞掉写盘失败的既有行为（见决策 5，另立提案）。
+  - 修改 `ConfigStore.save()` 的**失败上报语义**（已由归档提案 `fix-config-save-error-swallow` 落地，本提案不得回退为静默）。
 
 ## Decisions
 
@@ -39,11 +39,11 @@
   - 因此本提案的声明收窄为「使**新写入**满足 MUST」，并在 `proposal.md` 与本文「Risks / Trade-offs」显式登记该残留（既有目录 + 不再被保存的配置文件）。一次收紧须另立迁移提案。
   - Alternatives considered：首次加载 / 保存时对插件自有路径做一次性 `chmod`（被否：属数据迁移，需要自己的失败语义与用户可见行为，超出 roadmap 条目 In 范围；且会把「权限位实现」与「用户目录改动」两类风险混在同一个 1 人日变更里）。
 
-- **Decision 4: 不改动 `ConfigStore.save()` 的错误吞没行为，但登记为独立缺陷**
-  - `save()` 以 `catch {}` 吞掉配置文件写盘失败，于是 `ops-manager` 目录不可写或配置文件只读时 `config.save` 仍返回成功。该行为违反 criterion §3.2 MUST「错误不得吞没」与 MUST NOT「虚报成功」，并命中 RISK-005 缓解措施 ③。
-  - **澄清一处易误读的覆盖关系**：criterion §3.5 的「保存前准备并校验目录」预检（`src/ops-rpc.ts`）只覆盖 `draftsDir` 的可用性并返回 `config/invalid-drafts-dir`，**不覆盖配置文件自身的写盘失败**。本提案不声称该缺陷已被覆盖。
-  - 修复它是 API 层行为变更（成功 / 失败语义、错误码），需要自己的提案与评审面，故不在本提案内顺手改；去向：另立提案，建议 change-id `fix-config-save-error-swallow`（或在 `.context/architecture/risks_and_debt.md` 经 `.agents/workflows/context-update.md` 新增 TD 后纳入路线图）。
-  - 本提案不触碰 `config-store.ts` 的 `catch` 行为，仅同步其 import 与落盘调用。
+- **Decision 4: `ConfigStore.save()` 的失败上报已由前置提案落地，本提案只在其上补权限位**
+  - `fix-config-save-error-swallow`（Phase 0 提案 9）已归档：`src/config-store.ts` 的 `save()` 不再 `catch {}` 吞掉落盘失败，失败经 `src/ops-rpc.ts` 的统一 RPC 错误边界映射为 `drafts/storage-unavailable`；对应 `.context/architecture/risks_and_debt.md` TD-016 已标记修复。
+  - 因此本提案**不承担**该缺陷的修复，也**不再需要**登记它；本提案对 `src/config-store.ts` 的改动只有一类：让 `save()` 的 `mkdirSync` / `writeFileSync` + `renameSync` 改用统一落盘封装取权限位与原子写，**保留**其失败如实抛出的既有语义（不得改回静默）。
+  - 需要注意的兼容点：`save()` 的失败抛出不带错误类型，`config.save` case 处已将其包装为 `DraftStorageError` 并带上 `details.dir`（取自 `getConfigDir()`）。本提案改用封装原语后，抛出的仍是 fs 原始错误，包装位置与结果不变，故该路径无需改动。
+  - 另需保持：`config-store.ts` 不得 import `storage/draft-store.ts`（后者已 import 前者，反向即成环）——这是统一封装必须落在叶子模块的直接原因（见决策 2），而非新引入的约束。
 
 ## Risks / Trade-offs
 
@@ -61,4 +61,4 @@
 
 ## Open Questions
 
-- 无。原「`ConfigStore.save()` 吞错是否应独立登记」已按决策 4 定为**登记独立缺陷、不在本提案修复**；具体登记形式（新建提案或新增 TD 后纳入路线图）由路线图维护者决定，本变更不代其决定。
+- 无。`ConfigStore.save()` 的失败上报已由归档提案 `fix-config-save-error-swallow` 解决（TD-016 已修复），本提案只在其上补权限位与统一原语，不重复该缺陷的登记或修复。

@@ -557,13 +557,13 @@
 | ❌ Out | 存储加密（源文档未提供，N/A） |
 | ❌ Out | `metrics/` / `calendar/` 的业务实现（分别属本 Phase 提案 2 与 Phase 1） |
 | ❌ Out | **既有**文件 / 目录权限位的一次性收紧（`mkdir` 不修正已存在目录，既有目录不回改；须另立迁移提案） |
-| ❌ Out | `ConfigStore.save()` 吞掉配置文件写盘失败的行为（属独立缺陷，须独立登记后另行修复） |
+| ❌ Out | `ConfigStore.save()` 的**失败上报语义**改动（已由提案 9 `fix-config-save-error-swallow` 落地并归档、TD-016 已修复；本提案只在其上补权限位，**不得回退**为静默吞没） |
 
 **关联 Context 资产**:
 
 | Scope | 关联资产 | 关联说明 |
 |-------|---------|----------|
-| criterion | `.context/criterion.md` | §3.5 文件权限 MUST 与落盘 MUST/MUST NOT（原子写、写锁、统一错误码）；§3.2「错误不得吞没」与不虚报成功（用于界定 `ConfigStore.save()` 吞错的独立缺陷）；§3.4 令牌返回边界 |
+| criterion | `.context/criterion.md` | §3.5 文件权限 MUST 与落盘 MUST/MUST NOT（原子写、写锁、统一错误码）；§3.2「错误不得吞没」与不虚报成功（前置提案 9 已落地，本提案须保持、不得回退）；§3.4 令牌返回边界 |
 | architecture | `.context/architecture/risks_and_debt.md` | TD-013（中，本提案偿还对象）；RISK-005（存储不可用被误报，含缓解措施 ③）；RISK-010（测试污染真实 `$DSH_HOME`） |
 | architecture | `.context/architecture/api_strategy.md` | §5.3「存储加密 N/A，依赖文件系统权限仅限当前 OS 用户」 |
 | architecture | `.context/architecture/constraints.md` | §架构铁律四条定义（本提案触碰「存储」，须逐条声明保持方式） |
@@ -584,7 +584,7 @@
 | 既有**目录**残留（升级前 `drafts/` / `ops-manager/` 为 `0755`） | 同机其他用户可列出文件名（内容仍受 `0600` 保护）；「权限仅限当前用户」对目录不成立 | **接受并显式登记**：`mkdir` 不修正已存在目录、无自愈路径；本提案只声明「新写入满足 MUST」，一次性收紧需自己的扫描范围 / 时机 / 失败语义，属独立迁移提案（Out） |
 | 既有**文件**残留（升级前草稿 / 配置宽于 `0o600`） | 至下一次保存前保持原权限（含明文令牌的 `config.json`） | 原子写（临时文件 + `rename`）使下一次保存自然收紧为 `0o600`，无需迁移；补「既有 `0644` → 保存后 `0o600`」用例证明该路径；不再被保存的文件属上一行的残留范畴 |
 | TD-013（中）文件权限约束无实现落点 | umask 宽松时同机其他用户可读草稿正文与含令牌配置 | 本提案偿还：显式 `mode` 后不再依赖 umask，权限位在统一落盘封装单点定义 |
-| RISK-005（中）存储不可用被误报为成功 | `ConfigStore.save()` 吞掉配置文件写盘失败，`config.save` 仍返回成功（违反 §3.2「错误不得吞没」/ 不虚报成功与 RISK-005 缓解措施 ③） | **本提案不修**（会变更 RPC 成功 / 失败语义，属契约变更）；须独立登记后另立提案修复。澄清：criterion §3.5 保存前的目录预检只覆盖 `draftsDir`，**不覆盖**配置文件自身写盘失败 |
+| RISK-005（中）存储不可用被误报为成功 | 配置文件写盘失败曾被吞没后仍报成功 | **已由提案 9 解决**（`fix-config-save-error-swallow` 已归档，TD-016 已修复）。本提案**不重复该修复**，只须保证：改用统一落盘封装后 `config-store.ts` 仍如实抛出、不新增静默 `catch` |
 | RISK-010（高）测试污染真实 `$DSH_HOME` | 权限用例直接实例化 `ConfigStore` 会改写开发者真实配置 | 用例使用独立 `DSH_HOME` / 显式 `profileContext.home`，隔离在测试收集前生效（`tests/setup-isolation.ts`），并在 `finally` 恢复 |
 | 下游自建第二套落盘口径 | `metrics/` 需要写锁与权限位；封装若不提供写锁，下游将自建第二套锁，两套口径漂移 | 本提案把权限位、原子写与写锁一并抽入统一封装（关键任务 1）；下游提案自身承诺不修改 `draft-store.ts` / `config-store.ts`，本决定使其成立 |
 | 权限断言在 `root` / `win32` / 异常 umask 下失真 | 用例误报失败或空转通过（`mkdtemp` 目录本身即 `0700`） | 主判据用「组 / 其他用户位全为 0」，精确值仅在标准 umask 下追加断言；目录断言的目标目录不得预先创建；`root` / `win32` 显式跳过并输出原因 |
