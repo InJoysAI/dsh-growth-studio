@@ -672,7 +672,7 @@
 | ✅ In | `src/config-store.ts` 的 `save()` 把配置文件写盘失败**如实上报**（返回值或抛出），不再 `catch {}` 静默吞没 |
 | ✅ In | `src/ops-rpc.ts` 的 `config.save` 让该失败经**统一 RPC 错误边界**映射为 `drafts/storage-unavailable` 失败信封（该码在 `api_strategy.md` §2.3 已声明「覆盖**所有**写入口」） |
 | ✅ In | 同轮同步 `api_strategy.md` §3.6 的 `config.save` 契约：明确「配置文件写盘失败 → 失败信封 + `drafts/storage-unavailable`」，并界定 `success` 字段的失败语义 |
-| ✅ In | 补测试：`ops-manager/` 不可写（或 `config.json` 只读）时 `config.save` 返回 `ok: false` 且 `error.code = 'drafts/storage-unavailable'`；可写时仍 `ok: true` 且确实落盘 |
+| ✅ In | 补测试：`ops-manager/` 目录只读（tmp `EACCES`）或 `ops-manager/` 被普通文件占用（`mkdirSync` `EEXIST`）时 `config.save` 返回 `ok: false` 且 `error.code = 'drafts/storage-unavailable'`；可写时仍 `ok: true` 且确实落盘（POSIX `rename` 可覆盖只读文件，故不采用 `config.json` 只读） |
 | ✅ In | 确认客户端**零改动**即可生效（`plugin-src/client/ops-page.js` 的 `handleSave` 已具备 `catch` → 「保存失败」分支；`plugin-src/management-rpc.mjs` 的 `unwrapRpcResult` 对 `ok: false` 抛错） |
 | ❌ Out | 新增错误码（`drafts/storage-unavailable` 已声明覆盖所有写入口；是否另立 `config/*` 码属独立契约决策） |
 | ❌ Out | `draftsDir` 的前置目录预检语义（`config/invalid-drafts-dir`，不改） |
@@ -712,7 +712,7 @@
 
 | 验收项 | 验收条件 | 验收方式 |
 |--------|----------|----------|
-| 不虚报成功 | `ops-manager/` 不可写（或 `config.json` 只读）时 `config.save` 返回 `ok: false`，`error.code` 为 `drafts/storage-unavailable` | 单元测试（断言 `error.code`，不得为 `ok: true`） |
+| 不虚报成功 | `ops-manager/` 目录只读（tmp `EACCES`）或 `ops-manager/` 被普通文件占用（`EEXIST`）时 `config.save` 返回 `ok: false`，`error.code` 为 `drafts/storage-unavailable` | 单元测试（断言 `error.code`，不得为 `ok: true`） |
 | 正常路径不变 | 目录可写时 `config.save` 仍 `ok: true`，且 `config.json` 已落盘（含令牌字段） | 单元测试 + 文件断言 |
 | 契约一致 | `api_strategy.md` §3.6 写明失败映射；§2.3 无需新增错误码（不引入语义相近的新码） | 逐处比对 + `grep` |
 | 客户端零改动 | `ok: false` 时客户端解包抛错、`handleSave` 进入失败提示分支 | 代码审查（不新增客户端改动） |

@@ -17,9 +17,13 @@
 ### 修改功能
 
 - `src/config-store.ts` `save()`：移除 `catch { /* Ignore disk persistence failures */ }` 吞错，让 `mkdirSync` / `writeFileSync` / `renameSync` 的落盘失败如实抛出（不再静默）。合并进 `inMemory` 的顺序不变——先更新内存再落盘、落盘失败不回滚内存（见 design.md 决策 2，保持运行中配置与用户刚提交的表单一致）。
-- `src/ops-rpc.ts` `config.save` case：把 `await configStore.save(toSave)` 抛出的落盘失败经**统一 RPC 错误边界**（`ops-rpc.ts:663-685`）映射为 `ok:false` + `error.code='drafts/storage-unavailable'` 失败信封，而非 `ok:true` 或 `ops/internal-error`。`draftsDir` 预检（`config/invalid-drafts-dir`）与成功路径响应 `{ success:true, config }` 均不变。
+- `src/ops-rpc.ts` `config.save` case：
+  - **热更新与持久化解耦**：把 `injoys.updateConfig` 移到 `await configStore.save(toSave)` **之前**——`updateConfig` 只更新 `InjoysClient` 内存态（`client.ts:77-87`，不抛错），即便随后落盘失败、返回 `ok:false`，`InjoysClient` 仍持与 `inMemory` 一致的新令牌，满足 `criterion.md:104` MUST「配置热更新须实时生效并传给 `InjoysClient`（`updateConfig`）」；避免「界面显示新配置但真实调用仍走旧令牌」的分裂态。
+  - **失败如实映射**：`save()` 抛出的落盘失败经**统一 RPC 错误边界**（`ops-rpc.ts:663-685`）映射为 `ok:false` + `error.code='drafts/storage-unavailable'` 失败信封，而非 `ok:true` 或 `ops/internal-error`；`error.message` 为面向用户的中文说明，不拼接 `errno` / 调用栈等技术细节。
+  - **`details.dir` 取值**：`ConfigStore` 新增只读访问器 `getConfigDir(): string | undefined`（`config-store.ts`），返回 `configPath` 所在目录；`config.save` case 用它填 `details.dir`，避免在 RPC 层重新 `resolveDshHome(ctx)` 导致与构造期解析结果不一致（`index.ts` 的 `connectionCtx` ≠ `ctx`）。
+- `draftsDir` 预检（`config/invalid-drafts-dir`）与成功路径响应 `{ success:true, config }` 均不变。
 - **非代码：契约与债务同轮同步**：
-  - `.context/architecture/api_strategy.md` §3.6：在 `config.save` 契约中补写「配置文件写盘失败 → `ok:false` + `error.code='drafts/storage-unavailable'`」一行，并明确 `success` 字段的失败语义（`ok:false` 时响应不含 `value.success`）。
+  - `.context/architecture/api_strategy.md`：**三处同轮改**——§3.6 `config.save` 契约补写「配置文件写盘失败 → `ok:false` + `error.code='drafts/storage-unavailable'`」并明确 `success` 字段的失败语义（`ok:false` 时响应不含 `value.success`）；§2.3 `drafts/storage-unavailable` 触发条件由「目录不可写或创建失败」扩容为「目录不可写 / 创建失败 / 配置文件写盘失败」；§3.7 写失败诚实性口径同步加「含配置文件写盘失败」。
   - `.context/architecture/risks_and_debt.md`：该缺陷此前无 TD 登记，经 `.agents/workflows/context-update.md` 同轮补登 **TD-016**（对象：`ConfigStore.save()` 吞掉配置文件写盘失败）并刷新 Manifest / history。
 
 ### 技术实现
@@ -49,9 +53,10 @@
   - `src/config-store.ts`（`save()` 移除吞错 `catch`，落盘失败如实抛出）
   - `src/ops-rpc.ts`（`config.save` case 把落盘失败包装为 `DraftStorageError`，走统一错误边界）
 - **测试**：
-  - `tests/`（新增 `config.save` 不可写 → `ok:false` + `drafts/storage-unavailable`、可写 → `ok:true` 且 `config.json` 落盘）
+  - `tests/`（新增 `config.save` 不可写 → `ok:false` + `drafts/storage-unavailable`、可写 → `ok:true` 且 `config.json` 落盘；复用既有 `permissionBitsEnforced` 探测与 `buildIsolatedRpcStack` 隔离栈）
 - **同轮文档（经 `.agents/workflows/context-update.md`）**：
-  - `.context/architecture/api_strategy.md`（§3.6 契约补写失败映射与 `success` 失败语义）
+  - `.context/architecture/api_strategy.md`（§3.6 契约补写失败映射与 `success` 失败语义；**§2.3 `drafts/storage-unavailable` 触发条件由「目录不可写或创建失败」扩容为「目录不可写 / 创建失败 / 配置文件写盘失败，覆盖所有写入口」**；§3.7 同步加「含配置文件写盘失败」）
+  - `.context/architecture/cross_cutting_concepts.md`（`:39` 同一错误码触发条件同步扩容，避免契约内部矛盾）
   - `.context/architecture/risks_and_debt.md`（补登 TD-016）+ Manifest / history 刷新
 
 ### 依赖关系
@@ -69,15 +74,15 @@
 - **该缺陷此前无 TD 登记**：无「TD → 提案」追溯链。处理决定 = **同轮补登**：实施时经 `.agents/workflows/context-update.md` 在 `risks_and_debt.md` 新增 TD-016 并刷新 Manifest / history。
 - **与 `feat-browseros-capability-toggle`（提案 5）同改 `config-store.ts`**：功能点不同（本提案只动 `save()` 失败上报，不改字段解析与默认值）。处理决定 = 同文件串行落地或后者变基，**不构成依赖**。
 - **与 `fix-storage-file-permissions`（提案 7）同改 `save()`**：同一方法内两轮改动。处理决定 = **建议**在提案 7 落地后实施以最小化变基，功能上无前置关系。
-- **失败不回滚内存配置**：落盘失败时进程内配置已生效、下次重启回退。处理决定 = **保持现状并如实上报**：回滚会让运行中配置与用户刚提交的表单不一致；本提案只解决「不谎报成功」，回滚语义另属独立决策。
+- **失败不回滚内存配置**：落盘失败时进程内配置已生效、下次重启回退。处理决定 = **保持现状并如实上报**：回滚会让运行中配置与用户刚提交的表单不一致；本提案只解决「不谎报成功」，回滚语义另属独立决策。配套决策：`injoys.updateConfig` 提前到 `save()` 之前执行（`updateConfig` 不抛错），保证失败路径下 `inMemory`/`InjoysClient` 仍一致，满足 `criterion.md:104` MUST「配置热更新须实时生效并传给 `InjoysClient`（`updateConfig`）」。
 - **测试污染真实 `$DSH_HOME`（RISK-010，高）**：新用例须使用独立 `DSH_HOME` 或显式 `profileContext.home`，隔离在模块作用域生效（`tests/setup-isolation.ts`），不得写入开发者真实 `$DSH_HOME`。
 - **循环依赖**：`config-store.ts` 不得 import `draft-store.ts`（后者已 import 前者）。失败包装放在 `ops-rpc.ts` 的 `config.save` case（该文件已 import `DraftStorageError`），由 `pnpm typecheck` 验证依赖不成环（见 design.md 决策 1）。
 
 ### 验证标准
 
-- ✅ `ops-manager/` 不可写（或 `config.json` 只读）时 `config.save` 返回 `ok:false`，`error.code` 为 `drafts/storage-unavailable`（单元测试断言 `error.code`，不得为 `ok:true` 或 `ops/internal-error`）
+- ✅ `ops-manager/` 目录只读（tmp 写入 `EACCES`）或 `ops-manager/` 路径被普通文件占用（`mkdirSync` 抛 `EEXIST`）时 `config.save` 返回 `ok:false`，`error.code` 为 `drafts/storage-unavailable`（单元测试断言 `error.code`，不得为 `ok:true` 或 `ops/internal-error`）。注：POSIX 下 `rename` 可覆盖只读**文件**，因此触发条件必须用「目录不可写」或「路径被文件占用」，不能用「`config.json` 只读」。
 - ✅ 目录可写时 `config.save` 仍 `ok:true`，且 `config.json` 已落盘（含令牌字段；单元测试 + 文件断言）
-- ✅ `api_strategy.md` §3.6 写明失败映射、`success` 失败语义；§2.3 未新增错误码（逐处比对 + `grep`）
+- ✅ `api_strategy.md` §3.6 写明失败映射、`success` 失败语义；§2.3 未新增错误码但 `drafts/storage-unavailable` 触发条件已同步扩容为覆盖配置文件写盘失败，`cross_cutting_concepts.md` 同步（逐处比对 + `grep`，消除「§3.6 覆盖、§2.3 仅限目录」的契约内部矛盾）
 - ✅ 客户端零改动：`ok:false` 时客户端 `unwrapRpcResult` 抛错、`handleSave` 进入失败提示分支（代码审查，不新增客户端改动）
 - ✅ `risks_and_debt.md` 补登 TD-016 且 Manifest / history 已刷新
 - ✅ `pnpm typecheck` + `pnpm test` 通过
@@ -102,8 +107,12 @@
 |-------|---------|---------|
 | criterion | `.context/criterion.md` | §3.2 MUST「错误不得吞没」/ MUST NOT「不虚报成功」——本提案的权威依据；§3.5 统一存储错误码 `drafts/storage-unavailable` 覆盖所有写入口、`config.save` 须先预校验 `draftsDir`（预检语义不动）；§3.4「令牌返回边界」（`config.json` 含明文令牌的邻近约束）；§6 SSoT-first 执行顺序 |
 | architecture | `.context/architecture/risks_and_debt.md` | RISK-005（存储不可用被误报，含缓解措施 ③「不得吞异常后谎报保存成功」）；TD-001~TD-015 索引——本提案补登 TD-016；RISK-010（测试污染真实 `$DSH_HOME`） |
-| architecture | `.context/architecture/api_strategy.md` | §3.6 `config.save` 契约（本提案同轮补写失败映射与 `success` 失败语义）；§2.3 错误码清单（不新增错误码）；§3.7 写失败诚实性口径 |
+| architecture | `.context/architecture/api_strategy.md` | §3.6 `config.save` 契约（本提案同轮补写失败映射与 `success` 失败语义）；§2.3 `drafts/storage-unavailable` 触发条件（同轮扩容为覆盖配置文件写盘失败，不新增错误码）；§3.7 写失败诚实性口径 |
 | architecture | `.context/architecture/constraints.md` | §架构铁律的四条定义（本提案触碰「存储失败语义」，须逐条声明保持方式） |
 | architecture | `.context/architecture/runtime_view.md` | 「`config.save` 目标目录不可用」的失败返回路径（本提案把配置文件自身写失败纳入同一失败语义） |
-| architecture | `.context/architecture/cross_cutting_concepts.md` | 「前置校验优先」（`draftsDir` 预检保留在前、配置文件写失败上报在后） |
+| architecture | `.context/architecture/cross_cutting_concepts.md` | 「前置校验优先」（`draftsDir` 预检保留在前、配置文件写失败上报在后）；错误码与错误边界段（`drafts/storage-unavailable` 触发条件同轮扩容） |
+| architecture | `.context/architecture/data_architecture.md` | 物理文件布局（`$DSH_HOME/ops-manager/config.json` 的落盘位置与权限语义） |
+| architecture | `.context/architecture/tech_stack.md` | 持久化 MUST/MUST NOT（配置文件落盘的技术选型约束） |
+| architecture | `.context/architecture/system_design.md` | QS-6 质量场景（存储失败可被感知的质量属性） |
+| architecture | `.context/architecture/security_policy.md` | 令牌返回策略与存储（`config.json` 明文令牌的保护方式，邻近约束） |
 | domain | `.context/domain/testing_strategy.md` | 模块 6 场景 4 与 RISK-005 覆盖状态（现记为「部分覆盖」；本提案补齐配置文件写失败分支） |
