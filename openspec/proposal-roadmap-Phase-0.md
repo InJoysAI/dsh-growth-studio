@@ -126,8 +126,9 @@
 | 类型 | 内容 |
 |------|------|
 | ✅ In | 实现 `metrics/` 目录读写服务，按 `(platform, capturedAt)` 追加写入 |
-| ✅ In | 采集成功后落盘快照，供 `workbench.overview` 的 `comparison` 消费 |
-| ✅ In | 历史快照不足以覆盖完整窗口时，对应 delta 为 `null` |
+| ✅ In | 落盘可证性门：仅 `source !== 'unmeasured'` 且 `windowScope === 'verified'` 的采集结果落盘；不可证实（`unverified`）的累计 / 昨日口径结果不落盘，避免未来「历史充足」时由不可证数据算出环比 |
+| ✅ In | 采集成功且通过可证性门后落盘快照，供 `workbench.overview` 的 `comparison` 消费 |
+| ✅ In | 历史快照不足以覆盖完整窗口时，对应 delta 为 `null`；「历史充足」判定可测试（每个应采平台在上一个等长窗口内至少一条 `windowStart`/`windowEnd` 完整覆盖该窗口且可证性达标的记录） |
 | ❌ Out | `calendar/` 排期主数据落盘（`feat-storage-calendar-items`，Phase 1） |
 | ❌ Out | 指标采集适配器本身的修复 |
 | ❌ Out | 快照的历史查看 / 恢复界面（MVP 不提供草稿历史，见 `adr_008`） |
@@ -137,9 +138,10 @@
 | Scope | 关联资产 | 关联说明 |
 |-------|---------|----------|
 | criterion | `.context/criterion.md` | §4 环比基准与 `metrics/` 权威口径、§3.5 落盘约束 |
-| architecture | `.context/architecture/risks_and_debt.md` | TD-010（metrics 部分）、RISK-007 |
+| architecture | `.context/architecture/risks_and_debt.md` | TD-010（metrics 部分）、TD-013（权限位，前置提案提供）、RISK-007；相关 RISK-004 / RISK-005 / RISK-010 |
 | architecture | `.context/architecture/data_architecture.md` | `metrics/{YYYY-MM-DD}.json` 布局 |
-| architecture | `.context/architecture/api_strategy.md` | §3.1「环比基准来源」 |
+| architecture | `.context/architecture/api_strategy.md` | §3.1「环比基准来源」与「指标口径」 |
+| architecture (source) | `.context/architecture/source/technical_architecture.md` | §3.1 环比基准来源与 `comparison` 键名、§5.3 本地布局 |
 | architecture | `.context/architecture/adr_008_version_snapshot_storage.md` | 快照历史边界裁决（运营指标历史保留用于环比） |
 | domain | `.context/domain/business_rules.md` | BR-050（指标真实性）、BR-052（环比走势） |
 | domain | `.context/domain/data_strategy.md` | 「环比走势」数据源 = 本地历史指标快照 |
@@ -152,15 +154,27 @@
 3. 在 `workbench.overview` 的 `comparison` 中实现「上一个等长窗口」基准读取与不足时 `null`（0.5 人日）
 4. 补测试：历史不足 → `null`；历史充足 → delta 计算正确（0.25 人日）
 
+**风险与处理决定（按需）**:
+
+| 风险 | 影响 | 处理决定及理由 |
+|------|------|----------|
+| RISK-007：环比基准不可用误读（中） | 环比误导选题 | 历史不足时 `period` 与四 delta 全 `null`，不编造近似百分比；UI 显示「暂无环比」而非 0% |
+| RISK-004：配置切换竞态跨库覆盖（高） | 读 A 写 B，覆盖无关文件 | 单次操作开始时捕获 metrics 根目录并贯穿（`resolveDshHome` 下 `growth-studio/metrics`），不在 `await` 后重解析；`draftsDir` 变更不改变指标历史路径 |
+| RISK-005：存储不可用误报（中） | 调用方无法识别可恢复错误 | 写盘失败按 `drafts/storage-unavailable` 失败信封如实返回，不虚报「已落盘」 |
+| RISK-010：测试污染真实 `$DSH_HOME`（高） | 污染开发者配置与数据 | 新增测试经 `tests/setup-isolation.ts` 全局兜底隔离，不写真实 `$DSH_HOME` |
+| 可证性门致生产空盘（新） | 当前生产 `live` 全为 `unverified`，本提案落地后生产暂不落盘、`comparison` 仍恒 `null` | 依「指标真实性」不得把不可证数据当窗口基准；正向路径由测试夹具证明，生产环比待采集能力提案补齐窗口化采集后生效 |
+
 **验证标准**:
 
 | 验收项 | 验收条件 | 验收方式 |
 |--------|----------|----------|
 | 快照落盘 | 采集成功后 `metrics/{YYYY-MM-DD}.json` 按 `(platform, capturedAt)` 追加 | 单元测试 / 文件断言 |
 | 历史不足为 null | 不足以覆盖完整对比窗口时 delta 为 `null`，不编造近似值 | 单元测试 |
-| 目录固定语义 | 单次操作内目录固定，配置切换只对新操作生效 | 单元测试（参照 `criterion.md` §3.5） |
+| 目录固定语义 | 单次操作内 metrics 根目录（`resolveDshHome` 下 `growth-studio/metrics`）固定，DSH home 配置切换只对新操作生效；`draftsDir` 变更不改变指标历史路径 | 单元测试（参照 `criterion.md` §3.5） |
 | 权限位 | 新建快照文件权限为 `0o600`、目录 `0o700` | 单元测试断言 `stat().mode` |
 | 写盘失败错误映射 | 写盘失败按 `drafts/storage-unavailable` 如实报错，不虚报成功 | 单元测试 |
+| 可证性门 | 不可证实（`windowScope: 'unverified'`）的结果不落盘，历史看似充足时 delta 仍为 `null` | 单元测试 |
+| 历史充足 delta | 历史充足时 delta 按上一个等长窗口基准计算正确 | 单元测试 |
 
 **验收场景（按需，建议 BDD）**:
 

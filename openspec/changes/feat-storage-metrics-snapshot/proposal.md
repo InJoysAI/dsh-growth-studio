@@ -19,7 +19,7 @@
 - `src/storage/` 新增指标历史快照读写服务（`metrics-store.ts`）：维护 `$DSH_HOME/growth-studio/metrics/{YYYY-MM-DD}.json`，采集成功后按 `(platform, capturedAt)` 追加写入当日文件，同日重复追加不丢弃既有记录。
 - **落盘可证性门**：仅 `source !== 'unmeasured'` 且 `windowScope === 'verified'` 的采集结果落盘；不可证实的累计 / 昨日口径结果不落盘，避免未来「历史充足」时由不可证数据算出环比（快照行保持纯 `PlatformMetrics[]` 形状，不新增字段）。
 - `workbench.overview` 的 `comparison` 接入真实基准：按请求窗口 `metricsWindow`（`'7d'` / `'30d'`）读取**上一个等长窗口**的快照作为对比基准，计算 `impressionsDeltaPercent` / `playsDeltaPercent` / `engagementsDeltaPercent` / `followersDeltaPercent`，`period` 置为对应的 `'7d'` / `'30d'`。
-- **「历史充足」判定（可测试）**：对每个应采平台 `p ∈ P`，在上一个等长窗口内至少有一条 `windowStart` / `windowEnd` 完整覆盖该窗口且可证性达标的快照记录；任一平台缺失即为「历史不足」，对应 delta 为 `null` 且 `period` 为 `null`（「暂无环比」），不得用不完整历史算近似百分比。
+- **「历史充足」判定（可测试）**：对每个应采平台 `p ∈ P`，在上一个等长窗口内至少有一条 `windowStart` / `windowEnd` **等于**该窗口（同一窗口长度）且可证性达标的快照记录；任一平台缺失即为「历史不足」，对应 delta 为 `null` 且 `period` 为 `null`（「暂无环比」），不得用不完整历史算近似百分比。
 
 ### 修改功能
 
@@ -29,7 +29,7 @@
 ### 技术实现
 
 - 按 SSoT-first（`.context/criterion.md` §6）：`src/types.ts` 先补快照行的契约类型，再落 `src/storage/metrics-store.ts` 与 `src/analytics/` 的环比计算，最后接入 `src/ops-rpc.ts` / `src/tools/index.ts` 与测试。本项目 API 层为手写 TypeScript 契约，§7.2「生成命令 = 无」，一致性由 `pnpm typecheck` + `pnpm test` 保证。
-- 快照写入复用 `fix-storage-file-permissions` 的统一落盘封装（临时文件 + `rename` 原子写、按绝对文件路径的串行写锁、目录 `0o700` / 文件 `0o600`、写盘失败统一映射 `drafts/storage-unavailable`）；目录在单次操作内固定，不在 `await` 之后重新解析。
+- 快照写入复用 `fix-storage-file-permissions` 的统一落盘封装（临时文件 + `rename` 原子写、按绝对文件路径的串行写锁、目录 `0o700` / 文件 `0o600`、写盘失败统一映射 `drafts/storage-unavailable`）；指标历史根目录由 `resolveDshHome()` 解析出的 `$DSH_HOME` 下 `growth-studio/metrics` 得到（criterion §3.5），**不绑定 `draftsDir`**（`draftsDir` 只改草稿库）；目录在单次操作内固定，不在 `await` 之后重新解析。
 - 只追加、不修改历史记录；不提供历史查看 / 恢复界面（MVP 不提供快照历史 UI，见 `adr_008_version_snapshot_storage.md`——该 ADR 裁决的是**草稿**版本快照，并明文保留运营指标历史）。
 - 无破坏性变更：`comparison` 键名与 `period` 取值沿用 `.context/architecture/source/technical_architecture.md` §3.1，不新增 RPC 方法、不新增 RPC 字段。
 
@@ -74,6 +74,7 @@
 - **快照写入失败影响采集返回**：写盘失败须如实报错（统一 `drafts/storage-unavailable` 失败信封，不回滚已发生的采集副作用），不得静默吞掉后继续宣称「已落盘」；这是新增的存储写入口，必须纳入统一 RPC 错误边界。
 - **同日多次采集的并发回写**：按绝对文件路径的串行写锁 + 临时文件 `rename` 原子替换，避免并发覆盖既有快照行。
 - **前置提案未完成即实施的风险**：`fix-storage-file-permissions` 是显式硬前置，须先落地统一落盘封装的权限位；本提案不重复修改 `draft-store.ts` / `config-store.ts`，避免两提案重叠改同一文件。
+- **可证性门致生产空盘（须知）**：当前生产 `live` 采集结果 `windowScope` 均为 `'unverified'`（`api_strategy.md` §3.1「窗口真实性说明」），本提案落地后生产路径暂不会写出快照、`comparison` 在生产上仍五键 `null`，直到采集侧产出 `windowScope: 'verified'` 的窗口化数据（属采集能力提案，本提案 Out）。正向路径由测试夹具证明，验收不依赖 live 页面产出非空 `comparison`。
 
 ### 验证标准
 
@@ -81,7 +82,7 @@
 - ✅ 不可证实（`windowScope: 'unverified'`）的结果不落盘，历史看似充足时 delta 仍为 `null`（单元测试）。
 - ✅ 历史不足以覆盖完整对比窗口时 delta 为 `null`，不编造近似值（单元测试）。
 - ✅ 历史充足时 delta 按「上一个等长窗口」基准计算正确（单元测试）。
-- ✅ 单次操作内目录固定，配置切换只对新操作生效（单元测试，参照 criterion §3.5）。
+- ✅ 单次操作内目录固定（指标历史根目录经 `resolveDshHome()` 解析 `$DSH_HOME/growth-studio/metrics`，**不绑定 `draftsDir`**），home 配置切换只对新操作生效（单元测试，参照 criterion §3.5）。
 - ✅ 新建快照文件权限为 `0o600`、目录 `0o700`（复用统一落盘封装的权限位，`stat().mode` 断言）。
 - ✅ 快照写入失败时调用以 `drafts/storage-unavailable` 失败信封返回（单元测试断言 `error.code`）。
 - ✅ `pnpm typecheck` + `pnpm test` 通过。

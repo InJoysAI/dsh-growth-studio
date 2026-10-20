@@ -53,7 +53,7 @@
 
 `workbench.overview` 的 `comparison` MUST 以本地指标历史快照中**上一个等长窗口**的记录作为对比基准：请求 `metricsWindow = '7d'` 时对比上一个 7 天窗口，`'30d'` 时对比上一个 30 天窗口，`comparison.period` MUST 置为对应的 `'7d'` / `'30d'`。
 
-**「历史足以覆盖完整对比窗口」的判定（可测试）**：设应采平台集合为 `P`（与汇总覆盖门一致），对**每一个** `p ∈ P`，在上一个等长窗口的时间范围内**至少存在一条**已落盘的快照记录（该记录因可证性门而必然是 `source !== 'unmeasured'` 且 `windowScope === 'verified'`），且该记录的 `windowStart` / `windowEnd` 完整覆盖上一个等长窗口。任一 `p ∈ P` 缺少这样的记录即判定为「历史不足」。
+**「历史足以覆盖完整对比窗口」的判定（可测试）**：设应采平台集合为 `P`（与汇总覆盖门一致），对**每一个** `p ∈ P`，在上一个等长窗口的时间范围内**至少存在一条**已落盘的快照记录（该记录因可证性门而必然是 `source !== 'unmeasured'` 且 `windowScope === 'verified'`），且该记录的 `windowStart` / `windowEnd` **等于**上一个等长窗口（即与当前请求窗口同一长度；MUST NOT 用 30d 记录充当 7d 基准，反之亦然）。任一 `p ∈ P` 缺少这样的记录即判定为「历史不足」。同一 `p` 存在多条满足条件的记录时，取 `capturedAt` **最新**的一条（见下一条要求的基准选取规则）。
 
 历史不足以覆盖完整对比窗口时，四个 delta MUST 全部为 `null` 且 `comparison.period` MUST 为 `null`，MUST NOT 用不完整历史算近似百分比、MUST NOT 以 `0` 冒充「无变化」、MUST NOT 以缺失平台按 `0` 参与基准计算（`.context/criterion.md` §4「环比基准」；`.context/architecture/api_strategy.md` §3.1「环比基准来源」；RISK-007）。本要求对应验收项「历史不足为 null」。
 
@@ -74,7 +74,9 @@
 
 ### Requirement: 历史充足时环比 delta 按等长窗口基准计算
 
-当且仅当「历史足以覆盖完整对比窗口」（见上一条要求的判定：每个 `p ∈ P` 在上一个等长窗口内至少有一条 `windowStart` / `windowEnd` 完整覆盖该窗口且可证性达标的快照记录）时，`comparison` MUST 以该窗口的基准值与当前窗口值计算 `impressionsDeltaPercent` / `playsDeltaPercent` / `engagementsDeltaPercent` / `followersDeltaPercent`（`period` 为 `'7d'` / `'30d'`）；`impressions` / `plays` 与互动、净增关注口径 MUST 与汇总口径一致（缺失项为 `null`，不按 `0` 计算）。本要求对应验收项「历史充足 → delta 计算正确」。
+当且仅当「历史足以覆盖完整对比窗口」（见上一条要求的判定：每个 `p ∈ P` 在上一个等长窗口内至少有一条 `windowStart` / `windowEnd` **等于**该窗口且可证性达标的快照记录）时，`comparison` MUST 以该窗口的基准值与当前窗口值计算 `impressionsDeltaPercent` / `playsDeltaPercent` / `engagementsDeltaPercent` / `followersDeltaPercent`（`period` 为 `'7d'` / `'30d'`）。
+
+**基准选取规则（唯一可判定）**：「完整覆盖」指记录的 `windowStart` / `windowEnd` **等于**上一个等长窗口（同一窗口长度；MUST NOT 用 30d 记录充当 7d 基准，反之亦然）。同一 `p` 存在多条满足条件的记录时，MUST 取 `capturedAt` **最新**的一条作为该平台基准值。`impressions` / `plays` 与互动、净增关注口径 MUST 与汇总口径一致（缺失项为 `null`，不按 `0` 计算）。本要求对应验收项「历史充足 → delta 计算正确」。
 
 #### Scenario: 历史充足时 delta 计算正确
 
@@ -86,11 +88,17 @@
 
 ### Requirement: 快照读写在单次操作内目录固定
 
-指标历史快照的每次读取 / 追加写入 MUST 在操作开始时捕获目标目录并贯穿整个操作（含跨 `await` 的复合调用），MUST NOT 在单次操作中途重新解析目录；配置热切换（`draftsDir` 变更）MUST 只对新发起的操作生效，在途操作继续使用原目录（`.context/criterion.md` §3.5「目录在单次操作内固定」）。本要求对应验收项「目录固定语义」。
+指标历史快照的每次读取 / 追加写入 MUST 在操作开始时捕获**指标历史根目录**并贯穿整个操作（含跨 `await` 的复合调用），MUST NOT 在单次操作中途重新解析目录。指标历史根目录 MUST 由 `resolveDshHome()` 解析出的 `$DSH_HOME` 下 `growth-studio/metrics` 得到（`.context/criterion.md` §3.5「文件路径统一经 `resolveDshHome` 解析」），**MUST NOT 绑定到 `draftsDir`**——`draftsDir` 只改草稿库，变更它 MUST NOT 改变指标历史路径。若运行时 `profileContext.home` / `DSH_HOME` 可变，其变更 MUST 只对新发起的操作生效，在途操作继续使用原目录（`.context/criterion.md` §3.5「目录在单次操作内固定」）。本要求对应验收项「目录固定语义」。
 
 #### Scenario: 目录在单次操作内固定
 
-- **GIVEN** 一次快照追加写入已在操作开始时解析出目标目录
-- **WHEN** 操作执行期间配置切换了 `draftsDir`
-- **THEN** 本次写入 MUST 仍写入操作开始时解析的原目录
-- **AND** 新目录 MUST 只对后续新发起的操作生效
+- **GIVEN** 一次快照追加写入已在操作开始时解析出指标历史根目录（`resolveDshHome()` 下 `growth-studio/metrics`）
+- **WHEN** 操作执行期间 DSH home 配置（`profileContext.home` / `DSH_HOME`）切换
+- **THEN** 本次写入 MUST 仍写入操作开始时解析的原指标历史根目录
+- **AND** 新的 home MUST 只对后续新发起的操作生效
+
+#### Scenario: draftsDir 变更不影响指标历史路径
+
+- **GIVEN** 配置把 `draftsDir` 切换到另一个草稿库目录
+- **WHEN** 执行指标历史快照追加写入
+- **THEN** 快照 MUST 仍写入 `resolveDshHome()` 下的 `growth-studio/metrics`，MUST NOT 因 `draftsDir` 变更而改道到草稿库

@@ -28,14 +28,15 @@
   - **落盘可证性门**：仅 `source !== 'unmeasured'` 且 `windowScope === 'verified'` 的结果落盘；`unverified` / `unmeasured` 不写入快照（快照行保持纯 `PlatformMetrics[]`，不新增字段）
   - 复用前置提案 `fix-storage-file-permissions` 的统一落盘封装：临时文件 + `rename` 原子写、按绝对文件路径的串行写锁、目录 `0o700` / 文件 `0o600`；本任务**不修改** `draft-store.ts` / `config-store.ts`（其权限位改动归前置提案）
   - 写盘失败抛出可映射为 `drafts/storage-unavailable` 的存储错误，不得吞异常
-  - 目录在单次操作内固定（操作开始时解析并贯穿，不在 `await` 后重解析）
+  - 目录在单次操作内固定（操作开始时经 `resolveDshHome()` 解析 `$DSH_HOME/growth-studio/metrics` 并贯穿，不在 `await` 后重解析；**不绑定 `draftsDir`**）
 - [ ] 3.3 在采集成功路径接入快照写入
   - `src/ops-rpc.ts` 的 `workbench.overview` 与 `src/tools/index.ts` 的 `ops_fetch_metrics` 在采集完成后追加快照写入
   - 写入失败按统一存储错误口径如实上报（整体调用以 `drafts/storage-unavailable` 失败信封返回，不回滚已发生的采集副作用），不得虚报「已落盘」
   - 同步校正 `ops_fetch_metrics` 工具描述，提及本地 `metrics/` 快照落盘
 - [ ] 3.4 新增 `src/analytics/metrics-comparison.ts`：环比基准与 delta 计算纯函数
   - 输入当前窗口结果 + 上一个等长窗口快照记录 + 应采平台集合 `P`，输出 `MetricsComparison`
-  - **「历史充足」判定（可测试）**：对每个 `p ∈ P`，在上一个等长窗口内至少有一条 `windowStart` / `windowEnd` 完整覆盖该窗口的快照记录；任一平台缺失即为「历史不足」
+  - **「历史充足」判定（可测试）**：对每个 `p ∈ P`，在上一个等长窗口内至少有一条 `windowStart` / `windowEnd` **等于**该窗口（同一窗口长度）的快照记录；任一平台缺失即为「历史不足」
+  - **基准选取规则**：「完整覆盖」指记录的 `windowStart`/`windowEnd` **等于**上一个等长窗口（同一窗口长度，禁止用 30d 记录充当 7d 基准）；同一 `p` 多条满足时取 `capturedAt` **最新**的一条
   - 历史不足 → `period: null` 且四个 delta 全 `null`
   - 历史充足 → `period` 为 `'7d'` / `'30d'`，四个 delta 按基准计算（缺失值不按 `0` 计算）
 - [ ] 3.5 在 `src/ops-rpc.ts` 的 `workbench.overview` 消费上述基准，替换「无历史 → 五键恒 `null`」的占位实现
@@ -46,8 +47,8 @@
   - [ ] 4.1.1 落盘：采集成功后 `metrics/{YYYY-MM-DD}.json` 按 `(platform, capturedAt)` 追加；同日重复追加不丢既有记录
   - [ ] 4.1.2 权限位：新建目录 `0o700`、新建快照文件 `0o600`（`stat().mode` 断言）
   - [ ] 4.1.3 历史不足 → delta 为 `null`（含首次使用无历史、缺任一应采平台基准）
-  - [ ] 4.1.4 历史充足 → delta 按上一个等长窗口基准计算正确
-  - [ ] 4.1.5 目录固定语义：单次操作内目录固定，配置切换只对新操作生效
+  - [ ] 4.1.4 历史充足 → delta 按上一个等长窗口基准计算正确（多条覆盖记录取 `capturedAt` 最新；两窗口长度的记录不混用，期望 delta 唯一可判定）
+  - [ ] 4.1.5 目录固定语义：单次操作内 metrics 根目录（`resolveDshHome` 下 `growth-studio/metrics`）固定，home 配置切换只对新操作生效；`draftsDir` 变更不改道指标历史路径（夹具改 home，不改 `draftsDir`）
   - [ ] 4.1.6 落盘可证性门：`windowScope: 'unverified'` 结果不落盘；构造「unverified 累计值 + 历史看似充足」用例，断言 delta 仍为 `null`
 - [ ] 4.2 集成测试
   - [ ] 4.2.1 `workbench.overview` 采集成功后快照落盘且 `comparison` 消费基准
@@ -60,7 +61,7 @@
 - [ ] 6.1 验证所有验收标准
   - [ ] 6.1.1 快照落盘：采集成功后 `metrics/{YYYY-MM-DD}.json` 按 `(platform, capturedAt)` 追加
   - [ ] 6.1.2 历史不足为 `null`：不足以覆盖完整对比窗口时 delta 为 `null`，不编造近似值
-  - [ ] 6.1.3 目录固定语义：单次操作内目录固定，配置切换只对新操作生效
+  - [ ] 6.1.3 目录固定语义：单次操作内 metrics 根目录固定，home 配置切换只对新操作生效，`draftsDir` 变更不改道指标历史路径
 - [ ] 6.2 代码审查
   - [ ] 6.2.1 代码规范检查（`pnpm typecheck`）
   - [ ] 6.2.2 安全性检查（权限位、存储错误口径、无伪造数据）
