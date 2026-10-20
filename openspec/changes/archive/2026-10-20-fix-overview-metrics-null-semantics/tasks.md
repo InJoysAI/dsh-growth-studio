@@ -99,4 +99,5 @@
   - [x] 6.2.1 代码规范检查（沿用既有命名与错误码，不新造近似错误码）
   - [x] 6.2.2 安全性检查（无硬编码凭证 / 无新增外联 / 无 Cookie 外发）
 - [x] 6.3 运行 `node design/context-dev/tools/specflow/specflow.mjs validate fix-overview-metrics-null-semantics --strict`（等价简写：specflow validate fix-overview-metrics-null-semantics --strict）
-- [ ] 6.4 运行 `node design/context-dev/tools/specflow/specflow.mjs archive fix-overview-metrics-null-semantics --yes --no-validate`（等价简写：specflow archive fix-overview-metrics-null-semantics --yes --no-validate）
+- [x] 6.4 运行 `node design/context-dev/tools/specflow/specflow.mjs archive fix-overview-metrics-null-semantics --yes --no-validate`（等价简写：specflow archive fix-overview-metrics-null-semantics --yes --no-validate）
+  - 执行结果：核查通过（第三轮）后执行。`✅ Archived to: openspec/changes/archive/2026-10-20-fix-overview-metrics-null-semantics/`；Specs sync applied（`workbench-overview` 7 条要求）；Roadmap 状态 `in-progress -> done`。
