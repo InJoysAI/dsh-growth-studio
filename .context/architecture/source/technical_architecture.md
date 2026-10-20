@@ -8,7 +8,7 @@
 > | **对应 PRD 基线** | `.context/domain/source/product_requirements.md` **v1.2.2**（MVP 简化裁决版 Approved Baseline） |
 > | **状态** | 评审整改版 |
 > | **初次编写** | 2026-10-13 |
-> | **本次修订** | 2026-10-17（用户裁决 A-1～A-3；追加 BrowserOS 能力管理方案；补齐 PRD↔TAD 契约缺口；收窄 P2-2/P2-6 文案、明确 P2-3 Profile 归属、补 P2-5 映射表；修正映射表目标/现状混用与旧指标卡名；补齐 PlatformId 9 值与 expectedVersion；澄清 A1 排期并发 / A2 能力清单 / A3 落盘失败语义） |
+> | **本次修订** | 2026-10-20（按已归档提案 `fix-config-save-error-swallow` 同步 §3.10.2/§3.10.4：配置文件失败如实上报、热更新先于写盘、非空字段一致与失败不回滚；此前 v1.4.5 修订记录见下） |
 >
 > **v1.4.5 的修订（2026-10-17，A1/A2/A3 源契约澄清）**：A1 排期库无乐观锁（`CalendarItem` 无 `version`）；A2 `browseros.capabilities` 只列实时暴露工具（删除 `available`/`unavailableReason`，消失的工具就消失）；A3 生成落盘失败（存储类）统一走 `drafts/storage-unavailable` 错误信封，`draftSaved:false` 仅表「已生成未落盘」、不包装存储错误。
 >
@@ -736,10 +736,12 @@ interface OpsConfig {
     现统一以平铺为正式契约。若未来要改为嵌套，属于**破坏性变更**，须走版本化迁移方案（新旧字段并存至少一个版本）
     并同步更新客户端后，方可移除旧字段。
   * **令牌返回策略**：当前返回明文 `token`，用于客户端表单回填与显隐切换。
-    该接口仅在**宿主内 RPC**（本机进程内）暴露，不作为对外网络端点。若未来 RPC 可被非本机访问，
-    必须先改为「只回 `hasToken: boolean`，明文另走回填专用通道」。
+    该接口仅面向**本机同一 DSH 实例内的受信任客户端**（客户端在渲染进程，与宿主非同进程），不作为对外网络端点；本机回填例外同样覆盖 `config.save` 返回的完整 `OpsConfig`（含明文 `token`），依据 criterion §3.4，日志与遥测仍须脱敏。若未来 RPC 可被非本机访问，
+    必须先改为「只回 `hasToken: boolean`，明文另走回填专用通道」，不得向本机受信任 DSH 客户端之外返回明文令牌。
 * `config.save`（参数为 `Partial<OpsConfig>`）→ `{ success: boolean; config: OpsConfig }`
-  * 持久化后**实时热更新**运行中的 `InjoysClient`（`endpoint` / `token`），无需重启；
+  * **热更新先于持久化**：`draftsDir` 前置预检通过后、配置文件写盘之前完成 `InjoysClient.updateConfig`（`endpoint` / `token`），无需重启；`ConfigStore.save()` 先合并内存再写盘，写盘失败不回滚已合并内存。**适用边界**：仅保证非空字段与运行中客户端一致；空串提交时 Store 仅合并非空值而 Client 对 `!== undefined` 即赋值，既有分裂不在本次修复范围。
+  * **配置文件写盘失败**：`mkdirSync` / tmp `writeFileSync` / `renameSync` 任一步失败须抛出，由 `config.save` 包装后经统一 RPC 错误边界返回 `ok:false` + `drafts/storage-unavailable`，不得吞错、报成功或漏出 `ops/internal-error`。`error.message` 为中文用户说明，不拼接 errno/栈；`details.dir` 取构造期配置目录访问器，不在 RPC 层重新解析 home。
+  * **成功与失败形状**：成功保持 `ok:true` + `value:{ success:true, config }`，config 为完整 `OpsConfig`；失败不含 `value.success`。草稿目录预检失败仍为 `config/invalid-drafts-dir`，且发生在热更新及配置写盘之前；POSIX 只读文件可被 rename 替换，失败测试使用目录不可写或配置目录路径被普通文件占用。
   * 保存 `injoys` 配置后须清理按目标隔离的缓存，避免跨服务状态污染；
   * 修改 `draftsDir` 后**立即生效**，无需重启（见 §3.10.4）。
 * `injoys.test` → `{ connected: boolean; latencyMs: number; documentCount: number | null; message: string }`
@@ -800,9 +802,9 @@ interface OpsConfig {
 * **配置页切换提示文案**（实现时照此展示，须同时覆盖三件事实）：
   > 新目录对后续操作生效；正在进行的保存仍写入原目录。旧草稿不会自动迁移。
 * **已存在于旧目录的草稿不做自动迁移**（避免大目录复制与部分失败风险）；
-* **写入失败必须如实抛错，且错误码统一**：目录不可写或创建失败返回 `drafts/storage-unavailable`，
+* **写入失败必须如实抛错，且错误码统一**：目录不可写 / 创建失败 / 配置文件写盘失败返回 `drafts/storage-unavailable`，
   不得吞掉异常后谎报保存成功。该映射须在**统一 RPC 错误边界**完成，使
-  `drafts.save`、`drafts.updatePublishUrl`、预填回写等**所有写入口**返回同一错误码，
+  `drafts.save`、`drafts.updatePublishUrl`、预填回写、`config.save` 等**所有写入口**返回同一错误码，
   而不是让部分入口漏出 `ops/internal-error`（否则调用方无法一致识别可恢复的存储错误）；
   配置前置校验失败仍单独使用 `config/invalid-drafts-dir`；
 * 草稿库的「当前生效目录」由 `config.get` 返回，UI 据此展示实际存储位置，避免用户误判数据丢失。

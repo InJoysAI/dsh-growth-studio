@@ -187,7 +187,7 @@ interface TelemetryEntry {
 
 | 类型 | 存储位置 | 更新方式 |
 |------|---------|---------|
-| **应用配置（`OpsConfig`）** | `$DSH_HOME/ops-manager/config.json` | **热更新**（`config.save` 后立即生效，无需重启） |
+| **应用配置（`OpsConfig`）** | `$DSH_HOME/ops-manager/config.json` | **热更新**（预检通过后、配置写盘前生效，无需重启；写失败不回滚，非空字段一致性边界见 `api_strategy.md` §3.6） |
 | **BrowserOS 能力开关（`browserosCapabilities`）** | 同上（可选字段） | 默认八项；用户显式保存优先、重启不重置；缺失时按默认集合解析 |
 | **Injoys 令牌** | 同上（⛔ **无内置默认值**） | 用户配置或环境变量 `INJOYS_MCP_TOKEN` 回退 |
 | **Injoys 端点** | 同上 | 用户配置或环境变量 `INJOYS_MCP_ENDPOINT` 回退 |
@@ -200,7 +200,7 @@ interface TelemetryEntry {
 |------|------|
 | **禁止硬编码** | 禁止硬编码密钥 / 令牌 / 敏感配置 |
 | **无内置默认** | ⛔ 令牌**无内置默认值**；不得内置全局通用 Master Key 或任何形式的通用凭据 |
-| **热更新** | 配置变更须**实时**传给 `InjoysClient`（`updateConfig`），无需重启 |
+| **热更新** | `draftsDir` 预检通过后、配置写盘前传给 `InjoysClient`（`updateConfig`），无需重启；失败不回滚已合并内存，一致性保证仅适用于非空字段（见 `api_strategy.md` §3.6） |
 | **缓存隔离** | 保存 `injoys` 配置后须清理**按目标隔离的缓存** |
 | **目录前置校验** | 改 `draftsDir` 必须先创建 + **验证可写**（唯一命名探测文件），失败拒绝保存 |
 | **路径解析统一** | 一律经 `resolveDshHome`（`profileContext.home` → `DSH_HOME` → `~/.dsh` 回退） |

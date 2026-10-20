@@ -361,34 +361,34 @@ sequenceDiagram
     participant RPC as 宿主 RPC 网关
     participant CS as ConfigStore
     participant Op as 在途草稿操作（如 prefillDraft）
-    participant Old as 原目录
     participant New as 新目录
-
-    Note over Op,Old: 在途操作已捕获原目录并贯穿全程
-    U->>WB: 修改 draftsDir
-    WB->>RPC: config.save { draftsDir }
-    RPC->>CS: 前置校验
-    CS->>New: 创建目录 + 写探测文件并删除（验证可写）
-    alt 目录不可用（含已存在但只读）
-        CS-->>RPC: error: config/invalid-drafts-dir
-        RPC-->>WB: ⛔ 拒绝保存（不先报成功）
-    else 校验通过
-        CS->>CS: 持久化配置
-        CS-->>RPC: { success:true, config }
-        RPC-->>WB: 保存成功
+    U->>WB: 修改 draftsDir（可同时提交 injoys 配置）
+    WB->>RPC: config.save
+    RPC->>New: 前置准备目录 + 写入并删除唯一探测文件
+    alt draftsDir 不可用（含已存在但只读）
+        RPC-->>WB: ok:false + config/invalid-drafts-dir（不更新配置）
+    else 预检通过或未修改 draftsDir
+        Note over RPC,CS: 若提交 injoys，先 updateConfig 热更新并清理目标缓存
+        RPC->>CS: save：先合并 inMemory，再 mkdir → 写 tmp → rename
+        alt 配置文件写盘失败
+            CS-->>RPC: 原生落盘异常（保留已合并内存，不回滚）
+            RPC-->>WB: 统一边界返回 ok:false + drafts/storage-unavailable
+        else 配置文件写盘成功
+            CS-->>RPC: save 完成
+            RPC-->>WB: ok:true + value:{ success:true, config }
+        end
     end
-    Note over Op,New: 在途操作继续写原目录（确定语义，非异常）
-    Note over RPC,New: 仅新发起的操作使用新目录
+    Note over Op,New: 在途草稿操作继续写原目录；仅新发起操作使用新目录（确定语义）
 ```
 
 ### 关键决策点
 
 | 步骤 | 决策 | 失败处理 |
 |------|------|---------|
-| 5 | **仅检查「目录存在」不够** | 已存在但只读的目录会让 `mkdir` 成功却在首次写入时失败 |
-| 5 | 校验方式 | 在目标目录创建并删除一个**唯一命名**的探测文件 |
-| 7 | 失败**拒绝保存** | 返回 `config/invalid-drafts-dir`；**不得**先返回成功、再让 `drafts.save` 以 `ENOENT` 失败 |
-| 10 | 在途操作写原目录是**确定行为** | **不引入** `dirChangedDuringSave` 告警标记，不当作错误上报 |
+| 前置预检 | **仅检查「目录存在」不够** | 已存在但只读的目录会让 `mkdir` 成功却在首次写入时失败 |
+| 前置预检 | 校验方式 | 在目标目录创建并删除一个**唯一命名**的探测文件 |
+| 预检失败 | 失败**拒绝保存** | 返回 `config/invalid-drafts-dir`；**不得**先返回成功、再让 `drafts.save` 以 `ENOENT` 失败 |
+| 在途操作 | 在途操作写原目录是**确定行为** | **不引入** `dirChangedDuringSave` 告警标记，不当作错误上报 |
 | — | 配置页提示文案（须覆盖三件事实） | 「新目录对后续操作生效；正在进行的保存仍写入原目录。旧草稿不会自动迁移。」 |
 | — | 旧目录草稿 | **不做自动迁移**（避免大目录复制与部分失败风险） |
 

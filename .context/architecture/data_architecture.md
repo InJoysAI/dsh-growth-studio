@@ -306,7 +306,7 @@ $DSH_HOME/
 | 草稿库（本地 JSON） | **单机强一致** | 临时文件 + `rename` 原子写 + 串行写锁 + `expectedVersion` 乐观锁（`ContentDraft.version`） |
 | 排期库（本地 JSON） | **单机强一致** | 临时文件 + `rename` 原子写 + 串行写锁（**无乐观锁**，`CalendarItem` 无 `version`） |
 | 指标历史（本地 JSON） | 追加写 | 按 `(platform, capturedAt)` 追加，供环比 |
-| 配置（本地 JSON） | 单机强一致 | `config.save` 后热更新 |
+| 配置（本地 JSON） | 单文件原子替换，内存/磁盘分阶段生效 | 预检通过后先热更新再写盘；失败如实返回且不回滚已合并内存，重启读取实际磁盘配置；非空边界见 `api_strategy.md` §3.6，不承诺跨介质事务 |
 | **Injoys Spreadsheet** | **最终一致** | 单向导出（以 `externalRowId` 幂等）；导入本地状态优先 |
 | **Injoys Document** | 最终一致 | 幂等更新（已有 `injoysDocId` 时更新而非新建） |
 

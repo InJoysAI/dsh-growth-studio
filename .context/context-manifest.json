@@ -30,7 +30,7 @@
       "path": ".context/architecture/source/technical_architecture.md",
       "archived_to": ".context/architecture/source/technical_architecture.md",
       "type": "system_architecture",
-      "content_hash": "82618bffc720f7b992757c2bdc81f7a0a3acfe17542173fa84b50bef4d9702d8",
+      "content_hash": "036e5585b2286a493e6296a5f0365bd87123b6fd1b00eb976e5d4f2346a65d8d",
       "status": "archived"
     },
     "UI_SPEC": {
@@ -111,13 +111,20 @@
     "ordering": "ascending_by_synced_at"
   },
   "last_context_sync": {
-    "synced_at": "2026-10-20T20:50:00+08:00",
     "source": "openspec/changes/archive/2026-10-20-fix-config-save-error-swallow/",
-    "workflow": "context-update sync proposal",
+    "synced_at": "2026-10-20T20:56:22+08:00",
+    "workflow": ".agents/workflows/context-update.md sync proposal fix-config-save-error-swallow --mode apply",
+    "change_id": "fix-config-save-error-swallow",
     "authority": "proposal",
     "mode": "apply",
     "updated_context_files": [
+      ".context/architecture/cross_cutting_concepts.md",
+      ".context/architecture/data_architecture.md",
+      ".context/architecture/risks_and_debt.md",
       ".context/architecture/runtime_view.md",
+      ".context/architecture/source/technical_architecture.md",
+      ".context/architecture/system_design.md",
+      ".context/domain/testing_strategy.md",
       ".context/history/context-sync.jsonl",
       ".context/context-manifest.json"
     ],

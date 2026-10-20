@@ -1,7 +1,7 @@
 # 测试策略 (Testing Strategy)
 
 > **Metadata**
-> - **Source**: `.context/domain/source/product_requirements.md`（PRD 基线 v1.2.2）、`.context/domain/source/development_plan.md`（验收条件）
+> - **Source**: `.context/domain/source/product_requirements.md`（PRD 基线 v1.2.2）、`.context/domain/source/development_plan.md`（验收条件）、`.context/architecture/source/technical_architecture.md` §3.10.2、`openspec/changes/archive/2026-10-20-fix-config-save-error-swallow/specs/ops-config/spec.md`（配置保存专项）
 > - **Generated At**: `2026-10-16 09:00`
 > - **Generator**: `Context-Agent v1.0`
 
@@ -516,7 +516,7 @@ Then 界面应明确提示该能力不可用
 | RISK-002 误发布 / 不可控群发 | 模块 4 场景 3「绝不自动确认发布」 | 已覆盖 |
 | RISK-003 会话状态假阳性 | 模块 1 场景 1「渠道会话四态呈现」 | 已覆盖 |
 | RISK-004 配置切换竞态导致跨库覆盖 | —（工程 / 并发路径，无 BDD 场景） | **缺口** |
-| RISK-005 存储不可用被误报 | 模块 6 场景 4「本地草稿存储目录配置」 | 部分覆盖 |
+| RISK-005 存储不可用被误报 | 模块 6 场景 4 + 文末「配置保存专项验收补充」 | 部分覆盖（配置文件失败/成功分支已有 C1–C6 单测；提示文案/GUI 仍待验收） |
 | RISK-006 指标汇总以偏概全 | 模块 5 场景 4 / 5（BR-050 / BR-051） | 已覆盖 |
 | RISK-007 环比基准不可用 | 模块 5 场景 6（BR-052） | 已覆盖 |
 | RISK-008 `draftsDir` 变更后旧草稿认知 | 模块 6 场景 4 | 部分覆盖 |
@@ -569,3 +569,40 @@ Then 界面应明确提示该能力不可用
 - [ ] UAT 签收完成
 
 > 单元测试覆盖率、代码审查等工程质量门禁见 `.context/criterion.md`。
+
+
+---
+
+## 配置保存专项验收补充
+
+依据已归档提案 `fix-config-save-error-swallow` 的 `specs/ops-config/spec.md` 与架构源文档 §3.10.2；这是配置文件保存失败的新增专项覆盖，不把模块 6 场景 4 冒认为原本已经包含此分支，也不新造业务规则编号。
+
+### 场景 A：配置文件无法保存时当场提示失败
+```gherkin
+Given 用户的配置存储目录不可写或该目录路径被普通文件占用
+When 用户提交新的非空接入地址与凭证
+Then 配置页应显示非空中文保存失败说明，不应显示保存成功
+  And 不向用户展示底层技术错误或调用栈
+  And 当前运行中的接入配置保留新提交的非空值，不因写盘失败回滚
+  And 下次重启读取实际已保存的配置，不能承诺失败的配置已持久保存
+```
+
+### 场景 B：可写配置保存成功且确实持久化
+```gherkin
+Given 用户的配置存储目录可写
+When 用户提交新的接入配置并保存
+Then 保存应成功，配置文件中应有提交的新凭证
+  And 运行中的接入配置即时生效，无需重启
+```
+
+### 场景 C：不可用草稿目录在更改配置前被拒绝
+```gherkin
+Given 用户选择的草稿目录不可写或不能创建
+When 用户提交该草稿目录
+Then 应在更改配置前提示草稿目录不可用
+  And 不应先显示配置保存成功、再在后续保存草稿时才发现目录失败
+```
+
+自动化证据映射：`tests/ops-manager.spec.ts` C1/C2 覆盖场景 A 的真实文件系统失败与失败结果，C1 同时保护中文说明/不泄技术细节/失败目录；C3 实际读取配置文件覆盖场景 B 的持久化，C4 分别读取客户端与配置存储，保护失败后非空字段一致及不回滚；C5 保护场景 C 与配置写盘失败的不同分类，C6 保护其他异常不被错分为存储错误。空串提交的既有分裂不在一致性保证范围内（见 `api_strategy.md` §3.6）。
+
+验收边界：上述自动化证据不是 GUI 手动验收，也不是实际重启测试；归档 tasks 4.3.2 的配置页手测仍未完成。本补充不将其勾选为通过。POSIX 只读文件本身不足以触发保存失败，采用目录权限/路径占用的真实触发方式，权限位不生效的环境显式跳过相关权限用例。
