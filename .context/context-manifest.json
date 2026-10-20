@@ -111,38 +111,15 @@
     "ordering": "ascending_by_synced_at"
   },
   "last_context_sync": {
-    "synced_at": "2026-10-20T18:20:00+08:00",
-    "source": "openspec/changes/fix-config-save-error-swallow/",
-    "workflow": "context-start",
+    "synced_at": "2026-10-20T20:50:00+08:00",
+    "source": "openspec/changes/archive/2026-10-20-fix-config-save-error-swallow/",
+    "workflow": "context-update sync proposal",
     "authority": "proposal",
     "mode": "apply",
     "updated_context_files": [
-      ".context/AGENTS.md",
-      ".context/README.md",
-      ".context/architecture/README.md",
-      ".context/architecture/api_strategy.md",
-      ".context/architecture/constraints.md",
-      ".context/architecture/container_component_view.md",
-      ".context/architecture/context_view.md",
-      ".context/architecture/cross_cutting_concepts.md",
-      ".context/architecture/data_architecture.md",
-      ".context/architecture/introduction_and_goals.md",
-      ".context/architecture/risks_and_debt.md",
       ".context/architecture/runtime_view.md",
-      ".context/architecture/security_policy.md",
-      ".context/architecture/system_design.md",
-      ".context/architecture/tech_stack.md",
-      ".context/criterion.md",
-      ".context/domain/README.md",
-      ".context/domain/business_rules.md",
-      ".context/domain/data_strategy.md",
-      ".context/domain/edge_cases.md",
-      ".context/domain/market_insights.md",
-      ".context/domain/risks_and_debt.md",
-      ".context/domain/testing_strategy.md",
-      ".context/domain/user_journeys.md",
-      ".context/context-manifest.json",
-      ".context/history/context-sync.jsonl"
+      ".context/history/context-sync.jsonl",
+      ".context/context-manifest.json"
     ],
     "history_path": ".context/history/context-sync.jsonl"
   }

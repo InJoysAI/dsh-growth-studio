@@ -471,6 +471,7 @@ sequenceDiagram
 |---------|---------|---------|
 | **草稿目录不可写** | 目录只读 / 创建失败 | 统一错误边界返回 `drafts/storage-unavailable`（**所有写入口一致**）；**不吞异常、不谎报成功** |
 | **`config.save` 目标目录不可用** | 已存在但只读 / 无法创建 | 前置探测文件校验失败 → **拒绝保存** `config/invalid-drafts-dir` |
+| **配置文件自身写盘失败** | `$DSH_HOME/ops-manager/` 目录不可写 / 路径被普通文件占用 / tmp 写入或 rename 失败 | `ConfigStore.save()` 落盘异常**如实抛出**，经**统一 RPC 错误边界**映射为 `drafts/storage-unavailable`（`details.dir` 指向 `ops-manager` 配置目录）；`error.message` 为面向用户的中文说明、不拼接 `errno`/调用栈；**不得**吞异常后谎报保存成功。热更新在写盘**之前**完成，失败时不回滚已合并的内存态（非空字段与 `InjoysClient` 一致） |
 | **配置在操作中途切换** | 用户在复合 RPC 期间改 `draftsDir` | 在途操作**继续写原目录**（确定语义）；新操作才用新目录 |
 | **Injoys 未配置** | 无令牌 | `injoys.test` 返回「尚未配置令牌」提示，**不得**发出请求并谎报「认证失败」 |
 | **Injoys 沉淀失败** | 网络 / 服务错误 | `sinkToInjoysDoc` 返回 `success:false` 与真实错误；**不得**谎报成功或写本地假 ID |
