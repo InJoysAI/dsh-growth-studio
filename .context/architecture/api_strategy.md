@@ -150,7 +150,7 @@ interface RpcEnvelopeResponse {
 > ⚠️ **窗口真实性说明**：`windowStart` / `windowEnd` 表达**请求窗口**，本身不证明数值属于该窗口。
 > 当前采集侧页面口径为「累计 / 昨日数据」（B站累计播放、抖音按作品累加、视频号昨日增量），
 > **无法证实属于请求窗口**，故 `live` 采集结果的贡献按设计保持未知（`null`），
-> 真实环境下汇总值可能为「暂无数据」。采集侧窗口化解析能力的补齐不在该提案范围。
+> 当前生产采集路径均未验证窗口，因而窗口汇总为 `null`（「暂无数据」）；这不等于未抓到原始数值。采集侧窗口化解析能力的补齐不在该提案范围。
 
 **请求**
 
@@ -167,13 +167,15 @@ interface WorkbenchOverviewRequest {
 | `overviewMetrics.totalImpressions` | `number \| null` | 全网图文/推文曝光阅读 |
 | `overviewMetrics.totalPlays` | `number \| null` | 全网视频播放量 |
 | `overviewMetrics.totalEngagements` | `number \| null` | 点赞+评论+转发+收藏（**任一为 null 则整体 null**） |
-| `overviewMetrics.weeklyPipeline` | `{ total, completed, byStatus }` | 本周排期进度（`prefilled + published` 为完成） |
-| `overviewMetrics.measuredPlatforms` | `PlatformId[]` | 本窗口**成功采集**的平台 |
-| `overviewMetrics.unmeasuredPlatforms` | `PlatformId[]` | 采集失败 / 不支持的平台 |
-| `overviewMetrics.comparison` | `{ period, *DeltaPercent }` | 环比（`period` 无历史时为 `null`） |
+| `overviewMetrics.weeklyPipeline` | `{ total, completed, byStatus }` | 周一起算自然周的排期进度，`byStatus` 覆盖 `ItemStatus` 五态，`completed = prefilled + published` |
+| `overviewMetrics.measuredPlatforms` | `PlatformId[]` | 应采集合 `P` 内成功采集且可证实属于请求窗口的平台 |
+| `overviewMetrics.unmeasuredPlatforms` | `PlatformId[]` | `P` 中其余平台，含采集失败、不支持或已抓取但窗口周期无法证实的平台 |
+| `overviewMetrics.comparison` | `MetricsComparison`（`src/types.ts`） | `period` 为 `'7d' \| '30d' \| null`；四个可空数值键为 `impressionsDeltaPercent` / `playsDeltaPercent` / `engagementsDeltaPercent` / `followersDeltaPercent`；当前无历史基准，五键均为 `null` |
 | `statuses` | `Array<{ id, state, isReady, loginUrl?, ... }>` | 平台就绪状态（`state === 'authenticated'` 才算 ready；`loginUrl` 供 needs_login 时「去登录 ↗」） |
 | `calendarItems` / `trends` / `feedbackItems` | — | 聚合数据 |
 | `injoysConnected` | `boolean` | Injoys 连通性 |
+
+**本周排期的当前来源与范围**：`weeklyPipeline` 从既有 `InjoysClient.listCalendarItems()` 返回的 `calendarItems` 派生，不接入新的排期主数据源。按本周（周一至周日）筛选后计数；原始列表为空或非空但全为其它周的行，均返回全 `0` 结构；原始列表含本周行时不得无条件清空。当前 `currentWeekRange()` 用 UTC 推导周边界；用户本地自然周的时区对齐尚未实现，不应据此宣称本地周边界已覆盖。本地排期主数据接入仍归 `feat-calendar-generate-list`。
 
 **指标口径（本区块为权威定义）**
 
@@ -183,19 +185,21 @@ interface WorkbenchOverviewRequest {
 |------|------|
 | **窗口** | `metricsWindow` 指定的时间跨度，统计**该窗口内新增**的曝光/播放/互动（**增量口径，非历史总量**） |
 | **采集时刻** | `capturedAt` 表示数据**抓取时间**，与窗口是**两个独立概念**，不得互相替代 |
-| **缺失语义** | 任一平台采集失败或平台不支持该指标时，该平台贡献为「未知」 |
+| **缺失语义** | 采集失败、平台不支持该指标，或无法证实数值属于请求窗口时，该平台的窗口贡献为「未知」；不把原始抓取值直接冒充窗口增量 |
 
 **部分缺失汇总规则（服务端强制口径）**
 
 > 核心原则：**绝不用不完整的数据冒充全网总量**。
 
-1. 设应采平台集合为 `P`（`totalChannelsCount` 对应平台），成功采集集合为 `measuredPlatforms`；
+1. 设应采平台集合为 `P`（Phase 0 为 `wechat_mp` / `bilibili`，与 `totalChannelsCount` 对应）；`measuredPlatforms` 仅包含 `P` 中 `source !== 'unmeasured'` 且 `windowScope === 'verified'` 的结果。`source: 'live'` 只证明抓取成功，不证明周期正确；`unmeasuredPlatforms = P - measuredPlatforms`。`windowScope` 是宿主采集结果的非契约扩展，不新增 `PlatformMetrics` RPC 字段；`mock` 仅在显式测试配置中启用；
 2. `measuredPlatforms == P` → 汇总值为各平台之和，正常给出数字；
 3. `measuredPlatforms ⊂ P`（部分缺失）→ 汇总值为 **`null`**，**不得**只汇总已成功平台后当成全网总量；同时必须填充 `measuredPlatforms` / `unmeasuredPlatforms`；
 4. **零值 vs 缺失**：平台真实返回 `0` 时作为**有效值 0** 计入求和（`0` 与 `null` 语义**严格区分**）；只有「采集失败 / 平台不支持」才是 `null`；
 5. `totalEngagements` 在点赞、评论、转发、收藏四项中**任一为 `null` 时为 `null`**。
 
 **环比基准来源**
+
+> 下列为目标存储契约。当前提案没有实现 `metrics/` 历史快照读写或环比计算，`comparison` 五键均为 `null`；真实基准由 `feat-storage-metrics-snapshot` 接入，不能把该契约描述视为当前已落盘。
 
 - 基准取自本地**历史指标快照**：每次采集成功后按 `(platform, capturedAt)` 追加写入 `$DSH_HOME/growth-studio/metrics/{YYYY-MM-DD}.json`；
 - `comparison.period` 表示用于对比的**上一个等长窗口**；
@@ -774,11 +778,11 @@ interface BrowserOsCapabilityDescriptor {
 > `measuredPlatforms` / `unmeasuredPlatforms` / `totalEngagements` / `totalFavorites` /
 > `comparison` / `weeklyPipeline` 均已落地，平台级覆盖门与「真实 `0` 参与求和」判定生效
 > （`src/analytics/overview-aggregator.ts`；`risks_and_debt.md` **TD-007 已关闭**）。
-> 实现提交见 `fix-overview-metrics-null-semantics`（已归档），规范见 `openspec/specs/workbench-overview/spec.md`。
+> 提案归档见 `openspec/changes/archive/2026-10-20-fix-overview-metrics-null-semantics/`，规范见 `openspec/specs/workbench-overview/spec.md`。
 >
 > ⚠️ **窗口可证性边界**：`windowStart` / `windowEnd` 表达**请求窗口**，不证明数值属于该窗口；
 > 当前采集页面口径为「累计 / 昨日数据」，`live` 结果标记 `windowScope: 'unverified'` 且不计入汇总，
-> 故真实环境下汇总可能为「暂无数据」。采集侧窗口化解析能力不在该提案范围。
+> 当前生产路径的窗口汇总因此为 `null`（「暂无数据」）。原始抓取成功与窗口贡献可用须分别判断；采集侧窗口化解析能力不在该提案范围。
 
 ### 已定义但**尚未实现**（新增须先补契约再实现）
 

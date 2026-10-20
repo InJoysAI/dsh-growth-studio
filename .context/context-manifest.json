@@ -30,7 +30,7 @@
       "path": ".context/architecture/source/technical_architecture.md",
       "archived_to": ".context/architecture/source/technical_architecture.md",
       "type": "system_architecture",
-      "content_hash": "8ad1bf241e5db9cde3006b02f445ae04e9a5d6c19dd8bd54c07ffc2c35b7bc49",
+      "content_hash": "82618bffc720f7b992757c2bdc81f7a0a3acfe17542173fa84b50bef4d9702d8",
       "status": "archived"
     }
   },
@@ -100,20 +100,22 @@
     "ordering": "ascending_by_synced_at"
   },
   "last_context_sync": {
-    "synced_at": "2026-10-20T09:15:37+08:00",
+    "synced_at": "2026-10-20T09:20:26+08:00",
     "source": "openspec/changes/archive/2026-10-20-fix-overview-metrics-null-semantics/",
     "workflow": ".agents/workflows/context-update.md sync proposal fix-overview-metrics-null-semantics --mode apply",
     "authority": "proposal",
     "mode": "apply",
     "change_id": "fix-overview-metrics-null-semantics",
     "updated_context_files": [
-      ".context/architecture/risks_and_debt.md",
       ".context/architecture/api_strategy.md",
+      ".context/architecture/data_architecture.md",
+      ".context/architecture/runtime_view.md",
+      ".context/domain/testing_strategy.md",
+      ".context/architecture/risks_and_debt.md",
       ".context/architecture/README.md",
       ".context/architecture/source/technical_architecture.md",
-      ".context/domain/testing_strategy.md",
+      ".context/history/context-sync.jsonl",
       ".context/context-manifest.json"
-    ],
-    "notes": "归档后复核并同步 5 处实现状态漂移：① risks_and_debt.md TD-007 补归档路径与 spec 同步位置，并显式标注「live 窗口可证性」为另属采集能力提案的残留边界；② api_strategy.md §3.10 ops_fetch_metrics 行、§4 方法实现状态表（workbench.overview 由「部分实现」改为「字段级已实现」）与旧「已登记≠已实现」警告段重写为已实现状态 + 窗口可证性边界；③ architecture/README.md TD-007 从高严重性待办清单移出并标注已关闭；④ domain/testing_strategy.md TD-007 覆盖状态由「缺口（待实现）」改为「已覆盖」；⑤ source/technical_architecture.md §3.13 ops_fetch_metrics「当前实现差距」列更新。未变更任何契约语义；criterion §5.5 闭区间口径已于上一轮 sync 落地，本轮复核无漂移。"
+    ]
   }
 }

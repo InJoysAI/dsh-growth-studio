@@ -307,6 +307,8 @@ Then 环比应显示为空
   And 不得编造环比结论
 ```
 
+> **场景 4 / 5 / 6 的当前自动化范围**：`tests/overview-metrics.spec.ts` 验证宿主平台覆盖门、真实零值、互动严格空值、本周筛选与无历史空环比；`tests/overview-window-passthrough.spec.ts` 验证 RPC 请求窗口穿透；`tests/metrics-window.spec.ts` 验证实际采集器的窗口字段，包括成功 `live` 分支在 `7d` / `30d` 下的精确起止值、采集时刻，以及窗口不可证实结果不进入汇总。完整覆盖和零值的正向汇总通过显式测试数据验证，不表示当前 `live` 页面已能提供该周期增量。宿主测试也不能替代场景中的驾驶舱 UI 验收，历史快照持久化仍归 TD-010 / `feat-storage-metrics-snapshot`。
+
 #### 场景 7: 评论抓取为空不伪造（BR-054）
 ```gherkin
 Given 已发布内容暂无用户评论
@@ -523,7 +525,7 @@ Then 界面应明确提示该能力不可用
 | RISK-010 测试污染真实 `$DSH_HOME` | —（工程层，隔离见 `tests/setup-isolation.ts`） | **缺口**（非 BDD） |
 | RISK-011 令牌明文暴露面扩大 | —（工程安全检查：RPC 暴露边界是否仅本机可达 + `config.get` 的 `hasToken` 返回策略；模块 6 场景 2 仅验证 BR-071 的界面掩码，不能证明响应体与可达范围安全） | **缺口**（非 BDD） |
 | RISK-012 Phase 2 CDP 能力未验证 | —（Phase 2 PoC） | **缺口**（非 Phase 0） |
-| TD-007 `workbench.overview` 缺失汇总语义 | 模块 5 场景 5（BR-050 部分缺失 → 汇总为空）+ 场景 4（BR-051 零值 vs 失败）；已由 `tests/overview-metrics.spec.ts` / `tests/metrics-window.spec.ts` / `tests/overview-window-passthrough.spec.ts` 覆盖 | **已覆盖**（2026-10-20 `fix-overview-metrics-null-semantics` 关闭） |
+| TD-007 `workbench.overview` 缺失汇总语义 | 模块 5 场景 4 / 5 的宿主判定与场景 6 的无历史空值分支；`tests/overview-metrics.spec.ts` / `tests/metrics-window.spec.ts` / `tests/overview-window-passthrough.spec.ts` | **宿主修复已覆盖，TD-007 已关闭**；不代表驾驶舱 UI、真实窗口增量采集或历史快照能力已实现 |
 | TD-008 生成路径未授权写入 Injoys 文档 | 模块 3 场景 1「未经用户明确要求不得创建或更新 Injoys 文档」（直接约束）；模块 8 场景 2 / 3（BR-033 / BR-073） | **缺口（待实现）** |
 | TD-009 `ops_generate_review` 假文档编号 | 模块 8 场景 3「知识库未连通时沉淀不可用」 | **缺口（待实现）** |
 | TD-010 `calendar/` 与 `metrics/` 持久化契约未落地 | 模块 5 场景 6「历史不足时环比为空」（BR-052） | **缺口（待实现）** |
