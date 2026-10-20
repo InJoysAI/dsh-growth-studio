@@ -75,6 +75,7 @@
 
 - [x] 4.4 采集器窗口字段测试（在 `MetricsCollector` 实际采集路径验证，与 4.1 纯函数测试分开、不可互相替代）
   - [x] 4.4.1 `live` 与无客户端 `unmeasured` 两条路径均产出非空 ISO 8601 `windowStart` / `windowEnd`，取值口径一致，且不与 `capturedAt` 相互代替
+    - 核查修正：原用例实际走 `unmeasured` 出口（空页签列表），未覆盖 `found` 分支。已补 `tests/metrics-window.spec.ts` 的 found-branch 用例（桩 `tabs` 返回已登录 B 站页签 + 可解析仪表盘文本），断言 `source === 'live'`、数值保留（`plays === 296`）、`windowScope === 'unverified'`、`note` 含「累计」，并端到端断言送入 `aggregateOverviewMetrics` 后 `totalPlays === null`；已做变异验证（把标记改回 `'verified'` 时该用例失败）。原用例更名为 "marks rows unverified when no logged-in tab is open" 以名实相符。
   - [x] 4.4.2 固定时钟分别校验 `7d` / `30d` 窗口的精确边界（ISO 可解析），并断言 `capturedAt` 保持采集时刻
   - [x] 4.4.3 请求窗口穿透：以桩请求 `30d` 时 `workbench.overview` 与采集器均按 `30d` 取窗口（mock 路径可验证）；未传时默认 `7d`
   - [x] 4.4.4 mock 构造与 fixtures 满足新增必填类型（同步补 `windowStart` / `windowEnd`），不新增真实采集能力
