@@ -150,7 +150,7 @@ graph LR
 | `fix-doc-id-fabrication` | 0 | 工具不得以字面量 / 时间戳冒充文档编号 | P0 | `fix-unauthorized-injoys-doc-write` | proposed | [Phase-0](./proposal-roadmap-Phase-0.md) |
 | `feat-browseros-capability-toggle` | 0 | BrowserOS 能力开关契约与统一执行检查 | P0 | 无 | proposed | [Phase-0](./proposal-roadmap-Phase-0.md) |
 | `fix-browser-session-cookie-probe` | 0 | 统一 BrowserOS 会话探测并登记会话探活工具 | P0 | 无 | proposed | [Phase-0](./proposal-roadmap-Phase-0.md) |
-| `fix-storage-file-permissions` | 0 | 落盘文件与目录权限位实现 | P1 | 无 | proposed | [Phase-0](./proposal-roadmap-Phase-0.md) |
+| `fix-storage-file-permissions` | 0 | 落盘文件与目录权限位实现 | P1 | 无 | in-progress | [Phase-0](./proposal-roadmap-Phase-0.md) |
 | `feat-injoys-test-document-count` | 0 | `injoys.test` 补文档数（可空）契约 | P1 | 无 | proposed | [Phase-0](./proposal-roadmap-Phase-0.md) |
 | `feat-storage-calendar-items` | 1 | 排期主数据本地落盘服务 | P0 | 无 | proposed | [Phase-1](./proposal-roadmap-Phase-1.md) |
 | `feat-calendar-generate-list` | 1 | 排期生成、读取与生成时立即导出 | P0 | `feat-storage-calendar-items`、`feat-calendar-injoys-export`、`fix-overview-metrics-null-semantics` | proposed | [Phase-1](./proposal-roadmap-Phase-1.md) |
