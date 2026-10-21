@@ -358,6 +358,51 @@ describe('Ops Manager (Stage 1 & 2)', () => {
     }
   })
 
+  it('工具返回值经真实 ToolRuntime 调度为无损 JSON（D-1 回归）', async () => {
+    const os = await import('node:os')
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const { Context: CordisContext } = await import('@deepseek-ai/cordis')
+    const { ToolRuntime } = await import('@deepseek-ai/dsh-tools')
+    const { DraftStore } = await import('../src/storage/draft-store.js')
+
+    const base = fs.mkdtempSync(path.join(os.tmpdir(), 'gs-runtime-json-'))
+    const injoys = new InjoysClient({ endpoint: 'http://127.0.0.1:1/mcp', token: 't' })
+    injoys.invokeTool = async () => null
+
+    const root = new CordisContext()
+    root.provide('systemPrompt' as any, {
+      tools() {},
+      section() {},
+      getSectionOrder() { return 0 },
+    })
+    const runtime = new ToolRuntime(root as any)
+    const tools = createOpsTools(injoys, new AdapterRegistry(), undefined, new DraftStore(undefined, base))
+    for (const name of ['ops_draft_article', 'ops_draft_video_meta']) {
+      runtime.register(tools.find(t => t.name === name)!)
+    }
+
+    const dispatch = (name: string, args: any) =>
+      runtime.execute({
+        callId: `call-${name}` as any,
+        name,
+        arguments: args,
+        signal: new AbortController().signal,
+      })
+
+    try {
+      const article = (await dispatch('ops_draft_article', { topic: 'D1 回归' })) as any
+      expect(article.isError).toBe(false)
+      expect(article.content[0].text).toContain('公众号图文草稿撰写完成')
+
+      const video = (await dispatch('ops_draft_video_meta', { videoPath: '/tmp/d1.mp4' })) as any
+      expect(video.isError).toBe(false)
+      expect(video.content[0].text).toContain('视频文案与发布元数据已就绪')
+    } finally {
+      fs.rmSync(base, { recursive: true, force: true })
+    }
+  })
+
   it('prefills platform draft boxes and returns review URLs via ops_push_drafts tool', async () => {
     const injoys = new InjoysClient()
     const registry = new AdapterRegistry(undefined, { allowDryRun: true })

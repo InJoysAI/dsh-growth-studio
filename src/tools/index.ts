@@ -188,6 +188,7 @@ export function createOpsTools(
         type: 'object',
         additionalProperties: false,
         properties: {
+          draftId: { type: 'string', required: true },
           docId: { type: 'string' },
           title: { type: 'string', required: true },
           digest: { type: 'string', required: true },
@@ -247,7 +248,6 @@ export function createOpsTools(
 
       return {
         draftId,
-        docId: undefined,
         title,
         digest,
         wordCount: contentMarkdown.length,
@@ -282,6 +282,7 @@ export function createOpsTools(
         type: 'object',
         additionalProperties: false,
         properties: {
+          draftId: { type: 'string', required: true },
           videoPath: { type: 'string', required: true },
           titleVariant1: { type: 'string', required: true },
           titleVariant2: { type: 'string', required: true },
@@ -341,7 +342,6 @@ export function createOpsTools(
         titleVariant3: titleVariants[2],
         tags,
         description,
-        injoysDocId: undefined,
       }
     },
   })

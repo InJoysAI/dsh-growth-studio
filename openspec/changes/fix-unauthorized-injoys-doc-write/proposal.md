@@ -42,6 +42,10 @@
 - `.context/architecture/risks_and_debt.md` 的 **TD-008** 描述与影响范围补第 5 处站点（`src/tools/index.ts` 的 `ops_draft_launch_kit`，经 `InjoysClient.saveLaunchKitDocument`），使债务登记与实现一致。
 - 经 `.agents/workflows/context-update.md` 刷新 `.context/context-manifest.json` 与 `.context/history/context-sync.jsonl`。
 
+### 真实工具调度校验的配套修正
+
+`ops_draft_article` / `ops_draft_video_meta` 的返回对象不再显式携带值为 `undefined` 的 `docId` / `injoysDocId`（宿主 `ToolRuntime` 对成功返回做无损 JSON 快照，`undefined` 会被判为 `invalid output`），并在两者 `output.schema` 补登一直返回却未声明的 `draftId`。后者是既有缺陷（`additionalProperties: false` 下真实调度必然失败），与 `injoysDocId` 的可空化契约无关；不补登则本提案的「生成仍落盘本地草稿」在真实调度下不成立。
+
 ### 保留的能力
 
 `InjoysClient` 的 `saveArticleDocument` / `saveVideoDocument` / `saveReviewDocument` / `saveLaunchKitDocument` 四个方法**保留不动**（连实现一并保留），供 Phase 2 的用户显式沉淀入口 `feat-workbench-sink-to-injoys-doc` 复用。本提案删除的是生成 / 复盘路径的**调用**，不是能力。
@@ -62,7 +66,7 @@
 > - `ops_draft_launch_kit` 因 schema 仍要求字符串，`injoysDocId` 返回**空串**（并在代码注释中指向 `fix-doc-id-fabrication`），不编造任何编号。
 > - `ops_generate_review` 的 `report.injoysDocId ?? 'doc_review'` 字面量回退**保持原样**（移除该回退属 `fix-doc-id-fabrication` 的 In 范围）。移除写入后，该回退在正常路径也会命中，这是本提案引入的、**已知且必须在 A4 消除**的过渡态。
 >
-> 同理，`ops_draft_launch_kit` 的渲染分支（`src/tools/index.ts:922` 的 `**Injoys 文档编号**: \`${value.injoysDocId}\`` 无 `?` 判定）与两处工具的 `output.schema` 可空化同属 A4 收口范围，本提案不修改；`spec/injoys-write-boundary` 已把这三处的过渡态口径写清（`undefined` 与 `''` 分别对应哪些工具）。
+> 同理，`ops_draft_launch_kit` 的渲染分支（`src/tools/index.ts` 中 `**Injoys 文档编号**: \`${value.injoysDocId}\`` 无 `?` 判定）与两处工具的 `output.schema` 可空化同属 A4 收口范围，本提案不修改；`spec/injoys-write-boundary` 已把这三处的过渡态口径写清（`undefined` 与 `''` 分别对应哪些工具）。
 >
 > 因此本提案**不应单独长期停留**，须由 `fix-doc-id-fabrication` 紧随落地（A4 的前置即为本提案）。本提案的交付不宣称已解决 `TD-009`（虚报成功）。
 
@@ -77,9 +81,9 @@
 本提案（A3）与 `fix-doc-id-fabrication`（A4）**必须作为同一个用户可用版本交付**：
 
 - A3 **可以**单独合入与归档（供开发验证、代码审查与依赖解锁），但**不得**单独作为「已满足 `criterion.md:109` 不虚报成功」的用户可用交付发布。
-- 用户可用版本的交付组合 = A3（移除 5 处写入）+ A4（两处 `injoysDocId` 可空化并取消 `output.schema.required`、移除 `ops_generate_review` 的 `?? 'doc_review'` 回退、修正 `ops_draft_launch_kit`（`src/tools/index.ts:922`）与 `ops_generate_review`（`:604`）的空值渲染）+ 紧随的 `api_strategy.md` §3.10 现状列同步（`:752`–`:754`、`:758`）。
+- 用户可用版本的交付组合 = A3（移除 5 处写入）+ A4（两处 `injoysDocId` 可空化并取消 `output.schema.required`、移除 `ops_generate_review` 的 `?? 'doc_review'` 回退、修正 `ops_draft_launch_kit` 与 `ops_generate_review` 的编号空值渲染分支）+ 紧随的 `api_strategy.md` §3.10 现状列同步（`:752`–`:754`、`:758`）。
 - 组合验收：**正常路径、知识库未连通、写入失败**三种情形下均不出现 `doc_review` 或 `doc_launch_<时间戳>` 形式的编号；未沉淀时呈现「未沉淀」语义。
-- 理由：A3 单独交付会使 `ops_generate_review` 在**正常路径**必然命中 `?? 'doc_review'`（移除写入后 `report.injoysDocId` 恒为 `undefined`，`src/tools/index.ts:635` 必然兜底），即把 `criterion.md:109` 禁止的虚报成功从「失败路径偶发」扩大为「正常路径恒发」。上文已登记该扩大，但**登记不构成豁免**：工程 MUST NOT 无法以风险接受方式绕过，只能由交付组合收口。本门禁不新增任何防御机制，只界定交付组合。
+- 理由：A3 单独交付会使 `ops_generate_review` 在**正常路径**必然命中 `report.injoysDocId ?? 'doc_review'`（移除写入后 `report.injoysDocId` 恒为 `undefined`，`src/tools/index.ts` 必然兜底），即把 `criterion.md:109` 禁止的虚报成功从「失败路径偶发」扩大为「正常路径恒发」。上文已登记该扩大，但**登记不构成豁免**：工程 MUST NOT 无法以风险接受方式绕过，只能由交付组合收口。本门禁不新增任何防御机制，只界定交付组合。
 
 ## Impact
 
@@ -125,6 +129,7 @@
 - ✅ `InjoysClient` 的四个 `save*Document` 方法仍可被显式调用并返回值（能力保留）。
 - ✅ 除 `README.md` 三处外，其余项目文档无需改动（本提案不涉及接口设计变更，故不更新 `.context/architecture/api_strategy.md` 的请求/响应示例）。
 - ✅ `pnpm typecheck` + `pnpm test` 通过；用户可用版本的交付组合见上文「交付门禁（用户可用版本）」。
+- ✅ `ops_draft_article` / `ops_draft_video_meta` 经真实 `ToolRuntime` 注册与调度（非直接调用 `execute`）返回 `isError: false`，证明返回值通过宿主无损 JSON 校验。
 
 ### 关联 Context 资产
 

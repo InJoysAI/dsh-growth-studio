@@ -25,8 +25,10 @@
   - 响应字段 `injoysDocId` 返回 `undefined`（契约本就可选，不因生成而填充）
 - [x] 3.2 `src/tools/index.ts` `ops_draft_article`：删除 `injoys.saveArticleDocument(...)`，返回 `docId: undefined`（`output.schema.docId` 非 required）
   - 本地 `actualDraftStore.saveDraft(...)` 保留，`draftId` 与 `channelVariants` 不变
+  - 真实 ToolRuntime 复核（D-1）发现：返回对象里**显式写 `undefined`** 会被无损 JSON 校验判为 `value is not lossless JSON`；改为**省略该键**。同轮补登既有 `draftId` 到 `output.schema`（原实现一直返回 `draftId` 但未声明，触发 `additionalProperties: false`，使工具在真实注册表下必然失败；该字段与文档编号无关，不改变 `docId` 的可选形状）
 - [x] 3.3 `src/tools/index.ts` `ops_draft_video_meta`：删除 `injoys.saveVideoDocument(...)`，返回 `injoysDocId: undefined`（非 required）
   - 本地 `saveDraft(...)` 保留（含 `partition` 随变体持久化）
+  - 与 3.2 同口径：省略 `injoysDocId` 键、补登 `draftId` 到 `output.schema`；并新增经真实 `ToolRuntime` 注册与调度的回归用例
 - [x] 3.4 `src/tools/index.ts` `ops_draft_launch_kit`：删除 `injoys.saveLaunchKitDocument(phKit)` 调用；`injoysDocId` 改返回**空串**，并在该行加注释指向 `fix-doc-id-fabrication`
   - 理由：`output.schema.injoysDocId` 仍为 `{ type: 'string', required: true }`，`defineTool` 会把 required 约束到 `execute` 返回类型；可空化属被依赖提案。**不得**为此编造任何编号，也不得在本提案改 schema
   - 保留既有的生成结果返回（`tagline` / `makerComment` / `twitterThread` / `timezoneAdvice` / `summaryMarkdown`）；**不新增草稿持久化**（Launch 物料持久化属其 Phase 2 能力，本提案只做减法，不暗中扩建）
@@ -74,9 +76,9 @@
   - 知识库只读调用只针对**实际读取**的路径断言（上面前三条 + `ops_draft_launch_kit`），不得笼统称为「四条路径都读取知识库」
 - [x] 5.3 新增海外 Launch 专项用例（覆盖 TD-008 未登记的第 5 处站点）：`ops_draft_launch_kit` 生成后无 `document.create`
   - 本轮口径：**不写远端 + 保留既有生成结果返回**（`tagline` / `makerComment` / `twitterThread` / `timezoneAdvice` / `summaryMarkdown`），且**不新增草稿持久化**（Launch 物料持久化属其 Phase 2 能力，本提案只做减法，见 `proposal.md` 的 Out of Scope）；用例不得断言 Launch 产生草稿文件
-  - 断言 `expect(result.injoysDocId).toBe('')`，并加注释「`src/tools/index.ts:912` 仍为 `required: string`，实现只能返回字符串；A4（`fix-doc-id-fabrication`）落地后改为 `toBeUndefined()`」
+  - 断言 `expect(result.injoysDocId).toBe('')`，并加注释「`ops_draft_launch_kit` 的 `output.schema.injoysDocId` 仍为 `required: string`，实现只能返回字符串；A4（`fix-doc-id-fabrication`）落地后改为 `toBeUndefined()`」
   - **不得**写 `toBeUndefined()`：`output.schema` 的 `required: true` 经 `defineTool` 约束的是 **`execute` 实现返回值类型**（`node_modules/@deepseek-ai/dsh-tools/lib/types/schema.d.ts:210`），实现无法返回 `undefined`，故该断言断言的是实现不可能产生的值。（注意：`pnpm typecheck` 只覆盖 `src`（`tsconfig.json` 的 `include` 仅 `src`），测试文件的断言能否编译与此无关——不要以「typecheck 会失败」作为理由）
-  - 渲染分支（`src/tools/index.ts:922` 无 `value.injoysDocId ? ...` 判定）属 A4 的收口范围，本用例不新增渲染断言
+  - 渲染分支（`ops_draft_launch_kit` 的 `**Injoys 文档编号**` 模板无 `value.injoysDocId ? ...` 判定）属 A4 的收口范围，本用例不新增渲染断言
 - [x] 5.4 修正既有断言以匹配新行为
   - `tests/ops-manager.spec.ts:341` 的 `expect(report.injoysDocId).toBeDefined()` → `toBeUndefined()`（复盘不再回写编号）
   - `tests/ops-manager.spec.ts:644` 的 `expect(result.injoysDocId).toBeDefined()` → `toBe('')`（与 5.3 同一过渡态口径）
@@ -88,19 +90,20 @@
 ## 6. 验证与归档
 
 - [x] 6.1 验证验收标准
-  - [x] 6.1.1 生成路径不写远端：`workbench.generateArticleDraft` / `ops_draft_article` / `ops_draft_video_meta` / `ops_draft_launch_kit` 四处的单元测试通过；前三条另有草稿文件断言，Launch 只断言「无远端写入 + 生成结果保留」（不要求落盘）
+  - [x] 6.1.1 生成路径不写远端：`workbench.generateArticleDraft` / `ops_draft_article` / `ops_draft_video_meta` / `ops_draft_launch_kit` 四处的单元测试通过；前三条另有草稿文件断言，Launch 只断言「无远端写入 + 生成结果保留」（不要求落盘）；`ops_draft_article` / `ops_draft_video_meta` 另有经真实 `ToolRuntime` 注册并调度的用例，断言 `isError: false`（防止 `undefined` / 未声明属性被宿主无损 JSON 校验拒绝）
   - [x] 6.1.2 复盘路径不写远端：`ReviewReporter.generateReview` / `ops_generate_review` 用例通过（含「不新增草稿文件」与「复盘结果照常返回」两项）
   - [x] 6.1.3 文案一致：`ops_draft_article` 与 `ops_generate_review` 的 `description`、以及 `README.md` 均不再出现「保存为 Injoys 文档」「存入 Injoys 文档」「沉淀至 Injoys 文档」；且**按入口区分落盘承诺**——图文 / 视频条目说明保存至本地草稿库，复盘条目只说明生成并返回结果（不得声称落盘），两者均说明写入 Injoys 文档须用户显式触发（见 4.4 的三步门禁）
   - [x] 6.1.4 能力保留：`InjoysClient.saveArticleDocument` / `saveVideoDocument` / `saveReviewDocument` / `saveLaunchKitDocument` 四个方法仍存在且可被显式调用
 - [x] 6.2 运行 `pnpm typecheck` 与 `pnpm test`，两者全部通过
+  - `pnpm typecheck:tests` 不在 `criterion.md` §7.2 的校验命令内且为既有红基（`tests/ops-manager.spec.ts` 75 处 + `tests/metrics-snapshot.spec.ts` 1 处，均为测试侧 `ToolRunContext` / `unknown` 类型噪声）；本轮新增用例未增加错误数，清理属独立事项
 - [x] 6.3 代码审查
   - [x] 6.3.1 `grep` 确认 `src/` 内生成 / 复盘 / 海外 Launch 路径不再出现 `saveArticleDocument` / `saveVideoDocument` / `saveReviewDocument` / `saveLaunchKitDocument` 的**调用点**（仅 `src/injoys/client.ts` 的**定义**保留）
   - [x] 6.3.2 确认目录固定语义未被破坏，**按证据范围如实声明、不得扩大**：只有 RPC 图文由既有 `U2: 图文生成在知识库等待期间切换目录，不得产生双库副本` 用例（`tests/ops-manager.spec.ts:2261`）证明（RISK-004）；工具图文 / 视频在 `await getKnowledgeContext` **之后**才以默认目录调用 `saveDraft`（`src/tools/index.ts:205`→`:239`、`:310`→`:333`），**不经**请求开始处的目录捕获，属**既有未覆盖面**；`ops_draft_launch_kit` 无落盘。本提案不新增目录机制，只如实标注该未覆盖面
   - [x] 6.3.3 确认未新增远端写入、未绕过 `InjoysClient` 直连、未改动客户端代码
-- [x] 6.4 交付门禁（用户可用版本）：确认本提案**不**单独作为用户可用交付发布，而须与 `fix-doc-id-fabrication`（A4）构成同一交付组合
-  - 组合内容：A3 的 5 处写入移除 + A4 的两处 `injoysDocId` 可空化并取消 `output.schema.required` + 移除 `?? 'doc_review'` 回退 + 修正 `ops_draft_launch_kit`（`src/tools/index.ts:922`）与 `ops_generate_review`（`:604`）的空值渲染 + 并入 `api_strategy.md` §3.10 现状列同步（`:752`–`:754`、`:758`）
+- [x] 6.4 交付门禁（用户可用版本）：确认本提案**不**单独作为用户可用交付发布，而须与 `fix-doc-id-fabrication`（A4）构成同一交付组合（**组合验收待 A4 落地后执行**，本项仅确认门禁成立并已登记）
+  - 组合内容：A3 的 5 处写入移除 + A4 的两处 `injoysDocId` 可空化并取消 `output.schema.required` + 移除 `?? 'doc_review'` 回退 + 修正 `ops_draft_launch_kit` 与 `ops_generate_review` 的编号空值渲染分支 + 并入 `api_strategy.md` §3.10 现状列同步（`:752`–`:754`、`:758`）
   - 组合验收：**正常路径 / 知识库未连通 / 写入失败**三种情形均不出现 `doc_review` 或 `doc_launch_<时间戳>` 形式的编号，未沉淀时呈现「未沉淀」语义
-  - 理由：本提案单独交付会使 `ops_generate_review` 在正常路径必然命中 `?? 'doc_review'`（`src/tools/index.ts:635`），即把 `criterion.md:109` 的虚报成功从失败路径偶发扩大为正常路径恒发；登记该风险不构成对 MUST NOT 的豁免（见 `proposal.md` 的「交付门禁（用户可用版本）」）
+  - 理由：本提案单独交付会使 `ops_generate_review` 在正常路径必然命中 `report.injoysDocId ?? 'doc_review'`，即把 `criterion.md:109` 的虚报成功从失败路径偶发扩大为正常路径恒发；登记该风险不构成对 MUST NOT 的豁免（见 `proposal.md` 的「交付门禁（用户可用版本）」）
 - [x] 6.5 运行 node design/context-dev/tools/specflow/specflow.mjs validate fix-unauthorized-injoys-doc-write --strict
 - [ ] 6.6 运行 node design/context-dev/tools/specflow/specflow.mjs archive fix-unauthorized-injoys-doc-write --yes --no-validate
   - 仅在 6.5 通过后执行；归档是流程动作，**不**代表已满足 `criterion.md:109`（该满足条件由 6.4 的交付组合界定）
