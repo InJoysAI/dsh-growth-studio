@@ -212,18 +212,23 @@
 | 类型 | 内容 |
 |------|------|
 | ✅ In | 从 `src/ops-rpc.ts` 的 `workbench.generateArticleDraft`、`src/tools/index.ts` 的 `ops_draft_article` / `ops_draft_video_meta` / `ops_draft_launch_kit`、`src/analytics/review-reporter.ts` 移除**无条件**的 `document.create` 调用（共 **5 处**，含 `ops_draft_launch_kit` 的 `saveLaunchKitDocument`） |
-| ✅ In | 修正 `src/tools/index.ts` 中与契约相悖的工具描述文案 |
+| ✅ In | 修正 `src/tools/index.ts` 中与契约相悖的工具描述文案，并同步修正 `README.md:24` / `:27` / `:39` 三处同源文案（同一缺陷的对外表述；不扩及 `README.md:28` / `:61`） |
 | ✅ In | 同步 `.context/architecture/risks_and_debt.md` 的 **TD-008** 站点清单（补第 5 处 `ops_draft_launch_kit`），使债务登记与实现一致 |
 | ✅ In | 补测试覆盖「未显式触发时不写远端」（含海外 Launch 生成路径） |
 | ✅ In | 保留 `InjoysClient.saveArticleDocument` / `saveVideoDocument` / `saveReviewDocument` / `saveLaunchKitDocument` 能力（供 Phase 2 的显式沉淀入口复用） |
 | ❌ Out | `workbench.sinkToInjoysDoc` 唯一授权入口的**实现**（`feat-workbench-sink-to-injoys-doc`，Phase 2） |
 | ❌ Out | 海外四大渠道（YouTube / X / Product Hunt / TikTok）**模拟与预填能力本身**（属 Phase 2，见总纲「被移出的能力」）；本提案只对已存在的 `ops_draft_launch_kit` 做**减法**合规修复 |
 | ❌ Out | 知识库读取能力（生成时读取知识库属允许行为，不动） |
+| ❌ Out | 生成侧在知识库未连通时返回兜底上下文（`src/injoys/client.ts` 的 `getKnowledgeContext` 默认上下文分支）：属既有行为，本轮不扩建也不核查，但**不得**破坏既有保存失败错误传播（`criterion.md` §3.5 的 `drafts/storage-unavailable` 统一映射） |
+| ❌ Out | AI 生成不可用 / 重试 / 生成内容不完整（`.context/domain/edge_cases.md:25` / `:27`）的处理：不因删除调用而变化，本轮不扩建 |
+| ❌ Out | 知识库未连通时「沉淀不可用」场景（`.context/domain/edge_cases.md:140`、`.context/domain/testing_strategy.md` 模块 8 场景 2 / 3）的 Phase 0 验收：删除写入后 Phase 0 已无文档沉淀入口，该场景不可触发，验收属 Phase 2（见本文件「阶段整体验收」） |
 
 > [!NOTE]
 > **`ops_draft_launch_kit` 的阶段边界**：该工具所属**能力**（出海 Launch 物料）属 Phase 2，但它在**当前实现中已存在**且**无用户显式触发判定即写入 Injoys**——这是**在线**触碰 `criterion.md` §4 铁律的缺口。依 `docs/implementation-gaps-report.md` §1（TD-008 登记不完整，只列 4 处站点），本提案按「同一条写入边界修复」将其并入（与已属 Phase 1 能力的 `review-reporter.ts` 复盘路径同性质），**不**提前实现 Phase 2 的出海能力。
 >
-> **只做减法**：本提案不实现替代入口。这样 Phase 0 与 Phase 2 之间不会出现「旧入口已删、新入口未上」的能力空洞：Phase 0 期间用户仍可经 Injoys 侧手工操作，Phase 2 再补显式沉淀入口。
+> **只做减法**：本提案不实现替代入口。**能力空档如实声明**：删除写入后，Phase 0 期间插件内**没有**文档沉淀入口，用户只能在 Injoys 侧手工操作——这是替代工作方式，**不构成插件内能力无空档**，也**不**宣称 `BR-033` 的「沉淀入口首版」目标已满足；Phase 2 再补显式沉淀入口。
+>
+> **上游规划差异（如实记录，不擅改源文档）**：`.context/domain/business_rules.md:201` / `:204` 与 `.context/architecture/api_strategy.md` 把沉淀入口标为 **Phase 0 首版**，`.context/architecture/risks_and_debt.md` 的 TD-008 亦要求「**先**补齐 `workbench.sinkToInjoysDoc` 作为唯一入口，**再**移除生成路径写入」；本路线图改为「先止血越权写入、入口延至 Phase 2」。本提案按本路线图拆分执行，不宣称 BR-033 首版能力已满足；上游口径的追溯与同步属后续 `context-update` 的职责。
 
 **关联 Context 资产**:
 
@@ -233,6 +238,12 @@
 | architecture | `.context/architecture/risks_and_debt.md` | TD-008（高；本提案同轮补登第 5 处站点 `ops_draft_launch_kit`） |
 | architecture | `.context/architecture/api_strategy.md` | §3.1 `generateArticleDraft` / `generateVideoMeta` 的「只保存本地」契约 |
 | domain | `.context/domain/testing_strategy.md` | 模块 3 场景 1（宿主生成路径「未经明确要求不得创建 / 更新」）；沉淀界面的 模块 8 场景 2 / 3 属 Phase 2 / 3 |
+| architecture | `.context/architecture/constraints.md` | 阶段边界：已有 Launch 减法修复不等于提前实现 Phase 2 出海能力 |
+| architecture | `.context/architecture/data_architecture.md` | `ContentDraft.injoysDocId` 仅经 `workbench.sinkToInjoysDoc` 成功后回写 |
+| architecture | `.context/architecture/runtime_view.md` | 生成路径时序「不创建或更新远端文档」；沉淀失败不得谎报成功 |
+| architecture | `.context/architecture/cross_cutting_concepts.md` | 「不谎报」「不伪造」（不得静默写本地假 ID） |
+| domain | `.context/domain/business_rules.md` | BR-030（物料生成与本地存盘）、BR-033（沉淀须用户显式触发）、BR-040（工具标注语义不代表自动写入授权）、BR-073（未连通不得返回看似成功的结果）、BR-NFR-002（内容留存边界） |
+| domain | `.context/domain/edge_cases.md` | §1 生成内容不完整 / AI 生成不可用（不虚报成功）；§5 知识库未连通（依赖知识库的动作不执行） |
 
 **关键任务**:
 1. 定位并移除生成路径的无条件 `document.create` 调用（`workbench.generateArticleDraft`、`ops_draft_article`、`ops_draft_video_meta`、`ops_draft_launch_kit`，共 4 处）（1.5 人日）
@@ -246,15 +257,18 @@
 |------|------|----------|
 | 历史用户依赖「生成即沉淀」的隐性行为 | 行为变化 | 依 MVP 裁决（2026-10-16）：生成只保存本地，沉淀须用户明确触发；此为**目标契约**，非回归 |
 | 移除调用后 `injoysDocId` 字段仍被前端读取 | 字段为空 | 契约已将其保留为可选兼容形状（`api_strategy.md` §3.1），不因生成而填充 |
+| **RISK-004（高）** 配置切换竞态跨库覆盖 | 删除 `workbench.generateArticleDraft` 的第二次 `saveDraft`（仅为回写 `injoysDocId`）时，若误改首次落盘的目录参数或把 `getDirectory()` 移到 `await` 之后，会在配置切换时「A 库读、B 库写」并覆盖 B 库同 ID 草稿 | 保留请求开始处的 `articleStorageDir` 捕获与首次 `saveDraft(..., { dir })`，不在 `await` 后重新解析目录（`criterion.md` §3.5）；回归证据为既有 `tests/ops-manager.spec.ts:2261` 的 U2 用例（**仅**证明 RPC 图文；工具图文 / 视频属既有未覆盖面，本提案不新增目录机制，如实标注） |
+| 过渡态：`ops_generate_review` 的 `doc_review` 回退在移除写入后于正常路径也命中（高） | A3 单独交付时每次正常复盘都播报假编号，把 `criterion.md` §3.2 的虚报成功从「失败路径偶发」扩大为「正常路径恒发」 | **登记 + 交付门禁收口**：该回退与两处 `injoysDocId` 可空化、空值渲染同属 `fix-doc-id-fabrication` 的范围；本提案只作开发中间状态，用户可用交付须与其组合（见「执行顺序与依赖」与提案正文「交付门禁（用户可用版本）」）。风险登记**不构成**对 MUST NOT 的豁免 |
 
 **验证标准**:
 
 | 验收项 | 验收条件 | 验收方式 |
 |--------|----------|----------|
-| 生成不写远端 | 调用生成方法后无 `document.create` 请求发出 | 单元测试（mock InjoysClient）+ 代码审查 |
-| 复盘不写远端 | 复盘路径无无条件 `saveReviewDocument` 调用 | 单元测试 + `grep` |
-| 海外 Launch 不写远端 | `ops_draft_launch_kit` 不再无条件经 `saveLaunchKitDocument` 触发 `document.create` | 单元测试 + `grep` |
-| 文案一致 | 工具描述不再暗示「生成即沉淀」 | 代码审查 |
+| 生成不写远端 | 调用生成方法后无 `document.create` 请求发出；三个内容入口（RPC 图文 / 工具图文 / 工具视频）另断言本地草稿真实落盘，`ops_draft_launch_kit` 只断言「无远端写入 + 生成结果保留」（本轮不新增持久化） | 单元测试（mock InjoysClient）+ 代码审查 |
+| 复盘不写远端 | 复盘路径无无条件 `saveReviewDocument` 调用，且不新增草稿落盘；复盘结果照常返回 | 单元测试 + `grep` |
+| 海外 Launch 不写远端 | `ops_draft_launch_kit` 不再无条件经 `saveLaunchKitDocument` 触发 `document.create`，且不返回任何编号（`required` 期间以空串表示未沉淀） | 单元测试 + `grep` |
+| 文案一致 | 工具描述与 `README.md` 同步文案不再暗示「生成即沉淀」；图文 / 视频条目说明保存至本地草稿库，复盘条目只说明生成并返回结果（不落盘） | 代码审查 + `grep`（三个旧短语为空） |
+| 本地存盘与目录固定回归 | 等待知识库期间切换草稿目录后，RPC 图文请求仍只写入发起时捕获的 A 库，B 库无副本（RISK-004） | 既有 U2 单元测试（`tests/ops-manager.spec.ts:2261`） |
 
 **验收场景（按需，建议 BDD）**:
 
@@ -282,6 +296,7 @@
 - 前置: 无
 - 被依赖: `fix-doc-id-fabrication`、`feat-workbench-sink-to-injoys-doc`
 - 约束: 生成只保存本地；请求开始时捕获草稿目录并贯穿每次落盘（`criterion.md` §3.5）
+- 交付约束: 本提案**不单独作为用户可用交付**（可单独合入与归档，供开发验证与依赖解锁）；用户可用版本须与 `fix-doc-id-fabrication` 组合——两处 `injoysDocId` 可空化并取消 `output.schema.required`、移除 `doc_review` 回退、修正两处空值渲染，并完成 `api_strategy.md` §3.10 现状列同步——使正常 / 知识库未连通 / 写入失败三种情形均不出现假编号
 
 ---
 
@@ -854,7 +869,7 @@
 本 Phase 内可并行推进的四条主线：
 
 1. **数据真实性线**：`fix-overview-metrics-null-semantics` → `feat-storage-metrics-snapshot`（严格顺序）；`fix-storage-file-permissions` 是 `feat-storage-metrics-snapshot` 的**前置**（统一落盘封装的权限位），须先于其完成；`feat-metrics-window-verified-capture`（指标窗口化可证采集）是 A1 / A2 的**采集侧承接项**，须在其后实施，用于把生产 `live` 从 `unverified` 提升为可证窗口；`fix-config-save-error-swallow`（配置写盘失败如实上报）同属「落盘不说假话」，无前置亦无被依赖，可与本线其余提案并行（建议在其与 `fix-storage-file-permissions` 落地后实施，以减少 `src/config-store.ts` 同方法的变基）。
-2. **内容写入边界线**：`fix-unauthorized-injoys-doc-write` → `fix-doc-id-fabrication`（严格顺序）；覆盖 5 处写入站点（含 `ops_draft_launch_kit`）与 2 处假编号（`ops_generate_review` / `ops_draft_launch_kit`）；`feat-injoys-test-document-count` 与 `fix-storage-file-permissions` 同属基础设施补强，可并行。
+2. **内容写入边界线**：`fix-unauthorized-injoys-doc-write` → `fix-doc-id-fabrication`（严格顺序）；覆盖 5 处写入站点（含 `ops_draft_launch_kit`）与 2 处假编号（`ops_generate_review` / `ops_draft_launch_kit`）；**交付约束**：两者构成**同一用户可用版本**——`fix-unauthorized-injoys-doc-write` 可单独合入与归档（开发中间状态），但其单独交付会使 `ops_generate_review` 在正常路径恒发假编号（`criterion.md` §3.2），故用户可用版本必须同时包含 `fix-doc-id-fabrication` 的可空化 / 去回退 / 空值渲染，并完成 `api_strategy.md` §3.10 现状列同步；`feat-injoys-test-document-count` 与 `fix-storage-file-permissions` 同属基础设施补强，可并行。
 3. **安全边界线**：`feat-browseros-capability-toggle`（能力开关契约与统一执行检查）与 `fix-browser-session-cookie-probe`（会话探测假阳性修复 + 工具登记）**互不重叠**，可并行；二者均为 `feat-client-engine-config`（Phase 3）的前置。
 4. 上述各线之间无相互阻塞，可整体并行。
 
