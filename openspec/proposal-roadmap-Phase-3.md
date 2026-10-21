@@ -4,7 +4,7 @@
 > **文件名**: `proposal-roadmap-Phase-3.md`（编号与总纲阶段总览一致：Phase 3 → `Phase-3`）
 > **状态**: proposed
 > **来源**: `.context/architecture/risks_and_debt.md`（TD-002 / TD-012）；`.context/domain/risks_and_debt.md`（PD-004）；`.context/architecture/adr_003_custom_rpc_envelope.md` / `adr_007_manual_refresh_no_persistent_connection.md` / `adr_009_browseros_capability_management.md`；`.context/architecture/api_strategy.md` §3.4 / §3.6 / §3.7 / §3.9 / §4；`.context/domain/business_rules.md`（BR-052 / BR-074）；`.context/domain/testing_strategy.md` 模块 1 / 2 / 3 / 6 / 7
-> **预计工作量与周期**: ~19 人日（**规划估算**；源文档工作量字段为 `N/A – 源文档未提供`）
+> **预计工作量与周期**: ~36.5 人日（**规划估算**；源文档工作量字段为 `N/A – 源文档未提供`。其中 19 人日来自提案 1–6，17.5 人日来自 `plan add ui` 追加的提案 7–15）
 
 ## 阶段目标与范围
 
@@ -478,6 +478,531 @@
 
 ---
 
+### 提案 7: 清理未授权令牌与未授权 HEX
+
+**Change ID:** `fix-ui-token-violations`  
+**优先级:** P0  
+**预计时间:** 1 人日（规划估算）  
+**状态:** proposed  
+**变更类型（change_kind）:** `code`（判定依据：修改 `plugin-src/client/ops-styles.js` 样式代码，无文档/配置交付物）
+
+**业务目标（Business Goal）**:
+- 清除现行 `ops-styles.js` 中**未被 criterion 授权**的宿主变量与 HEX，使工作台样式回到「只绑 `var(--dsw-alias-*)` + 四个授权点缀色」的合规基线。
+- 为后续全部 UI 提案（壳层 / 原子 / 指标卡）提供可复用、可校验的令牌基线，避免新组件沿用违规写法。
+
+**范围边界（In / Out）**:
+
+| 类型 | 内容 |
+|------|------|
+| ✅ In | 替换未授权变量 `--dsw-alias-border-default`（现行 2 处：`.dim-ops-header` 下边框、1 处 `background-color`）为 `--dsw-alias-border-l1/l2` |
+| ✅ In | 清除未授权 HEX `#22c55e`（`.dim-ops-notice[data-kind="success"]`）、`#ef4444` / `#b91c1c`（`.dim-ops-notice[data-kind="error"]`），改用授权告警橙 `#b45309` + 危险语义文字 |
+| ✅ In | 移除 `var(--dsw-alias-*, #hex)` 中**未授权 HEX 作 fallback** 的写法（现行 32 处），改为不带 fallback 的纯令牌引用 |
+| ✅ In | 保留 `#1677ff` / `#15803d` / `#b45309` / `#7c3aed` 四个授权点缀色不动 |
+| ❌ Out | 新增任何令牌 / 新增宿主 error alias（须另案登记，见 `design_tokens.json` 的 `component.button.danger._comment`） |
+| ❌ Out | 视觉重构、布局调整、组件拆分（属提案 8–15） |
+| ❌ Out | 新增独立红 HEX 表达 `no_publish_permission`（PRD 写「红色指示灯」，但 criterion 未授权；仍以文字 + 告警橙表达） |
+
+**关联 Context 资产**:
+
+| Scope | 关联资产 | 关联说明 |
+|-------|---------|----------|
+| criterion | `.context/criterion.md` | §3.3 MUST NOT「硬编码背景 / 边框 / 文字色值」，点缀色仅四个授权 HEX |
+| ui | `.context/ui/design_system.md` | 「颜色系统」表面/文字必须走令牌；「语义 / 点缀色（唯一允许的 HEX）」表 |
+| ui | `.context/ui/design_tokens.json` | `alias.color.*` 授权绑定集合；`component.button.danger._comment` 说明不得另造红 HEX |
+| ui | `.context/ui/source/ui-design-direction.md` | §4.2 明确禁止 `--dsw-alias-border-default` / `--dsw-alias-brand-primary` / `--dsw-alias-status-*` 与未授权 HEX 作 fallback |
+
+**关键任务**:
+1. 盘点并替换未授权变量与 HEX（0.5 人日）
+2. 移除 32 处未授权 HEX fallback，校验宿主主题下不出现无色值（0.5 人日）
+
+**验证标准**:
+
+| 验收项 | 验收条件 | 验收方式 |
+|--------|----------|----------|
+| 无未授权变量 | `ops-styles.js` 不再出现 `--dsw-alias-border-default` / `--dsw-alias-brand-primary` / `--dsw-alias-status-*` | 代码审查 + grep |
+| 无未授权 HEX | 除四个授权值外无其它 HEX 字面量 | 代码审查 + grep |
+| 无 HEX fallback | 无 `var(--dsw-alias-*, #hex)` 形式 | 代码审查 |
+| 主题跟随 | Light / Dark 主题下表面与文字层级正常，无透明或继承异常 | UI 验收 |
+
+**依赖**:
+- 前置: 无
+- 被依赖: `feat-ui-workbench-shell`、`feat-ui-primitives-button-badge-card`、`feat-ui-metricbox-kpi`、`feat-ui-empty-state`、`feat-ui-interaction-states`、`feat-ui-responsive-breakpoints`（均以本提案的合规基线为准）
+- 约束: 不得为消除违规而新增令牌或宿主 alias；未授权语义须先提案登记再使用
+
+---
+
+### 提案 8: 工作台壳层（HeaderCockpit + Sticky KPI Ribbon + 六 Tab）
+
+**Change ID:** `feat-ui-workbench-shell`  
+**优先级:** P0  
+**预计时间:** 3 人日（规划估算）  
+**状态:** proposed  
+**变更类型（change_kind）:** `code`（判定依据：在 `ops-page.js` 新增壳层与 Tab 容器代码）
+
+**业务目标（Business Goal）**:
+- 在**现行** `settings.section` 入口内落地工作台壳层骨架：`HeaderCockpit` → Sticky KPI Ribbon → Segmented Tabs → Active Workspace Canvas，使 6 大 Tab 有稳定容器承载。
+- 落实 DEC-UI-003 的 Tab 顺序与命名（对齐 PRD §四 / criterion §3.3），并提供 HeaderCockpit 的三个快捷行动与全局刷新入口。
+- 让后续 Tab 内容提案（本 Phase 提案 1–6）有可挂载的画布位，消除「有内容、无容器」的结构缺口。
+
+**范围边界（In / Out）**:
+
+| 类型 | 内容 |
+|------|------|
+| ✅ In | 壳层垂直结构：HeaderCockpit / Sticky KPI Ribbon / SegmentedTabs / Active Workspace Canvas |
+| ✅ In | 六个 Tab 容器与切换（运营驾驶舱 / 排期日历流水 / 内容创作室 / AI工具中枢 / 舆情需求大盘 / 引擎策略配置），顺序与命名对齐 PRD |
+| ✅ In | HeaderCockpit 内容位：产品名、当前产品、Injoys MCP 状态位、BrowserOS `authenticated` 计数位（**项目 Phase 0** 分母为 2）、快捷行动（`+ 生成 7 天排期日历` / `✍ 新建多端物料` / `🔄 刷新大盘`） |
+| ✅ In | Sticky KPI Ribbon 容器（4 个 MetricBox 挂载位；组件本体属提案 10） |
+| ✅ In | 保留 Megaphone 图标在**宿主导航 chrome**（`index.js` 注入），工作台画布内不重复放置 |
+| ❌ Out | 独立主视图 / 主侧边栏槽位（DEC-UI-001：须先提案更新 criterion §3.1，本批不授权） |
+| ❌ Out | 各 Tab 的业务内容接入（本 Phase 提案 1–6 已各自承载） |
+| ❌ Out | 快捷键绑定（提案 14）、断点样式（提案 13）、i18n 取词（提案 15） |
+
+> [!NOTE]
+> **入口形态约束（本提案的实施前提）**：DEC-UI-001 明确「当前可实施入口仅为 `settings.section`（`id: 'ops'` / `order: 60`），独立主视图须先走 OpenSpec 提案更新 criterion §3.1 后再落地」。本提案**只做画布内壳层**，不改槽位、不注册新槽位，因此不触达该门禁；`HeaderCockpit` 中的「当前产品 / 引擎状态」只作**展示位**，数据接入仍由 `feat-client-dashboard` 与 `feat-client-engine-config` 承担。
+
+**关联 Context 资产**:
+
+| Scope | 关联资产 | 关联说明 |
+|-------|---------|----------|
+| criterion | `.context/criterion.md` | §3.1 槽位与 `callOpsRpc`、§3.3 六 Tab 命名与禁止硬编码色值 |
+| ui | `.context/ui/design_system.md` | 「主布局」Sticky KPI Ribbon + 分段 Tab；「工作台骨架约束」自上而下四段结构 |
+| ui | `.context/ui/atomic_components.md` | §3 `HeaderCockpit` / `TopKpiRibbon`、§4「工作台壳层」模板、§5 页面文件对照表 |
+| ui | `.context/ui/layout_grid.md` | 「壳层垂直结构（非横向栅格）」四段顺序与 KPI Ribbon sticky |
+| ui | `.context/ui/source/ui-design-direction.md` | §4.1 壳层结构、DEC-UI-001 / DEC-UI-003、BR-080 Megaphone 归属 |
+
+**关键任务**:
+1. 壳层四段结构与 Canvas 挂载位（1 人日）
+2. SegmentedTabs 六 Tab 容器与切换态（含选中态 `#1677ff`）（1 人日）
+3. HeaderCockpit 内容位与快捷行动组（含 Megaphone 归属核对）（0.75 人日）
+4. Sticky KPI Ribbon 容器与滚动吸顶（0.25 人日）
+
+**验证标准**:
+
+| 验收项 | 验收条件 | 验收方式 |
+|--------|----------|----------|
+| 四段结构 | 自上而下为 HeaderCockpit / KPI Ribbon / SegmentedTabs / Canvas | UI 验收 |
+| Tab 顺序 | 六 Tab 顺序与命名与 PRD §四、criterion §3.3 完全一致，不另造文案 | UI 验收 + 代码审查 |
+| 吸顶 | 滚动时 KPI Ribbon 保持 sticky | UI 验收 |
+| 槽位未变 | 仍为 `settings.section` / `id: 'ops'` / `order: 60`，无新槽位 | 代码审查 |
+| Megaphone 唯一 | 画布内无重复 Megaphone 图标，导航 chrome 图标仍在 | UI 验收 |
+
+**依赖**:
+- 前置: `fix-ui-token-violations`
+- 被依赖: `feat-ui-responsive-breakpoints`、`feat-ui-shortcuts-guardrails`
+- 约束: 入口维持 `settings.section`（DEC-UI-001 门禁）；Tab 文案与顺序不得另造
+
+---
+
+### 提案 9: 原子组件 Button / Badge 状态灯 / Card
+
+**Change ID:** `feat-ui-primitives-button-badge-card`  
+**优先级:** P0  
+**预计时间:** 2.5 人日（规划估算）  
+**状态:** proposed  
+**变更类型（change_kind）:** `code`（判定依据：在 `ops-page.js` / `ops-styles.js` 内新增可复用组件与样式类）
+
+**业务目标（Business Goal）**:
+- 抽取 Button（主 / 次 / 告警(危险语义) / 图标）、Badge 状态灯（`SessionState` 四态 + `null` 中性徽章）、Card 三个原子，供壳层与各 Tab 复用。
+- 固化「危险变体用告警橙 + 必含危险语义文字」「`null` 用中性徽章」「无权限不得写成故障」三条视觉纪律，避免各 Tab 各写一套。
+
+**范围边界（In / Out）**:
+
+| 类型 | 内容 |
+|------|------|
+| ✅ In | Button 四变体（主 / 次 / 告警 / 图标）与 Loading / 禁用态；主按钮禁止连点 |
+| ✅ In | Badge 状态灯：`SessionState` 四态（`unknown` / `needs_login` / `authenticated` / `no_publish_permission`）与 `null` 中性徽章 |
+| ✅ In | Card 容器（标题 / 图标 / Hover 描边），类名前缀 `dim-ops-*` / `dim-status-*` |
+| ✅ In | 组件落位：**写入现行** `ops-page.js` + `ops-styles.js`（不拆目录，见 NOTE） |
+| ❌ Out | JSX 分目录与 `components/ui/*.jsx`（DEC-UI-004：须先提案更新 criterion §3.3） |
+| ❌ Out | 任何自动发布 / 群发控件（criterion §4 铁律） |
+| ❌ Out | 独立红 HEX / 宿主 error alias（未授权） |
+
+> [!NOTE]
+> **工程形态约束**：DEC-UI-004 明确 `components/ui/*.jsx` 分目录属**目标重构**，且「目录重构须先提案更新 criterion §3.3」。本提案据此**不拆目录**，组件以 `ops-page.js` 内的可复用函数 + `ops-styles.js` 内的类实现；若后续单独批准 criterion §3.3 更新提案，可按同一组件契约平移，不构成返工。
+
+**关联 Context 资产**:
+
+| Scope | 关联资产 | 关联说明 |
+|-------|---------|----------|
+| criterion | `.context/criterion.md` | §3.3 样式令牌化、MUST NOT 硬编码色值、MUST NOT 承载状态机 |
+| ui | `.context/ui/atomic_components.md` | §1 原子（Button / Badge / 输入框 / 状态点）、§5 现行实现面说明 |
+| ui | `.context/ui/design_system.md` | 「组件规范」Button / Card / Badge 状态灯；四态文案与配色 |
+| ui | `.context/ui/interaction_states.md` | 「组件状态矩阵」Card / Button / Badge 行；`no_publish_permission` 禁止写成「故障」 |
+| ui | `.context/ui/design_tokens.json` | `component.button.*` / `component.badge.*` / `component.card.*` |
+
+**关键任务**:
+1. Button 四变体与 Loading / 禁用态（1 人日）
+2. Badge 状态灯四态 + `null` 中性徽章（0.75 人日）
+3. Card 容器与 Hover 描边（0.5 人日）
+4. 类名与令牌对齐、旧用法替换（0.25 人日）
+
+**验证标准**:
+
+| 验收项 | 验收条件 | 验收方式 |
+|--------|----------|----------|
+| 危险变体 | 背景/描边为 `#b45309` 且按钮文字含危险语义；无独立红 HEX | UI 验收 + 代码审查 |
+| 四态文案 | 四态文案为 未知 / 需登录 / 已认证就绪 / 无权限；`no_publish_permission` 不显示为「故障」 | UI 验收 |
+| null 徽章 | `null` 指标使用中性徽章，不渲染为 0 | UI 验收 |
+| 无发布控件 | 组件集中不存在正式发布 / 群发按钮 | 代码审查 |
+| 令牌合规 | 全部走 `var(--dsw-alias-*)` + 四个授权 HEX | 代码审查 |
+
+**依赖**:
+- 前置: `fix-ui-token-violations`
+- 被依赖: `feat-ui-metricbox-kpi`、`feat-ui-empty-state`、`feat-ui-interaction-states`
+- 约束: 组件不含业务规则（状态机 / 权限判定在宿主侧）；不拆 JSX 目录
+
+---
+
+### 提案 10: MetricBox 指标卡组件（结构与排布）
+
+**Change ID:** `feat-ui-metricbox-kpi`  
+**优先级:** P1  
+**预计时间:** 1.5 人日（规划估算）  
+**状态:** proposed  
+**变更类型（change_kind）:** `code`（判定依据：新增 `MetricBox` 组件与其样式类）
+
+**业务目标（Business Goal）**:
+- 交付 MetricBox 组件：`label` / `caption` / `value` / `delta` / `coverage` 五段结构，**数值与「暂无数据」互斥**，供 Sticky KPI Ribbon 的 4 个 KPI 复用。
+- 提供「覆盖范围」与「暂无环比」的固定展示位，使宿主返回的 `measuredPlatforms` / `unmeasuredPlatforms` 与 `comparison` 有确定落点。
+
+**范围边界（In / Out）**:
+
+| 类型 | 内容 |
+|------|------|
+| ✅ In | MetricBox 五段结构与两种互斥形态（有值 / `null`） |
+| ✅ In | 4 个 KPI 的命名与副标题位（PRD §5.1.2）：全网曝光/播放总量、互动与关注增长、排期履约流水、分发矩阵连通度 |
+| ✅ In | 覆盖范围展示位（`measuredPlatforms` / `unmeasuredPlatforms`）与「暂无环比」文案位 |
+| ✅ In | 第 4 项只统计 `authenticated`、**项目 Phase 0** 分母为 2 的展示约束 |
+| ❌ Out | 数据接入与 `null` 判定逻辑（`feat-client-dashboard` 已承载；本提案只做结构与呈现位） |
+| ❌ Out | 前端重算全网汇总（criterion：只展示宿主汇总） |
+| ❌ Out | 环比计算（宿主侧 `feat-storage-metrics-snapshot` 提供） |
+
+> [!NOTE]
+> **与 `feat-client-dashboard` 的边界**：该提案 In-scope 已含「`null` 语义呈现：汇总缺失显示『暂无数据』、环比不足显示『暂无环比』，并展示 `measuredPlatforms` / `unmeasuredPlatforms`」的**数据语义**。本提案**不重复**该语义实现，只交付**组件结构与排布**；两者是「组件 → 接入」关系，实施时以 `feat-client-dashboard` 的语义为准，本提案不另立判定规则。
+
+**关联 Context 资产**:
+
+| Scope | 关联资产 | 关联说明 |
+|-------|---------|----------|
+| criterion | `.context/criterion.md` | §3.3 指标 `null` →「暂无数据」不得显示为 0；不得承载业务黑盒 |
+| ui | `.context/ui/atomic_components.md` | §2「指标卡 MetricBox」HTML 结构（有值 / null 两分支）与「数值与暂无数据互斥」 |
+| ui | `.context/ui/design_system.md` | 「组件规范 → MetricBox」四个 Sticky KPI 与副标题、覆盖范围、暂无环比、非去重注释 |
+| ui | `.context/ui/interaction_states.md` | 「MetricBox / null」规则与互斥要求 |
+| ui | `.context/ui/design_tokens.json` | `alias.color.text.tertiary`（null 徽章）、`component.badge.neutral` |
+
+**关键任务**:
+1. MetricBox 五段结构与两种互斥形态（0.75 人日）
+2. 4 个 KPI 命名 / 副标题 / 覆盖范围位（0.5 人日）
+3. Ribbon 内排布对接与令牌化（0.25 人日）
+
+**验证标准**:
+
+| 验收项 | 验收条件 | 验收方式 |
+|--------|----------|----------|
+| 互斥 | 有值与「暂无数据」不同时出现 | UI 验收 |
+| 真实 0 | 真实 `0` 走有值分支并显示 `0` | UI 验收 |
+| 覆盖范围 | 可展示已采 / 未采平台清单 | UI 验收 |
+| 暂无环比 | delta 为空时显示「暂无环比」，不显示 0% | UI 验收 |
+| 连通度分母 | **项目 Phase 0** 显示 `n / 2` | UI 验收 |
+
+**依赖**:
+- 前置: `feat-ui-primitives-button-badge-card`
+- 被依赖: 无
+- 约束: 只呈现宿主汇总，不在前端重算
+
+---
+
+### 提案 11: EmptyState 空状态组件
+
+**Change ID:** `feat-ui-empty-state`  
+**优先级:** P1  
+**预计时间:** 1.5 人日（规划估算）  
+**状态:** proposed  
+**变更类型（change_kind）:** `code`（判定依据：新增 `EmptyState` 组件与其样式类）
+
+**业务目标（Business Goal）**:
+- 交付统一空状态组件「微图标 + 解释文案 + 行动按钮」，供 6 个 Tab 的空列表 / 未登录 / 无数据场景复用。
+- 落实「`needs_login` 提供 `去登录 ↗` 且不阻断工作台」的零阻碍原则，避免各 Tab 各写一套空态文案。
+
+**范围边界（In / Out）**:
+
+| 类型 | 内容 |
+|------|------|
+| ✅ In | EmptyState 三段结构（微图标 / 解释文案 / CTA）与紧凑排布 |
+| ✅ In | `needs_login` 场景的 `去登录 ↗` 外链变体（新窗口、不夹带会话） |
+| ✅ In | 无数据 / 无结果 / 未配置三类文案位（文案由各 Tab 传入） |
+| ❌ Out | 外链登录流程本身（属 `fix-browser-session-cookie-probe` / `feat-client-engine-config`） |
+| ❌ Out | 登录墙式整页遮挡（criterion：`needs_login` 不得挡住整个视图） |
+| ❌ Out | 图标资源新增（源文档未给出图标清单，见 NOTE） |
+
+> [!NOTE]
+> **图标来源未定**：`atomic_components.md` 将「空状态微图标」标为 `TODO`（源文档未给图标规范），`accessibility_checklist.md` 的「图标/Emoji 替代文本」同为 `TODO`。本提案只用**现行仓库已有**的矢量图标或文本符号，不新增美术资源、不编造图标规范；若后续补图标规范，另案处理。
+
+**关联 Context 资产**:
+
+| Scope | 关联资产 | 关联说明 |
+|-------|---------|----------|
+| criterion | `.context/criterion.md` | §3.3 未登录平台一律提供 `去登录 ↗`（零阻碍原则） |
+| ui | `.context/ui/atomic_components.md` | §2「空状态 EmptyState」：微图标 + 解释文案 + CTA |
+| ui | `.context/ui/design_system.md` | 「组件规范 → EmptyState」结构固定与不泄露 Cookie |
+| ui | `.context/ui/accessibility_checklist.md` | 「空状态：微图标 + 解释文案 + CTA」「未登录提供 `去登录 ↗`，不阻断工作台」 |
+| ui | `.context/ui/source/ui-design-direction.md` | DEC-UI-010 空状态决策 |
+
+**关键任务**:
+1. EmptyState 三段结构与三种文案位（0.75 人日）
+2. `去登录 ↗` 外链变体与安全约束（0.5 人日）
+3. 现有空态场景替换与令牌化（0.25 人日）
+
+**验证标准**:
+
+| 验收项 | 验收条件 | 验收方式 |
+|--------|----------|----------|
+| 三段结构 | 图标 + 文案 + CTA 同时存在，顺序固定 | UI 验收 |
+| 去登录 | `needs_login` 时出现 `去登录 ↗`，可点击跳转 | UI 验收 |
+| 不阻断 | 空态下仍可切换 Tab 并浏览工作台 | UI 验收 |
+| 零泄露 | 外链不含 Cookie / 令牌参数 | 代码审查 |
+
+**依赖**:
+- 前置: `feat-ui-primitives-button-badge-card`
+- 被依赖: 无
+- 约束: 不新增图标资源；空态不得阻塞工作台
+
+---
+
+### 提案 12: 交互状态与微动效
+
+**Change ID:** `feat-ui-interaction-states`  
+**优先级:** P0  
+**预计时间:** 2.5 人日（规划估算）  
+**状态:** proposed  
+**变更类型（change_kind）:** `code`（判定依据：新增动效样式、Toast / 常驻通知条组件与刷新去重逻辑）
+
+**业务目标（Business Goal）**:
+- 统一 150–200ms 微动效区间与 `cubic-bezier(0.16, 1, 0.3, 1)` 缓动，消除各处缓动与时长不一致。
+- 交付 Toast（滑入 200ms、停留 5s 淡出）与**预填成功常驻通知条**两个不同组件，落实「常驻通知条不自动消失」。
+- 实现刷新入口的 **in-flight 去重**（卡片原地探活 / Header「刷新大盘」/ `Cmd/Ctrl+R` 共用同一状态），且不引入 WebSocket / SSE / 轮询。
+
+**范围边界（In / Out）**:
+
+| 类型 | 内容 |
+|------|------|
+| ✅ In | 卡片 Hover：`translateY(-2px)` + `#1677ff` 描边 + `0 4px 16px -2px rgba(0,0,0,0.08)`，180ms 统一缓动 |
+| ✅ In | 状态灯 `authenticated` 的 `dimStatusPulse` 2.4s 呼吸 |
+| ✅ In | Toast：`dimOpsSlideDown` 200ms 进入、停留 5s 淡出 |
+| ✅ In | 预填成功**常驻通知条**（不自动消失，含「前往平台草稿箱 ↗」） |
+| ✅ In | 刷新 in-flight 去重：按卡片 / 对应 RPC 维度，未完成时重复触发只执行一次 |
+| ❌ Out | WebSocket / SSE / 后台定时轮询（criterion §3.4 明令禁止） |
+| ❌ Out | `prefers-reduced-motion`（源文档未规定，见 NOTE） |
+| ❌ Out | 快捷键按键绑定（提案 14 负责；本提案只提供去重状态供其复用） |
+
+> [!NOTE]
+> **两项源文档缺口**：① `motion_tokens.md` 记 `dimOpsSlideDown` 关键帧百分比为 `TODO`（源文档未给），本提案需自行定义 0% / 100% 的 transform / opacity 并写入注释说明来源为实施决策；② `prefers-reduced-motion` 源文档未规定，本提案**不擅自引入**，留待确认后另案。
+
+**关联 Context 资产**:
+
+| Scope | 关联资产 | 关联说明 |
+|-------|---------|----------|
+| criterion | `.context/criterion.md` | §3.4 禁止 WebSocket / SSE / 后台轮询；同一卡片并发刷新须 in-flight 去重 |
+| ui | `.context/ui/motion_tokens.md` | Duration / Easing 表、`dimStatusPulse` 关键帧、Toast 与卡片 Hover 规格 |
+| ui | `.context/ui/interaction_states.md` | 「Toast / 通知条」两类组件差异、「工作台数据域 / 刷新去重」 |
+| ui | `.context/ui/design_system.md` | Card Hover 样式与状态灯呼吸 |
+| ui | `.context/ui/accessibility_checklist.md` | 「刷新入口共用 in-flight 去重」 |
+
+**关键任务**:
+1. 微动效令牌与卡片 / 状态灯动效（0.75 人日）
+2. Toast 与常驻通知条两组件（1 人日）
+3. 刷新 in-flight 去重状态机（0.75 人日）
+
+**验证标准**:
+
+| 验收项 | 验收条件 | 验收方式 |
+|--------|----------|----------|
+| 时长区间 | 微交互落在 150–200ms，缓动为统一 `cubic-bezier(0.16, 1, 0.3, 1)` | 代码审查 |
+| 常驻不消失 | 预填成功通知条不随 5s 自动消失；Toast 才消失 | UI 验收 |
+| 去重 | 未完成时连续点击 / 快捷键只发一次请求；完成后释放 | UI 验收 + 代码审查 |
+| 无持久连接 | 无 WebSocket / SSE / `setInterval` 轮询 | 代码审查 |
+
+**依赖**:
+- 前置: `feat-ui-primitives-button-badge-card`
+- 被依赖: `feat-ui-shortcuts-guardrails`
+- 约束: 无持久连接；去重不得只靠快捷键防抖
+
+---
+
+### 提案 13: 1280 / 960 断点响应式布局
+
+**Change ID:** `feat-ui-responsive-breakpoints`  
+**优先级:** P1  
+**预计时间:** 1.5 人日（规划估算）  
+**状态:** proposed  
+**变更类型（change_kind）:** `code`（判定依据：新增 `@media` 断点样式与栅格规则）
+
+**业务目标（Business Goal）**:
+- 按 DEC-UI-013 落地 960px 折叠主断点与 1280px 宽屏断点，使 KPI Ribbon 与创作室分屏在三种宽度下正确重排。
+- 保证 13/14 寸笔记本全屏、外接显示器与桌面分屏三种实际使用场景可用。
+
+**范围边界（In / Out）**:
+
+| 类型 | 内容 |
+|------|------|
+| ✅ In | 三档断点：`≥1280`（宽屏）/ `960–1279`（标准）/ `<960`（窄屏单列流） |
+| ✅ In | KPI Ribbon：`≥960` 4 列等宽单行 → `<960` 2×2 网格 |
+| ✅ In | 创作室分屏：`≥1280` 50% / 50% → `960–1279` 55% / 45% → `<960` 上下堆叠（上编辑、下模拟器） |
+| ✅ In | 断点变量 `--ops-bp-compact: 960px` / `--ops-bp-wide: 1280px` |
+| ❌ Out | 全局 12 列栅格列数 / Margin / Gutter（源文档未定义，见 NOTE） |
+| ❌ Out | 移动端 / 触控尺寸适配（目标为桌面工作台） |
+| ❌ Out | 8pt 间距刻度（`spacing-*` 源文档为 TODO） |
+
+> [!NOTE]
+> **不编造栅格数值**：`layout_grid.md` 明确「源文档**未定义**传统 12 列栅格的列数 / Margin / Gutter」，并给出「不发明 `--grid-columns-desktop: 12`」的约束。本提案只实现源文档**写明**的布局行为（断点、KPI 列数、创作室比例、堆叠），其余保持现状或留 TODO，不自行设定刻度。
+
+**关联 Context 资产**:
+
+| Scope | 关联资产 | 关联说明 |
+|-------|---------|----------|
+| criterion | `.context/criterion.md` | §3.3 禁止硬编码色值（断点样式同样走令牌） |
+| ui | `.context/ui/layout_grid.md` | 断点表、栅格配置表、CSS 变量示例（`--ops-bp-*` / `--ops-studio-*`） |
+| ui | `.context/ui/design_system.md` | 「工作台骨架约束」KPI Ribbon 三种宽度的列数 |
+| ui | `.context/ui/source/ui-design-direction.md` | DEC-UI-013 与 §4.4 响应式断点 |
+
+**关键任务**:
+1. 断点变量与 KPI Ribbon 重排（0.75 人日）
+2. 创作室分屏三档比例与堆叠（0.75 人日）
+
+**验证标准**:
+
+| 验收项 | 验收条件 | 验收方式 |
+|--------|----------|----------|
+| 三档断点 | 1280 / 960 边界行为与源文档一致 | UI 验收（缩放窗口） |
+| KPI 重排 | `≥960` 单行 4 列；`<960` 2×2 | UI 验收 |
+| 创作室比例 | 50/50 → 55/45 → 堆叠 逐档正确 | UI 验收 |
+| 无编造刻度 | 未引入源文档未定义的列数 / Margin / Gutter | 代码审查 |
+
+**依赖**:
+- 前置: `feat-ui-workbench-shell`
+- 被依赖: 无
+- 约束: 只实现源文档写明的布局行为
+
+---
+
+### 提案 14: 快捷键与防呆
+
+**Change ID:** `feat-ui-shortcuts-guardrails`  
+**优先级:** P1  
+**预计时间:** 2 人日（规划估算）  
+**状态:** proposed  
+**变更类型（change_kind）:** `code`（判定依据：新增键盘事件处理与二次防呆弹层）
+
+**业务目标（Business Goal）**:
+- 落地 DEC-UI-014 的四个高频快捷键：`Cmd/Ctrl+S`（保存草稿）、`Cmd/Ctrl+Enter`（预填 + 二次防呆）、`Cmd/Ctrl+R`（刷新大盘，阻止浏览器硬刷新）、`Esc`（关闭抽屉 / 弹层）。
+- 以二次防呆弹层与执行中 Loading 保护「仅预填、人工发布」的闭环，避免误触。
+
+**范围边界（In / Out）**:
+
+| 类型 | 内容 |
+|------|------|
+| ✅ In | `Cmd/Ctrl+S` 触发 `drafts.save` + Toast「草稿已保存」（作用域：创作室编辑区） |
+| ✅ In | `Cmd/Ctrl+Enter` 触发预填，**执行前二次防呆弹层**，执行中按钮 Loading 且禁止连点 |
+| ✅ In | `Cmd/Ctrl+R` 刷新大盘并**阻止浏览器默认硬刷新**，复用提案 12 的 in-flight 去重 |
+| ✅ In | `Esc` 关闭 AI 工具调试抽屉 / 快捷表单弹层 |
+| ❌ Out | 自动确认发布类快捷键（criterion §4 铁律，严禁） |
+| ❌ Out | 快捷键自定义 / 配置界面（源文档未提供） |
+| ❌ Out | 焦点环与键盘可达性规范（`accessibility_checklist.md` 标为 TODO，见 NOTE） |
+
+> [!NOTE]
+> **可达性缺口不自行补齐**：`accessibility_checklist.md` 将「焦点可见且顺序合理」「语义化 HTML / ARIA」「图标替代文本」「表单错误焦点移动」均标为 `TODO`（源文档未写）。本提案只实现源文档**已写明**的快捷键与防呆，不擅自制定 focus ring 或 ARIA 规范；这些缺口另需设计输入。
+
+**关联 Context 资产**:
+
+| Scope | 关联资产 | 关联说明 |
+|-------|---------|----------|
+| criterion | `.context/criterion.md` | §4 铁律「始终仅预填草稿，严禁自动确认发布」 |
+| ui | `.context/ui/accessibility_checklist.md` | 「快捷键表（源文档权威）」四行与「发布与安全相关的可操作性」 |
+| ui | `.context/ui/interaction_states.md` | Button Loading「预填中不可再点」、`Cmd/Ctrl+Enter` 二次防呆 |
+| ui | `.context/ui/design_system.md` | Button「`Cmd/Ctrl+Enter` 触发预填前必须二次防呆弹层」 |
+| ui | `.context/ui/source/ui-design-direction.md` | DEC-UI-014 与 §4.5 快捷键系统 |
+
+**关键任务**:
+1. 四个快捷键的监听与作用域隔离（0.75 人日）
+2. 二次防呆弹层与 Loading 保护（0.75 人日）
+3. `Cmd/Ctrl+R` 阻止硬刷新并接入去重（0.5 人日）
+
+**验证标准**:
+
+| 验收项 | 验收条件 | 验收方式 |
+|--------|----------|----------|
+| 保存 | `Cmd/Ctrl+S` 在创作室触发保存并出 Toast | UI 验收 |
+| 预填防呆 | `Cmd/Ctrl+Enter` 先弹二次确认，确认后才执行 | UI 验收 |
+| 阻止硬刷新 | `Cmd/Ctrl+R` 不刷新页面，只刷新大盘 | UI 验收 |
+| Esc | 抽屉 / 弹层可被 Esc 关闭 | UI 验收 |
+| 无发布快捷键 | 不存在触发正式发布 / 群发的按键 | 代码审查 |
+
+**依赖**:
+- 前置: `feat-ui-workbench-shell`、`feat-ui-interaction-states`
+- 被依赖: 无
+- 约束: 严禁任何自动确认发布入口；刷新去重与 Toast 复用 `feat-ui-interaction-states` 的实现，不另建一套
+
+---
+
+### 提案 15: i18n 文案字典（`locale/*.json` + `ops.<area>.<name>`）
+
+**Change ID:** `feat-ui-i18n-dictionary`  
+**优先级:** P1  
+**预计时间:** 2 人日（规划估算）  
+**状态:** proposed  
+**变更类型（change_kind）:** `code`（判定依据：新增 `locale` 键与取词调用，替换组件内硬编码文案）
+
+**业务目标（Business Goal）**:
+- 按 DEC-UI-015 建立 `ops.<area>.<name>` 键空间，把工作台文案从组件内字面量迁到 `locale/zh.json` / `locale/en.json`。
+- 落地取词优先级链 `ctx.i18n.text` → 当前 locale → `zh.json`，为后续多语言留出唯一扩展点。
+
+**范围边界（In / Out）**:
+
+| 类型 | 内容 |
+|------|------|
+| ✅ In | 键命名规范 `ops.<area>.<name>`（area = tab / 组件域，name = 语义名） |
+| ✅ In | 首版中文文案全量入 `locale/zh.json`，`locale/en.json` 同键位补齐 |
+| ✅ In | 取词优先级链 `ctx.i18n.text` → 当前 locale → `zh.json` 的实现与回退 |
+| ✅ In | 现行硬编码中文文案（按钮 / 表单标签 / 状态文案 / Toast / 空态）迁出组件 |
+| ❌ Out | 新增语言包（源文档只要求 `locale/*.json` 机制，未列目标语言） |
+| ❌ Out | 文案措辞改写（本提案只做**搬运与键化**，不改语义；文案修订另案） |
+| ❌ Out | 数值 / 时间本地化格式规范（源文档未提供） |
+
+> [!NOTE]
+> **`ctx.i18n` 可用性待核**：`plugin-src/client/index.js` 当前 `inject` 仅声明 `['slots', 'connection']`，仓库内无 `i18n` 取词调用，`.context/architecture/*` 与 `src/*.ts` 亦未描述宿主 i18n 服务。实施前须先核实宿主是否提供 `ctx.i18n.text`：**可用**则按其 API 接入；**不可用**则本提案退化为「`locale/*.json` 字典 + 本地取词函数（优先级链保留）」，并在报告中如实说明降级，不得伪称已接入宿主 i18n。
+
+**关联 Context 资产**:
+
+| Scope | 关联资产 | 关联说明 |
+|-------|---------|----------|
+| criterion | `.context/criterion.md` | §3.1 客户端注入与 `callOpsRpc`；§3.3 文案约定 |
+| ui | `.context/ui/design_system.md` | 「文案」`locale/*.json` 键 `ops.<area>.<name>`；`ctx.i18n.text` 优先级链 |
+| ui | `.context/ui/accessibility_checklist.md` | 「首版中文；键 `ops.<area>.<name>` 写入 `locale/*.json`」 |
+| ui | `.context/ui/atomic_components.md` | 各组件文案位（按钮 / 状态 / 空态 / Toast） |
+| ui | `.context/ui/source/ui-design-direction.md` | DEC-UI-015 与 §4.6 i18n |
+
+**关键任务**:
+1. 键空间设计与 `zh.json` / `en.json` 骨架（0.5 人日）
+2. 取词函数与优先级链 / 回退实现（0.75 人日）
+3. 组件文案键化迁移（0.75 人日）
+
+**验证标准**:
+
+| 验收项 | 验收条件 | 验收方式 |
+|--------|----------|----------|
+| 键规范 | 所有键形如 `ops.<area>.<name>`，无散乱命名 | 代码审查 |
+| 双语同键 | `zh.json` 与 `en.json` 键集合一致，无缺键 | 脚本比对 |
+| 回退 | 当前 locale 缺键时回退 `zh.json`，不显示键名 | UI 验收 |
+| 无硬编码 | 组件内不再有中文字面量文案 | 代码审查 |
+| 如实降级 | 宿主 i18n 不可用时不伪称已接入 | 实施报告 |
+
+**依赖**:
+- 前置: 无
+- 被依赖: 无
+- 约束: 只做文案搬运与键化，不改写语义；`ctx.i18n` 可用性须先核实；可与 `feat-ui-workbench-shell` 并行，但文案键化建议在壳层与原子层落定后收尾，避免二次迁移
+
+---
+
 ## 执行顺序与依赖
 
 - **可并行三条主线**：
@@ -487,6 +1012,13 @@
 - **驾驶舱线**：`feat-client-dashboard` 待 Phase 0 的汇总语义、环比基准、统一会话四态与 `documentCount` 契约，以及 Phase 1 的 `weeklyPipeline` 周聚合完成后再接入。
 - 跨阶段前置条件：引擎配置依赖 Phase 0（A5 能力开关 / A6 会话探测 / A8 `injoys.test` 文档数契约）；驾驶舱依赖 Phase 0（A1 / A2 / A6 / A8）与 Phase 1（B2 的 `weeklyPipeline` 周聚合）；创作室依赖 Phase 2（C1）与 Phase 1（B3 的 `documentId` 关联不变量）；排期视图依赖 Phase 1（B2 / B3 / B4 / B5）；工具控制台依赖 Phase 2（C2 / C3 / C4）。
 - 提供给后续阶段的能力：可端到端操作的 Phase 0 工作台界面（供 Phase 0 Live 实测与签收）。
+- **UI 基础层线（由 `plan add ui` 追加）**：
+  - 先 `fix-ui-token-violations`（无前置，清掉未授权令牌与 HEX，作为全部新增 UI 的合规基线）。
+  - 再 `feat-ui-primitives-button-badge-card`（依赖上一条）→ 其下三条并行：`feat-ui-metricbox-kpi`、`feat-ui-empty-state`、`feat-ui-interaction-states`。
+  - `feat-ui-workbench-shell` 与原子层可并行开工，但**须在提案 1–6 的 Tab 内容接入之前完成**，否则 6 个 Tab 缺壳层容器；`feat-ui-responsive-breakpoints` 与 `feat-ui-shortcuts-guardrails` 排在壳层之后（后者还依赖 `feat-ui-interaction-states` 的 in-flight 去重与 Toast）。
+  - `feat-ui-i18n-dictionary` 无前置，建议在壳层与原子层文案落定后收尾，避免二次迁移。
+  - **待协调（只报告，不改提案 1–6）**：提案 1–6 各自带「样式令牌化」子任务，与 `fix-ui-token-violations` 存在范围重叠；实施时令牌基线统一由 `fix-ui-token-violations` 提供，提案 1–6 复用而不另建一套。
+- 跨阶段前置条件（新增部分）：无。新增 UI 提案的前置全部落在本 Phase 内，不引入新的跨阶段依赖。
 
 ## 阶段整体验收
 
@@ -498,3 +1030,8 @@
 ## 待决事项（按需）
 
 - 热点雷达 Tab 的真实选题来源（PRD 未指定具体渠道）：本路线图不安排该 Tab 的选题生成，待来源明确后另行提案。
+- 无障碍规范缺口（focus ring / 语义化 HTML / ARIA / 图标替代文本 / 表单错误焦点）：`.context/ui/accessibility_checklist.md` 明确标为 `TODO`（源文档未写），故本 Phase 新增的 UI 提案**不排**这些项，也不自行制定规范；需设计侧补充输入后另案提案。
+- 栅格刻度与字体规范缺口（12 列 / Margin / Gutter / 字号 / 行高 / 间距刻度 / 圆角）：`.context/ui/layout_grid.md`、`.context/ui/design_system.md`、`.context/ui/design_tokens.json` 均标为 `TODO`（源文档未给），`feat-ui-responsive-breakpoints` 只实现源文档写明的断点行为，不编造刻度。
+- `ctx.i18n` 宿主可用性未核：`plugin-src/client/index.js` 的 `inject` 仅声明 `slots` / `connection`，仓库内无 i18n 取词调用，Context 资产与 `src/*.ts` 也未描述宿主 i18n 服务。`feat-ui-i18n-dictionary` 实施前须核实；不可用时按「本地字典 + 保留优先级链」降级并如实说明。
+- 舆情需求大盘的**按平台指标**（播放/阅读、点赞、评论、分享、收藏）无宿主契约支撑：`workbench.overview` 只返回全网汇总与覆盖范围，不返回逐平台明细（`PlatformMetrics` 为内部类型，无 RPC 暴露），故本 Phase **不为该 Tab 的按平台指标展示排提案**；待契约补齐后再议。
+- 预填成功常驻通知条与 Toast 的视觉规格：`motion_tokens.md` 记 `dimOpsSlideDown` 关键帧百分比为 `TODO`，由 `feat-ui-interaction-states` 以实施决策补齐并在代码注释标注来源。
