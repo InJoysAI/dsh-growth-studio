@@ -106,7 +106,7 @@
 
 **依赖**:
 - 前置: 无
-- 被依赖: `feat-storage-metrics-snapshot`、`feat-calendar-generate-list`、`feat-client-dashboard`
+- 被依赖: `feat-storage-metrics-snapshot`、`feat-calendar-generate-list`、`feat-client-dashboard`、`feat-metrics-window-verified-capture`
 - 约束: 必须先改契约（`src/types.ts` → `src/ops-rpc.ts`）再改领域实现（criterion §6）
 
 ---
@@ -190,7 +190,7 @@
 
 **依赖**:
 - 前置: `fix-overview-metrics-null-semantics`、`fix-storage-file-permissions`
-- 被依赖: `feat-client-dashboard`
+- 被依赖: `feat-client-dashboard`、`feat-client-dashboard`、`feat-metrics-window-verified-capture`
 - 约束: 快照写入须经**统一落盘封装**（其 `mode` 权限位由 `fix-storage-file-permissions` 提供，该前置已归档 2026-10-20、封装落地为 `src/storage/local-fs.ts`），复用 `drafts/storage-unavailable` 类错误映射口径
 
 ---
@@ -734,22 +734,120 @@
 
 ---
 
+### 提案 10: 公众号 / B站 指标窗口化可证采集
+
+**Change ID:** `feat-metrics-window-verified-capture`  
+**优先级:** P1  
+**预计时间:** 4 人日（规划估算）  
+**状态:** proposed  
+**变更类型（change_kind）:** `code`（判定依据：修改 `src/analytics/metrics-collector.ts` 采集解析逻辑与适配器，属业务代码改动；契约文档同步为 SSoT-first 随附动作）  
+
+**业务目标（Business Goal）**:
+- 承接 `fix-overview-metrics-null-semantics` / `feat-storage-metrics-snapshot` 归档后遗留的**采集侧缺口**：当前生产 `live` 结果一律标记 `windowScope: 'unverified'`，窗口汇总恒为 `null`、不写历史快照、环比恒空（`.context/architecture/risks_and_debt.md` 明确「需后续规划采集能力提案；当前未确认专门承接 Change ID」）。
+- 让 `workbench.overview` 在真实生产环境下能给出**可证实属于请求窗口**的 `wechat_mp` / `bilibili` 指标，从而打通 PRD §七 Phase 0「真实指标采集，链路完整可走通」与环比的正向生产路径。
+- **保留**现有可证性门：只把能证明属于窗口的数值标为 `verified`，绝不把累计值 / 昨日增量冒充窗口增量。
+
+**范围边界（In / Out）**:
+
+| 类型 | 内容 |
+|------|------|
+| ✅ In | 为 `wechat_mp` / `bilibili` 实现窗口化采集：从创作者后台解析**可归属到请求窗口**的数值（如按日/按作品明细聚合到 `[windowStart, windowEnd]`），仅在可证时返回 `windowScope: 'verified'` |
+| ✅ In | 不可证时保持 `unverified` 并如实说明 `note`，汇总仍为 `null`（不降低现有门禁） |
+| ✅ In | 采集结果接入既有 `metrics-store` 落盘链路（`verified` 才写），使生产环比具备可用基准 |
+| ✅ In | 契约文档同步：`.context/architecture/api_strategy.md` §3.1「窗口真实性说明」与 §3.10 工具表「窗口可证性待采集能力提案」的现状描述 |
+| ✅ In | 测试：窗口可证 → `verified` 且计入汇总；窗口不可证 → 仍 `unverified` 且汇总 `null` |
+| ❌ Out | 放宽 `windowScope` 门禁或允许 `unverified` 计入汇总（违反 `criterion.md` §4 指标真实性） |
+| ❌ Out | 新增平台（`wechat_channels` / `douyin` 属 PRD Phase 1，本路线图已移出） |
+| ❌ Out | 历史数据回补 / 迁移（既有快照不回改） |
+| ❌ Out | 采集页面改版导致的解析器维护之外的 UI 改动 |
+
+> [!NOTE]
+> **不拆理由**：两个平台的窗口化解析共用同一套「窗口归属判定 + `windowScope` 标记 + 落盘接入」逻辑，拆开会产生重复的判定代码与两套验收口径，故合并为一条；4 人日属灰区但可说明。若实施中发现两平台页面口径差异过大，再按平台拆分。
+
+**关联 Context 资产**:
+
+| Scope | 关联资产 | 关联说明 |
+|-------|---------|----------|
+| criterion | `.context/criterion.md` | §3.2 MUST NOT「伪造 / 硬编码指标数据（无法获取的字段必须为 `null`）」；§4 指标真实性 |
+| architecture | `.context/architecture/api_strategy.md` | §3.1「窗口真实性说明」「指标口径」「部分缺失汇总规则」；§3.10 `ops_fetch_metrics` 行的「窗口可证性待采集能力提案」 |
+| architecture | `.context/architecture/risks_and_debt.md` | TD-007 残留边界注（「需后续规划采集能力提案；当前未确认专门承接 Change ID」）；RISK-007 |
+| architecture | `.context/architecture/data_architecture.md` | `PlatformMetricsOutcome` 的 `source` / `windowScope` / `note` 扩展；`metrics/{YYYY-MM-DD}.json` 仅 `live` + `verified` 落盘 |
+| domain | `.context/domain/testing_strategy.md` | 「验收覆盖要求」Phase 0 全链路：真实指标采集链路完整可走通 |
+| domain | `.context/domain/business_rules.md` | BR-050 / BR-051 / BR-052（汇总口径、曝光与播放区分、互动与关注增长） |
+
+**关键任务**:
+1. 两平台创作者后台的窗口化解析：按日/按作品明细聚合到 `[windowStart, windowEnd]`（1.5 人日）
+2. 窗口归属判定与 `windowScope` 标记（可证才 `verified`，否则保持 `unverified` 并写明 `note`）（1 人日）
+3. 接入既有 `metrics-store` 落盘链路与 `workbench.overview` 汇总（0.75 人日）
+4. 契约文档同步与测试（可证 / 不可证两分支）（0.75 人日）
+
+**风险与处理决定（按需）**:
+
+| 风险 | 影响 | 处理决定及理由 |
+|------|------|----------|
+| 平台页面口径变更导致解析失效 | 窗口采集退回 `unverified`，汇总变「暂无数据」 | 解析失败一律降级为 `unverified` 并写 `note`，**不得**猜测或回退到累计值；如实呈现优于假数据 |
+| 为凑出数字而放宽可证性门 | 直接违反指标真实性铁律 | 门禁保持不变；测试显式覆盖「不可证 → 仍 `null`」分支 |
+| 生产仍长期空汇总 | Phase 0 Live 验收的指标项不可勾选 | 本提案即为该缺口的承接项；若实施后仍不可证，须在报告中如实说明并回到待决 |
+
+**验证标准**:
+
+| 验收项 | 验收条件 | 验收方式 |
+|--------|----------|----------|
+| 窗口可证 | 能证明属于请求窗口的采集结果标记 `windowScope: 'verified'` 并计入汇总 | 单元测试 + 夹具 |
+| 不可证仍空 | 无法证实窗口时保持 `unverified`，汇总仍为 `null`，`note` 说明原因 | 单元测试 |
+| 不冒充增量 | 累计值 / 昨日增量不得被当作窗口增量计入 | 代码审查 + 夹具测试 |
+| 落盘链路 | `verified` 结果按 `(platform, capturedAt)` 写入 `metrics/{YYYY-MM-DD}.json`；`unverified` 不写 | 单元测试 |
+| 环比可达 | 历史充足时 `comparison` 给出非空 delta（不再恒 `null`） | 单元测试（夹具构造两个等长窗口） |
+| 平台范围 | 仅 `wechat_mp` / `bilibili`；不新增平台 | 代码审查 |
+
+**验收场景（按需，建议 BDD）**:
+
+```gherkin
+场景: 窗口可证的指标进入汇总（BR-050）
+  Given 公众号与 B站 均能提供可归属到请求窗口的明细数据
+  When 用户以 metricsWindow=7d 刷新大盘
+  Then 两个平台均应标记为已采集
+    And 汇总值应为可证数值而非「暂无数据」
+    And 该次结果应写入本地指标快照
+
+场景: 窗口不可证时仍如实为空
+  Given 某平台仅能取得累计播放量，无法拆出请求窗口增量
+  When 用户刷新大盘
+  Then 该平台应标记为未采集
+    And 汇总值应为「暂无数据」
+    And 不得以累计值冒充窗口增量
+    And 不得写入本地指标快照
+
+场景: 生产环比可用
+  Given 本地已积累覆盖上一个等长窗口的可证快照
+  When 用户查看指标卡环比
+  Then 应给出真实 delta 而非「暂无环比」
+```
+
+**依赖**:
+- 前置: `fix-overview-metrics-null-semantics`、`feat-storage-metrics-snapshot`
+- 被依赖: `feat-client-dashboard`
+- 约束: 只提升采集侧可证性，**不得**放宽 `windowScope` 门禁；契约变更须先改 `api_strategy.md` §3.1 再改实现（criterion §6 SSoT-first）；`unverified` 结果继续不落盘、不计入汇总
+
+---
+
 ## 执行顺序与依赖
 
 本 Phase 内可并行推进的四条主线：
 
-1. **数据真实性线**：`fix-overview-metrics-null-semantics` → `feat-storage-metrics-snapshot`（严格顺序）；`fix-storage-file-permissions` 是 `feat-storage-metrics-snapshot` 的**前置**（统一落盘封装的权限位），须先于其完成；`fix-config-save-error-swallow`（配置写盘失败如实上报）同属「落盘不说假话」，无前置亦无被依赖，可与本线其余提案并行（建议在其与 `fix-storage-file-permissions` 落地后实施，以减少 `src/config-store.ts` 同方法的变基）。
+1. **数据真实性线**：`fix-overview-metrics-null-semantics` → `feat-storage-metrics-snapshot`（严格顺序）；`fix-storage-file-permissions` 是 `feat-storage-metrics-snapshot` 的**前置**（统一落盘封装的权限位），须先于其完成；`feat-metrics-window-verified-capture`（指标窗口化可证采集）是 A1 / A2 的**采集侧承接项**，须在其后实施，用于把生产 `live` 从 `unverified` 提升为可证窗口；`fix-config-save-error-swallow`（配置写盘失败如实上报）同属「落盘不说假话」，无前置亦无被依赖，可与本线其余提案并行（建议在其与 `fix-storage-file-permissions` 落地后实施，以减少 `src/config-store.ts` 同方法的变基）。
 2. **内容写入边界线**：`fix-unauthorized-injoys-doc-write` → `fix-doc-id-fabrication`（严格顺序）；覆盖 5 处写入站点（含 `ops_draft_launch_kit`）与 2 处假编号（`ops_generate_review` / `ops_draft_launch_kit`）；`feat-injoys-test-document-count` 与 `fix-storage-file-permissions` 同属基础设施补强，可并行。
 3. **安全边界线**：`feat-browseros-capability-toggle`（能力开关契约与统一执行检查）与 `fix-browser-session-cookie-probe`（会话探测假阳性修复 + 工具登记）**互不重叠**，可并行；二者均为 `feat-client-engine-config`（Phase 3）的前置。
 4. 上述各线之间无相互阻塞，可整体并行。
 
 - 跨阶段前置条件：无（本 Phase 是路线图起点）。
-- 提供给后续阶段的能力：正确的汇总 `null` 语义与环比基准（供 Phase 3 驾驶舱）；只写本地的生成路径与 `InjoysClient` 文档写入能力（供 Phase 2 显式沉淀入口）；对齐后的 BrowserOS 能力开关、统一会话四态与落盘权限（供所有后续落盘与 Phase 3 引擎 / 平台配置页）；`ops_inspect_sessions` 工具名（供 Phase 2 工具目录分类）；配置写盘失败如实上报（使 Phase 3 配置页既有的「保存失败」提示分支可达）。
+- 提供给后续阶段的能力：正确的汇总 `null` 语义与环比基准（供 Phase 3 驾驶舱）；只写本地的生成路径与 `InjoysClient` 文档写入能力（供 Phase 2 显式沉淀入口）；对齐后的 BrowserOS 能力开关、统一会话四态与落盘权限（供所有后续落盘与 Phase 3 引擎 / 平台配置页）；`ops_inspect_sessions` 工具名（供 Phase 2 工具目录分类）；配置写盘失败如实上报（使 Phase 3 配置页既有的「保存失败」提示分支可达）；**可证窗口指标采集能力**（使 Phase 3 驾驶舱的环比与 PRD §七 Phase 0「真实指标采集链路」在生产环境可达）。
 
 ## 阶段整体验收
 
 - `criterion.md` §3.2 / §3.4 / §4 相关的 BDD 场景通过：模块 5 场景 4 / 5 / 6、模块 3 场景 1（宿主生成路径未经明确要求不得创建 / 更新 Injoys 文档）、模块 1 场景 1 / 3（会话四态不回退）、模块 6 场景 5 / 6 / 7 / 8（能力开关默认八项 / 未暴露不列出 / 两层开关）。**模块 8 场景 2 / 3 依赖沉淀能力（Phase 2 的 `feat-workbench-sink-to-injoys-doc`）与沉淀界面（Phase 3），不在本 Phase 验收**；本 Phase 只验证宿主路径「未授权写入已移除」「复盘不返回假编号」「未连通不谎报」。
 - `pnpm typecheck` + `pnpm test` 通过；新增用例覆盖「部分缺失 → `null`」「真实 0 参与求和」「未显式触发不写远端（生成 / 复盘 / 海外 Launch）」「未连通不返回成功文档编号（复盘 / 海外 Launch）」「能力开关默认八项 / 启停保持 / 禁用拒绝 / 两层开关」「会话四态与 `loginUrl`」「`reuseHostBrowserProfile=true` 不读本机 Cookie」「文件权限位」「`injoys.test` 文档数为 `null`」「配置写盘失败不谎报成功（`config.save` 返回失败信封）」。
+- **指标窗口可证性（`feat-metrics-window-verified-capture`）**：窗口可证的 `wechat_mp` / `bilibili` 结果标 `verified` 并计入汇总、写入快照；不可证时仍 `unverified`、汇总 `null`、不落盘。若本 Phase 结束时生产仍不可证，须在验收报告中如实说明并回到待决，不得宣称指标闭环已达成。
 - `workbench.overview` 响应不再包含硬编码样例数据；`src/` 内生成 / 复盘 / 海外 Launch 路径无无条件 `document.create` 调用；`src/` 内存在 `callTool` 统一执行检查实现、无宿主 Chrome / Chromium Cookie 库读取路径；`browser.sessions` 不再依据 `reuseHostBrowserProfile` 读取宿主 Cookie（字段保留但已标注「待废弃」）。
 
 ## 待决事项（按需）

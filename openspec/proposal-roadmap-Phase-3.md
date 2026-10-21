@@ -101,7 +101,7 @@
 ```
 
 **依赖**:
-- 前置: `feat-browseros-capability-toggle`、`fix-browser-session-cookie-probe`、`feat-injoys-test-document-count`
+- 前置: `feat-browseros-capability-toggle`、`fix-browser-session-cookie-probe`、`feat-injoys-test-document-count`、`feat-ui-workbench-shell`
 - 被依赖: 无
 - 约束: 样式走设计令牌（criterion §3.3）；能力开关 UI 不得宣称具备细粒度行为拦截（ADR-009 边界）；令牌显隐依 criterion §3.4 本机回填例外
 
@@ -185,7 +185,7 @@
 ```
 
 **依赖**:
-- 前置: `fix-overview-metrics-null-semantics`、`feat-storage-metrics-snapshot`、`feat-calendar-generate-list`、`fix-browser-session-cookie-probe`、`feat-injoys-test-document-count`
+- 前置: `fix-overview-metrics-null-semantics`、`feat-storage-metrics-snapshot`、`feat-calendar-generate-list`、`fix-browser-session-cookie-probe`、`feat-injoys-test-document-count`、`feat-ui-workbench-shell`、`feat-ui-metricbox-kpi`
 - 被依赖: 无
 - 约束: 依赖 Phase 0 的汇总语义、环比基准、统一会话四态与 `documentCount` 契约，以及 Phase 1 的 `weeklyPipeline` 周聚合；UI 只呈现，不自行计算全网汇总
 
@@ -259,7 +259,7 @@
 ```
 
 **依赖**:
-- 前置: `feat-workbench-sink-to-injoys-doc`、`feat-calendar-status-transitions`
+- 前置: `feat-workbench-sink-to-injoys-doc`、`feat-calendar-status-transitions`、`feat-ui-workbench-shell`
 - 被依赖: `feat-client-feed-simulators`
 - 约束: 沉淀必须显式触发（criterion §4）
 
@@ -327,7 +327,7 @@
 ```
 
 **依赖**:
-- 前置: `feat-client-content-studio`
+- 前置: `feat-client-content-studio`、`feat-ui-workbench-shell`
 - 被依赖: 无
 - 约束: 候选标题数量恒为 3（`api_strategy.md` §3.1）
 
@@ -342,18 +342,21 @@
 **变更类型（change_kind）:** `code`（判定依据：新增或修改宿主 / 客户端业务代码及其测试；契约文档同步属 SSoT-first 随附动作，不单独计为文档类交付）  
 
 **业务目标（Business Goal）**:
-- 把排期生成 / 读取 / 状态推进 / 单向导出 / 显式导入接入排期日历 Tab，呈现周 / 月视图与五态流水。
+- 把排期生成 / 读取 / 状态推进 / 单向导出 / 显式导入接入排期日历 Tab，**默认呈现五态看板**，并可切换周 / 月日历视图。
 - 在流水内完成「一键预填 → 人工发布 → 回填 URL → 已发布」的闭环操作与状态可见。
 
 **范围边界（In / Out）**:
 
 | 类型 | 内容 |
 |------|------|
-| ✅ In | 排期生成 / 读取（`workbench.generateCalendar` / `calendar.list`）接入周 / 月视图 |
+| ✅ In | **默认五态看板**：按 `ItemStatus`（`planned` / `drafting` / `draft_ready` / `prefilled` / `published`）分五列呈现排期项（`atomic_components.md` §4「排期双视图」、`interaction_states.md`「内容五态」） |
+| ✅ In | 看板 / 周日历视图切换（UI 批次 1 深度：看板为默认；周 / 月日历为可切换视图） |
+| ✅ In | 排期生成 / 读取（`workbench.generateCalendar` / `calendar.list`）接入看板与周 / 月视图，两者消费同一份数据源 |
 | ✅ In | 状态推进（`calendar.updateStatus`）与回填 URL（`drafts.updatePublishUrl`）入口 |
 | ✅ In | 导出至 Injoys 表格入口（`workbench.exportCalendar`，显式触发，展示成功 / 跳过 / 失败结果） |
 | ✅ In | 从 Injoys 导入入口（`workbench.importCalendar`，显式触发） |
 | ✅ In | 状态胶囊样式（五态）与「草稿直达链接」外链 |
+| ❌ Out | 看板卡片拖拽改期（UI 批次 2，`atomic_components.md` §4 注「拖拽深度 = UI 批次 2」） |
 | ❌ Out | 自动状态推进 / 自动导出 / 自动导入 |
 | ❌ Out | 双向同步（PRD Phase 3） |
 
@@ -367,17 +370,21 @@
 | domain | `.context/domain/testing_strategy.md` | 模块 2 场景 1–10 |
 
 **关键任务**:
-1. 周 / 月视图与排期生成 / 读取接入（1.25 人日）
-2. 状态推进与五态胶囊呈现（0.75 人日）
-3. 预填直达链接与回填 URL 入口（0.75 人日）
-4. 导出至 Injoys 表格入口与成功 / 跳过 / 失败提示（0.5 人日）
-5. Injoys 导入入口与样式令牌化（0.25 人日）
+1. 默认五态看板（按 `ItemStatus` 五列分组）与看板 / 周日历视图切换（1 人日）
+2. 周 / 月日历视图与排期生成 / 读取接入（两视图共用同一数据源）（0.75 人日）
+3. 状态推进与五态胶囊呈现（0.5 人日）
+4. 预填直达链接与回填 URL 入口（0.5 人日）
+5. 导出至 Injoys 表格入口与成功 / 跳过 / 失败提示（0.5 人日）
+6. Injoys 导入入口与样式令牌化（0.25 人日）
 
 **验证标准**:
 
 | 验收项 | 验收条件 | 验收方式 |
 |--------|----------|----------|
-| 五态呈现 | 状态依五态呈现对应胶囊样式 | UI 验收 |
+| 默认看板 | 打开排期 Tab 默认呈现五态看板，五列顺序为 `planned` → `drafting` → `draft_ready` → `prefilled` → `published` | UI 验收 |
+| 分组正确 | 每个排期项仅出现在其当前 `ItemStatus` 对应列，无重复、无遗漏 | UI 验收 |
+| 视图切换 | 看板 ↔ 周日历可切换，同一排期项在两视图中状态一致 | UI 验收 |
+| 五态呈现 | 状态依五态呈现对应胶囊样式；不出现 `writing` / `drafted` 等非契约值 | UI 验收 + 代码审查 |
 | 回填闭环 | 预填后状态为「已推草稿箱」，回填 URL 后才「已发布」 | UI 验收 |
 | 部分回填 | 多渠道部分回填固定停留「已推草稿箱」，可看出已回填数量 | UI 验收 |
 | 导出入口 | 触发导出后展示 `exportedCount` / `skippedCount`；导出失败如实提示，不谎报成功 | UI 验收 |
@@ -393,6 +400,14 @@
   Then 状态应变为"已推草稿箱"
     And 界面应展示"前往平台草稿箱 ↗"外链
     And 状态不得自动变为"已发布"
+
+场景: 排期默认五态看板与视图切换
+  Given 本地排期库中存在分属五个不同 ItemStatus 的排期项
+  When 用户打开排期日历流水 Tab
+  Then 默认应呈现五态看板而非日历视图
+    And 每个排期项应出现在其当前状态对应的列中
+  When 用户切换到周日历视图
+  Then 同一批排期项应出现在对应日期上且状态一致
 
 场景: 多渠道草稿部分回填（BR-021）
   Given 一个草稿面向 2 个渠道
@@ -410,7 +425,7 @@
 ```
 
 **依赖**:
-- 前置: `feat-calendar-generate-list`、`feat-calendar-status-transitions`、`feat-calendar-injoys-export`、`feat-calendar-injoys-import`
+- 前置: `feat-calendar-generate-list`、`feat-calendar-status-transitions`、`feat-calendar-injoys-export`、`feat-calendar-injoys-import`、`feat-ui-workbench-shell`
 - 被依赖: 无
 - 约束: `published` 仅经 `drafts.updatePublishUrl` 写入（criterion §4）；导出 / 导入均为用户显式触发
 
@@ -434,6 +449,7 @@
 |------|------|
 | ✅ In | 工具目录五类分组呈现与启停开关（`tools.catalog` / `tools.toggle`） |
 | ✅ In | 单步调试沙箱（参数表单 / 卡片渲染 / 结构化结果 / 耗时） |
+| ✅ In | **调试出口脱敏**：调试抽屉展示的 JSON 结果、`logs` 与错误回显一律经脱敏，令牌 / Cookie 不得进入抽屉、错误回显、日志或遥测（`accessibility_checklist.md`「令牌、Cookie 不得进入调试展示、错误回显、日志或遥测」） |
 | ✅ In | 遥测视图（`tools.telemetry`，脱敏条目） |
 | ✅ In | 「工具清单不含自动发布工具」的界面呈现 |
 | ❌ Out | 技能包与自定义编辑器（PD-002，不在范围） |
@@ -447,11 +463,15 @@
 | architecture | `.context/architecture/risks_and_debt.md` | TD-002、TD-001（`tools.*`） |
 | architecture | `.context/architecture/api_strategy.md` | §3.5 `tools.*` 契约 |
 | domain | `.context/domain/testing_strategy.md` | 模块 7 场景 1 / 2 / 3 |
+| ui | `.context/ui/atomic_components.md` | §5「AI 工具中枢」：脱敏后的 JSON；令牌 / Cookie 不进抽屉 / 错误 / 日志 / 遥测 |
+| ui | `.context/ui/accessibility_checklist.md` | 「令牌、Cookie 不得进入调试展示、错误回显、日志或遥测」「完整正文不得进入日志与遥测」 |
+| architecture | `.context/architecture/security_policy.md` | §「脱敏规则」：遥测必须脱敏、错误信息不得回显敏感凭据 |
 
 **关键任务**:
 1. 工具目录五类分组与启停开关接入（1 人日）
-2. 单步调试沙箱（表单 / 卡片渲染 / 结果 / 耗时）接入（1.25 人日）
-3. 遥测视图接入与样式令牌化（0.75 人日）
+2. 单步调试沙箱（表单 / 卡片渲染 / 结果 / 耗时）接入（1 人日）
+3. 调试出口脱敏：结果 JSON / `logs` / 错误回显的字段级净化，与宿主返回边界的必要净化（0.75 人日）
+4. 遥测视图接入与样式令牌化（0.75 人日）
 
 **验证标准**:
 
@@ -461,6 +481,10 @@
 | 无发布工具 | 目录不含自动发布工具 | UI 验收 |
 | 单步可用 | 无需多轮对话完成单步运行并展示耗时 | UI 验收 |
 | 宿主侧校验 | 禁用工具即使被构造调用也被拒 | UI + 单元测试 |
+| 抽屉脱敏 | 含嵌套令牌 / Cookie 的工具结果与异常，在调试抽屉中不得以明文出现 | UI 验收 + 夹具测试 |
+| 错误回显脱敏 | 失败错误信息如实给出错误码与信息，但不回显令牌 / Cookie | UI 验收 + 代码审查 |
+| 日志与遥测脱敏 | `logs` 与遥测条目不含令牌 / Cookie / 完整正文 | 代码审查 + 夹具测试 |
+| 业务预览保留 | 完整正文可按需在业务预览中展示，不因脱敏被一概屏蔽 | UI 验收 |
 
 **验收场景（按需，建议 BDD）**:
 
@@ -470,6 +494,14 @@
   When 用户查看工具目录
   Then 工具应按五类分组
 
+场景: 调试抽屉不泄露凭据
+  Given 某工具返回结果中嵌套包含令牌与 Cookie 字段
+    And 该工具执行时抛出携带敏感上下文的异常
+  When 用户在调试抽屉查看结构化结果、logs 与错误回显
+  Then 令牌与 Cookie 均不得以明文出现
+    And 错误仍应如实给出错误码与可读信息
+    And 完整正文仍可在业务预览中按需查看
+
 场景: 单步调试沙箱（BR-041）
   Given 用户位于可视化单步调试沙箱
   When 用户填写参数并运行某个工具
@@ -478,7 +510,7 @@
 ```
 
 **依赖**:
-- 前置: `feat-tools-catalog-toggle`、`feat-tools-sandbox-execute`、`feat-tools-telemetry`
+- 前置: `feat-tools-catalog-toggle`、`feat-tools-sandbox-execute`、`feat-tools-telemetry`、`feat-ui-workbench-shell`
 - 被依赖: 无
 - 约束: 白名单校验在宿主侧，UI 隐藏不构成安全边界（criterion §4）
 
@@ -594,7 +626,7 @@
 
 **依赖**:
 - 前置: `fix-ui-token-violations`
-- 被依赖: `feat-ui-responsive-breakpoints`、`feat-ui-shortcuts-guardrails`
+- 被依赖: `feat-client-engine-config`、`feat-client-dashboard`、`feat-client-content-studio`、`feat-client-feed-simulators`、`feat-client-schedule-view`、`feat-client-tools-console`、`feat-ui-responsive-breakpoints`、`feat-ui-shortcuts-guardrails`
 - 约束: 入口维持 `settings.section`（DEC-UI-001 门禁）；Tab 文案与顺序不得另造
 
 ---
@@ -713,7 +745,7 @@
 
 **依赖**:
 - 前置: `feat-ui-primitives-button-badge-card`
-- 被依赖: 无
+- 被依赖: `feat-client-dashboard`
 - 约束: 只呈现宿主汇总，不在前端重算
 
 ---

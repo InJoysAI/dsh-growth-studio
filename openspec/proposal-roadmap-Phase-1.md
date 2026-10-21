@@ -71,7 +71,7 @@
 | 目录固定 | 单次操作内目录固定，配置切换只对新操作生效 | 单元测试 |
 
 **依赖**:
-- 前置: 无
+- 前置: `fix-storage-file-permissions`
 - 被依赖: `feat-calendar-generate-list`、`feat-calendar-status-transitions`、`feat-calendar-injoys-export`、`feat-calendar-injoys-import`
 - 约束: 契约先行（criterion §6）；两侧枚举（`ItemStatus` vs `ContentDraft.status`）不可互换，须经映射表（RISK-009）
 

@@ -4,7 +4,7 @@
 > - **项目名称**: dsh-growth-studio（Growth Studio / 个人产品增长推广工坊）
 > - **项目类型**: **已有实现项目**（依据：`.context/legacy/legacy_system_analysis.md` 不存在，因此不是棕地；但 ① `.context/architecture/risks_and_debt.md` 的 TD-001 ~ TD-015 与 `.context/domain/risks_and_debt.md` 的 PD-001 ~ PD-006 逐条记录了**现状实现**与目标契约的差距；② 仓库内已存在架构文档描述的源码目录与可运行代码 —— `src/index.ts`、`src/ops-rpc.ts`、`src/config-store.ts`、`src/types.ts`、`src/adapters/`、`src/browser/`、`src/storage/`、`src/analytics/`、`src/tools/`、`src/injoys/`、`plugin-src/client/`、`tests/`，与 `criterion.md` §1 仓库结构约束一致）
 > - **规划形态**: `总纲+分Phase`
-> - **判定依据**: 提案总数 M=36、Phase 数 P=5、单 Phase 最多提案数 K=15（均超出 `单文件` 阈值 M≤10 / P≤3 / K≤6 中的 M、P 与 K 条件）
+> - **判定依据**: 提案总数 M=37、Phase 数 P=5、单 Phase 最多提案数 K=15（均超出 `单文件` 阈值 M≤10 / P≤3 / K≤6 中的 M、P 与 K 条件）
 > - **当前阶段**: Phase 0（安全与数据真实性修复）
 > - **生成日期**: 2026-10-17
 > - **基于文档**: `.context/criterion.md`、`.context/context-manifest.json`、`.context/architecture/*`（含 9 篇 ADR，含 `adr_009_browseros_capability_management.md`）、`.context/domain/*`
@@ -60,7 +60,7 @@
 
 | 阶段 | 名称 | 目标 | 预计周期 | 提案数 | 详情 |
 |:----:|------|------|----------|:------:|------|
-| Phase 0 | 安全与数据真实性修复 | 消除触碰铁律 2 / 铁律 3 / 铁律 4、内容写入边界、安全边界与配置落盘真实性的实现缺口，让既有接口先「不说假话、不越界」 | ~17 人日 | 9 | [Phase-0](./proposal-roadmap-Phase-0.md) |
+| Phase 0 | 安全与数据真实性修复 | 消除触碰铁律 2 / 铁律 3 / 铁律 4、内容写入边界、安全边界与配置落盘真实性的实现缺口，让既有接口先「不说假话、不越界」 | ~21 人日 | 10 | [Phase-0](./proposal-roadmap-Phase-0.md) |
 | Phase 1 | 排期主数据与 Injoys 单向同步 | 让排期成为本地黄金主数据源，并打通生成 / 状态推进 / 单向导出 / 显式导入 | ~15 人日 | 5 | [Phase-1](./proposal-roadmap-Phase-1.md) |
 | Phase 2 | 内容沉淀与 AI 工具中枢 | 补齐「用户显式触发」的唯一沉淀入口，并落地工具目录 / 白名单 / 沙箱 / 遥测 | ~12.5 人日 | 5 | [Phase-2](./proposal-roadmap-Phase-2.md) |
 | Phase 3 | 客户端工作台 UI 接入 | 把宿主侧契约接进 6 大 Tab 中 Phase 0 所需的 5 个 Tab，补齐 PD-004 的界面缺口 | ~36.5 人日 | 15 | [Phase-3](./proposal-roadmap-Phase-3.md) |
@@ -86,6 +86,7 @@ graph LR
         A7["fix-storage-file-permissions"]
         A8["feat-injoys-test-document-count"]
         A9["fix-config-save-error-swallow"]
+        A10["feat-metrics-window-verified-capture"]
     end
     subgraph P1["Phase 1 排期主数据与 Injoys 单向同步"]
         B1["feat-storage-calendar-items"]
@@ -125,6 +126,9 @@ graph LR
 
     A1 --> A2
     A7 --> A2
+    A1 --> A10
+    A2 --> A10
+    A7 --> B1
     A1 --> B2
     A1 --> D2
     A2 --> D2
@@ -160,8 +164,15 @@ graph LR
     D3 --> D4
 
     D7 --> D8
+    D7 --> D1
+    D7 --> D2
+    D7 --> D3
+    D7 --> D4
+    D7 --> D5
+    D7 --> D6
     D7 --> D9
     D9 --> D10
+    D10 --> D2
     D9 --> D11
     D9 --> D12
     D8 --> D13
@@ -186,7 +197,8 @@ graph LR
 | `fix-storage-file-permissions` | 0 | 落盘文件与目录权限位实现 | P1 | 无 | done | [Phase-0](./proposal-roadmap-Phase-0.md) |
 | `feat-injoys-test-document-count` | 0 | `injoys.test` 补文档数（可空）契约 | P1 | 无 | proposed | [Phase-0](./proposal-roadmap-Phase-0.md) |
 | `fix-config-save-error-swallow` | 0 | 配置写盘失败如实上报（不虚报成功） | P0 | 无 | done | [Phase-0](./proposal-roadmap-Phase-0.md) |
-| `feat-storage-calendar-items` | 1 | 排期主数据本地落盘服务 | P0 | 无 | proposed | [Phase-1](./proposal-roadmap-Phase-1.md) |
+| `feat-metrics-window-verified-capture` | 0 | 公众号 / B站 指标窗口化可证采集 | P1 | `fix-overview-metrics-null-semantics`、`feat-storage-metrics-snapshot` | proposed | [Phase-0](./proposal-roadmap-Phase-0.md) |
+| `feat-storage-calendar-items` | 1 | 排期主数据本地落盘服务 | P0 | `fix-storage-file-permissions` | proposed | [Phase-1](./proposal-roadmap-Phase-1.md) |
 | `feat-calendar-generate-list` | 1 | 排期生成、读取与生成时立即导出 | P0 | `feat-storage-calendar-items`、`feat-calendar-injoys-export`、`fix-overview-metrics-null-semantics` | proposed | [Phase-1](./proposal-roadmap-Phase-1.md) |
 | `feat-calendar-status-transitions` | 1 | 排期状态前向推进与校验 | P1 | `feat-storage-calendar-items` | proposed | [Phase-1](./proposal-roadmap-Phase-1.md) |
 | `feat-calendar-injoys-export` | 1 | 排期单向导出至 Injoys 表格 | P0 | `feat-storage-calendar-items` | proposed | [Phase-1](./proposal-roadmap-Phase-1.md) |
@@ -196,12 +208,12 @@ graph LR
 | `feat-tools-sandbox-execute` | 2 | 单步调试沙箱执行 | P1 | `feat-tools-catalog-toggle` | proposed | [Phase-2](./proposal-roadmap-Phase-2.md) |
 | `feat-tools-telemetry` | 2 | 工具执行遥测（脱敏） | P2 | `feat-tools-sandbox-execute` | proposed | [Phase-2](./proposal-roadmap-Phase-2.md) |
 | `feat-tools-lifecycle-gaps` | 2 | 补齐生命周期分类未定阶段的 2 个工具 | P2 | `feat-tools-catalog-toggle` | proposed | [Phase-2](./proposal-roadmap-Phase-2.md) |
-| `feat-client-engine-config` | 3 | 引擎策略配置页接入（含 BrowserOS 能力管理） | P0 | `feat-browseros-capability-toggle`、`fix-browser-session-cookie-probe`、`feat-injoys-test-document-count` | proposed | [Phase-3](./proposal-roadmap-Phase-3.md) |
-| `feat-client-dashboard` | 3 | 运营驾驶舱接入 | P0 | `fix-overview-metrics-null-semantics`、`feat-storage-metrics-snapshot`、`feat-calendar-generate-list`、`fix-browser-session-cookie-probe`、`feat-injoys-test-document-count` | proposed | [Phase-3](./proposal-roadmap-Phase-3.md) |
-| `feat-client-content-studio` | 3 | 内容创作室与草稿库接入 | P0 | `feat-workbench-sink-to-injoys-doc`、`feat-calendar-status-transitions` | proposed | [Phase-3](./proposal-roadmap-Phase-3.md) |
-| `feat-client-feed-simulators` | 3 | 公众号 / B站 真实样式模拟器 | P1 | `feat-client-content-studio` | proposed | [Phase-3](./proposal-roadmap-Phase-3.md) |
-| `feat-client-schedule-view` | 3 | 排期日历流水与回填入口 | P1 | `feat-calendar-generate-list`、`feat-calendar-status-transitions`、`feat-calendar-injoys-export`、`feat-calendar-injoys-import` | proposed | [Phase-3](./proposal-roadmap-Phase-3.md) |
-| `feat-client-tools-console` | 3 | AI 工具中枢与沙箱控制台 | P2 | `feat-tools-catalog-toggle`、`feat-tools-sandbox-execute`、`feat-tools-telemetry` | proposed | [Phase-3](./proposal-roadmap-Phase-3.md) |
+| `feat-client-engine-config` | 3 | 引擎策略配置页接入（含 BrowserOS 能力管理） | P0 | `feat-browseros-capability-toggle`、`fix-browser-session-cookie-probe`、`feat-injoys-test-document-count`、`feat-ui-workbench-shell` | proposed | [Phase-3](./proposal-roadmap-Phase-3.md) |
+| `feat-client-dashboard` | 3 | 运营驾驶舱接入 | P0 | `fix-overview-metrics-null-semantics`、`feat-storage-metrics-snapshot`、`feat-calendar-generate-list`、`fix-browser-session-cookie-probe`、`feat-injoys-test-document-count`、`feat-ui-workbench-shell`、`feat-ui-metricbox-kpi` | proposed | [Phase-3](./proposal-roadmap-Phase-3.md) |
+| `feat-client-content-studio` | 3 | 内容创作室与草稿库接入 | P0 | `feat-workbench-sink-to-injoys-doc`、`feat-calendar-status-transitions`、`feat-ui-workbench-shell` | proposed | [Phase-3](./proposal-roadmap-Phase-3.md) |
+| `feat-client-feed-simulators` | 3 | 公众号 / B站 真实样式模拟器 | P1 | `feat-client-content-studio`、`feat-ui-workbench-shell` | proposed | [Phase-3](./proposal-roadmap-Phase-3.md) |
+| `feat-client-schedule-view` | 3 | 排期日历流水与回填入口 | P1 | `feat-calendar-generate-list`、`feat-calendar-status-transitions`、`feat-calendar-injoys-export`、`feat-calendar-injoys-import`、`feat-ui-workbench-shell` | proposed | [Phase-3](./proposal-roadmap-Phase-3.md) |
+| `feat-client-tools-console` | 3 | AI 工具中枢与沙箱控制台 | P2 | `feat-tools-catalog-toggle`、`feat-tools-sandbox-execute`、`feat-tools-telemetry`、`feat-ui-workbench-shell` | proposed | [Phase-3](./proposal-roadmap-Phase-3.md) |
 | `fix-ui-token-violations` | 3 | 清理未授权令牌与未授权 HEX | P0 | 无 | proposed | [Phase-3](./proposal-roadmap-Phase-3.md) |
 | `feat-ui-workbench-shell` | 3 | 工作台壳层（HeaderCockpit + Sticky KPI Ribbon + 六 Tab） | P0 | `fix-ui-token-violations` | proposed | [Phase-3](./proposal-roadmap-Phase-3.md) |
 | `feat-ui-primitives-button-badge-card` | 3 | 原子组件 Button / Badge 状态灯 / Card | P0 | `fix-ui-token-violations` | proposed | [Phase-3](./proposal-roadmap-Phase-3.md) |
@@ -218,7 +230,7 @@ graph LR
 
 ## 📦 各 Phase 详情
 
-- **Phase 0: 安全与数据真实性修复** — 让既有接口先合规：汇总空值语义与真实来源、内容写入边界、虚报成功（含复盘 / 海外 Launch 假编号与 `config.save` 配置落盘失败）、BrowserOS 能力开关与会话探测、文件权限、`injoys.test` 可空文档数 → [Phase-0](./proposal-roadmap-Phase-0.md)
+- **Phase 0: 安全与数据真实性修复** — 让既有接口先合规：汇总空值语义与真实来源、内容写入边界、虚报成功（含复盘 / 海外 Launch 假编号与 `config.save` 配置落盘失败）、BrowserOS 能力开关与会话探测、文件权限、`injoys.test` 可空文档数、**指标窗口化可证采集**（承接 A1/A2 遗留的采集侧缺口） → [Phase-0](./proposal-roadmap-Phase-0.md)
 - **Phase 1: 排期主数据与 Injoys 单向同步** — 排期成为本地黄金主数据源并打通生成（含生成时立即导出）/ 推进 / 导出 / 导入 → [Phase-1](./proposal-roadmap-Phase-1.md)
 - **Phase 2: 内容沉淀与 AI 工具中枢** — 补齐唯一授权沉淀入口与工具目录 / 沙箱 / 遥测，并标注阶段未定的工具缺口 → [Phase-2](./proposal-roadmap-Phase-2.md)
 - **Phase 3: 客户端工作台 UI 接入** — 把契约接进驾驶舱 / 创作室 / 排期 / 工具 / 引擎配置 5 个 Tab（含 BrowserOS 能力管理页）；另含 UI 基础层（令牌合规 / 壳层 / 原子组件 / 指标卡 / 空状态 / 交互状态 / 断点 / 快捷键 / i18n） → [Phase-3](./proposal-roadmap-Phase-3.md)
