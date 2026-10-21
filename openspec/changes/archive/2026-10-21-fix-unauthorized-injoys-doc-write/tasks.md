@@ -105,5 +105,6 @@
   - 组合验收：**正常路径 / 知识库未连通 / 写入失败**三种情形均不出现 `doc_review` 或 `doc_launch_<时间戳>` 形式的编号，未沉淀时呈现「未沉淀」语义
   - 理由：本提案单独交付会使 `ops_generate_review` 在正常路径必然命中 `report.injoysDocId ?? 'doc_review'`，即把 `criterion.md:109` 的虚报成功从失败路径偶发扩大为正常路径恒发；登记该风险不构成对 MUST NOT 的豁免（见 `proposal.md` 的「交付门禁（用户可用版本）」）
 - [x] 6.5 运行 node design/context-dev/tools/specflow/specflow.mjs validate fix-unauthorized-injoys-doc-write --strict
-- [ ] 6.6 运行 node design/context-dev/tools/specflow/specflow.mjs archive fix-unauthorized-injoys-doc-write --yes --no-validate
+- [x] 6.6 运行 node design/context-dev/tools/specflow/specflow.mjs archive fix-unauthorized-injoys-doc-write --yes --no-validate
+  - 已于 2026-10-21 执行：归档至 `openspec/changes/archive/2026-10-21-fix-unauthorized-injoys-doc-write/`，`injoys-write-boundary` 4 条 Requirement 已同步至 `openspec/specs/`，路线图状态更新为 `done`
   - 仅在 6.5 通过后执行；归档是流程动作，**不**代表已满足 `criterion.md:109`（该满足条件由 6.4 的交付组合界定）
