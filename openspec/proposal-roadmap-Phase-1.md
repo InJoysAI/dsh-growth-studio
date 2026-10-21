@@ -26,7 +26,8 @@
 **Change ID:** `feat-storage-calendar-items`  
 **优先级:** P0  
 **预计时间:** 3 人日（规划估算）  
-**状态:** proposed
+**状态:** proposed  
+**变更类型（change_kind）:** `code`（判定依据：新增或修改宿主 / 客户端业务代码及其测试；契约文档同步属 SSoT-first 随附动作，不单独计为文档类交付）  
 
 **业务目标（Business Goal）**:
 - 落地 `$DSH_HOME/growth-studio/calendar/{id}.json` 排期黄金主数据源，使排期不再仅存在于内存或 Injoys 侧。
@@ -81,7 +82,8 @@
 **Change ID:** `feat-calendar-generate-list`  
 **优先级:** P0  
 **预计时间:** 4.5 人日（规划估算）  
-**状态:** proposed
+**状态:** proposed  
+**变更类型（change_kind）:** `code`（判定依据：新增或修改宿主 / 客户端业务代码及其测试；契约文档同步属 SSoT-first 随附动作，不单独计为文档类交付）  
 
 **业务目标（Business Goal）**:
 - 交付 `workbench.generateCalendar` 与 `calendar.list`，使「未来 7 天 / 周月视图」的排期生成与读取可用。
@@ -161,7 +163,8 @@
 **Change ID:** `feat-calendar-status-transitions`  
 **优先级:** P1  
 **预计时间:** 2.5 人日（规划估算）  
-**状态:** proposed
+**状态:** proposed  
+**变更类型（change_kind）:** `code`（判定依据：新增或修改宿主 / 客户端业务代码及其测试；契约文档同步属 SSoT-first 随附动作，不单独计为文档类交付）  
 
 **业务目标（Business Goal）**:
 - 交付 `calendar.updateStatus`，仅允许五态**前向**推进，维护排期状态的真实性。
@@ -232,7 +235,8 @@
 **Change ID:** `feat-calendar-injoys-export`  
 **优先级:** P0  
 **预计时间:** 3 人日（规划估算）  
-**状态:** proposed
+**状态:** proposed  
+**变更类型（change_kind）:** `code`（判定依据：新增或修改宿主 / 客户端业务代码及其测试；契约文档同步属 SSoT-first 随附动作，不单独计为文档类交付）  
 
 **业务目标（Business Goal）**:
 - 交付 `workbench.exportCalendar`，把本地排期单向写入 Injoys 表格，保持本地为黄金主数据源。
@@ -295,7 +299,8 @@
 **Change ID:** `feat-calendar-injoys-import`  
 **优先级:** P1  
 **预计时间:** 2 人日（规划估算）  
-**状态:** proposed
+**状态:** proposed  
+**变更类型（change_kind）:** `code`（判定依据：新增或修改宿主 / 客户端业务代码及其测试；契约文档同步属 SSoT-first 随附动作，不单独计为文档类交付）  
 
 **业务目标（Business Goal）**:
 - 交付 `workbench.importCalendar`，让 Injoys 表格侧的手工修改可经**显式**导入回流，且**不覆盖**本地已 `prefilled` / `published` 项的状态与 `publishedUrl`。

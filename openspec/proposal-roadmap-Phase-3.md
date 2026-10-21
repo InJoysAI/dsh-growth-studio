@@ -25,7 +25,8 @@
 **Change ID:** `feat-client-engine-config`  
 **优先级:** P0  
 **预计时间:** 3 人日（规划估算）  
-**状态:** proposed
+**状态:** proposed  
+**变更类型（change_kind）:** `code`（判定依据：新增或修改宿主 / 客户端业务代码及其测试；契约文档同步属 SSoT-first 随附动作，不单独计为文档类交付）  
 
 **业务目标（Business Goal）**:
 - 把 `config.get` / `config.save` / `injoys.test` 接入配置页 UI，支持全局运营策略即时生效、连通性测试（展示延迟）与凭证显隐切换。
@@ -111,7 +112,8 @@
 **Change ID:** `feat-client-dashboard`  
 **优先级:** P0  
 **预计时间:** 3.5 人日（规划估算）  
-**状态:** proposed
+**状态:** proposed  
+**变更类型（change_kind）:** `code`（判定依据：新增或修改宿主 / 客户端业务代码及其测试；契约文档同步属 SSoT-first 随附动作，不单独计为文档类交付）  
 
 **业务目标（Business Goal）**:
 - 把 `workbench.overview` / `browser.sessions` / `injoys.test` 接入驾驶舱，呈现指标卡（含互动与关注增长）、渠道矩阵连通度与头部引擎状态。
@@ -194,7 +196,8 @@
 **Change ID:** `feat-client-content-studio`  
 **优先级:** P0  
 **预计时间:** 3 人日（规划估算）  
-**状态:** proposed
+**状态:** proposed  
+**变更类型（change_kind）:** `code`（判定依据：新增或修改宿主 / 客户端业务代码及其测试；契约文档同步属 SSoT-first 随附动作，不单独计为文档类交付）  
 
 **业务目标（Business Goal）**:
 - 把生成（`workbench.generateArticleDraft` / `generateVideoMeta`）、草稿库（`drafts.*`）与唯一沉淀入口（`workbench.sinkToInjoysDoc`）接入创作室。
@@ -267,7 +270,8 @@
 **Change ID:** `feat-client-feed-simulators`  
 **优先级:** P1  
 **预计时间:** 3 人日（规划估算）  
-**状态:** proposed
+**状态:** proposed  
+**变更类型（change_kind）:** `code`（判定依据：新增或修改宿主 / 客户端业务代码及其测试；契约文档同步属 SSoT-first 随附动作，不单独计为文档类交付）  
 
 **业务目标（Business Goal）**:
 - 交付微信公众号图文卡片模拟器与 B站视频元数据卡片模拟器，做到「所见即所得」，减少预填后的意外。
@@ -334,7 +338,8 @@
 **Change ID:** `feat-client-schedule-view`  
 **优先级:** P1  
 **预计时间:** 3.5 人日（规划估算）  
-**状态:** proposed
+**状态:** proposed  
+**变更类型（change_kind）:** `code`（判定依据：新增或修改宿主 / 客户端业务代码及其测试；契约文档同步属 SSoT-first 随附动作，不单独计为文档类交付）  
 
 **业务目标（Business Goal）**:
 - 把排期生成 / 读取 / 状态推进 / 单向导出 / 显式导入接入排期日历 Tab，呈现周 / 月视图与五态流水。
@@ -416,7 +421,8 @@
 **Change ID:** `feat-client-tools-console`  
 **优先级:** P2  
 **预计时间:** 3 人日（规划估算）  
-**状态:** proposed
+**状态:** proposed  
+**变更类型（change_kind）:** `code`（判定依据：新增或修改宿主 / 客户端业务代码及其测试；契约文档同步属 SSoT-first 随附动作，不单独计为文档类交付）  
 
 **业务目标（Business Goal）**:
 - 把 `tools.catalog` / `tools.toggle` / `tools.executeSandbox` / `tools.telemetry` 接入工具中枢 Tab，按五类分组呈现工具、支持启停与单步调试。
@@ -484,7 +490,7 @@
 **优先级:** P0  
 **预计时间:** 1 人日（规划估算）  
 **状态:** proposed  
-**变更类型（change_kind）:** `code`（判定依据：修改 `plugin-src/client/ops-styles.js` 样式代码，无文档/配置交付物）
+**变更类型（change_kind）:** `code`（判定依据：修改 `plugin-src/client/ops-styles.js` 样式代码，无文档/配置交付物）  
 
 **业务目标（Business Goal）**:
 - 清除现行 `ops-styles.js` 中**未被 criterion 授权**的宿主变量与 HEX，使工作台样式回到「只绑 `var(--dsw-alias-*)` + 四个授权点缀色」的合规基线。
@@ -537,7 +543,7 @@
 **优先级:** P0  
 **预计时间:** 3 人日（规划估算）  
 **状态:** proposed  
-**变更类型（change_kind）:** `code`（判定依据：在 `ops-page.js` 新增壳层与 Tab 容器代码）
+**变更类型（change_kind）:** `code`（判定依据：在 `ops-page.js` 新增壳层与 Tab 容器代码）  
 
 **业务目标（Business Goal）**:
 - 在**现行** `settings.section` 入口内落地工作台壳层骨架：`HeaderCockpit` → Sticky KPI Ribbon → Segmented Tabs → Active Workspace Canvas，使 6 大 Tab 有稳定容器承载。
@@ -599,7 +605,7 @@
 **优先级:** P0  
 **预计时间:** 2.5 人日（规划估算）  
 **状态:** proposed  
-**变更类型（change_kind）:** `code`（判定依据：在 `ops-page.js` / `ops-styles.js` 内新增可复用组件与样式类）
+**变更类型（change_kind）:** `code`（判定依据：在 `ops-page.js` / `ops-styles.js` 内新增可复用组件与样式类）  
 
 **业务目标（Business Goal）**:
 - 抽取 Button（主 / 次 / 告警(危险语义) / 图标）、Badge 状态灯（`SessionState` 四态 + `null` 中性徽章）、Card 三个原子，供壳层与各 Tab 复用。
@@ -659,7 +665,7 @@
 **优先级:** P1  
 **预计时间:** 1.5 人日（规划估算）  
 **状态:** proposed  
-**变更类型（change_kind）:** `code`（判定依据：新增 `MetricBox` 组件与其样式类）
+**变更类型（change_kind）:** `code`（判定依据：新增 `MetricBox` 组件与其样式类）  
 
 **业务目标（Business Goal）**:
 - 交付 MetricBox 组件：`label` / `caption` / `value` / `delta` / `coverage` 五段结构，**数值与「暂无数据」互斥**，供 Sticky KPI Ribbon 的 4 个 KPI 复用。
@@ -718,7 +724,7 @@
 **优先级:** P1  
 **预计时间:** 1.5 人日（规划估算）  
 **状态:** proposed  
-**变更类型（change_kind）:** `code`（判定依据：新增 `EmptyState` 组件与其样式类）
+**变更类型（change_kind）:** `code`（判定依据：新增 `EmptyState` 组件与其样式类）  
 
 **业务目标（Business Goal）**:
 - 交付统一空状态组件「微图标 + 解释文案 + 行动按钮」，供 6 个 Tab 的空列表 / 未登录 / 无数据场景复用。
@@ -775,7 +781,7 @@
 **优先级:** P0  
 **预计时间:** 2.5 人日（规划估算）  
 **状态:** proposed  
-**变更类型（change_kind）:** `code`（判定依据：新增动效样式、Toast / 常驻通知条组件与刷新去重逻辑）
+**变更类型（change_kind）:** `code`（判定依据：新增动效样式、Toast / 常驻通知条组件与刷新去重逻辑）  
 
 **业务目标（Business Goal）**:
 - 统一 150–200ms 微动效区间与 `cubic-bezier(0.16, 1, 0.3, 1)` 缓动，消除各处缓动与时长不一致。
@@ -835,7 +841,7 @@
 **优先级:** P1  
 **预计时间:** 1.5 人日（规划估算）  
 **状态:** proposed  
-**变更类型（change_kind）:** `code`（判定依据：新增 `@media` 断点样式与栅格规则）
+**变更类型（change_kind）:** `code`（判定依据：新增 `@media` 断点样式与栅格规则）  
 
 **业务目标（Business Goal）**:
 - 按 DEC-UI-013 落地 960px 折叠主断点与 1280px 宽屏断点，使 KPI Ribbon 与创作室分屏在三种宽度下正确重排。
@@ -891,7 +897,7 @@
 **优先级:** P1  
 **预计时间:** 2 人日（规划估算）  
 **状态:** proposed  
-**变更类型（change_kind）:** `code`（判定依据：新增键盘事件处理与二次防呆弹层）
+**变更类型（change_kind）:** `code`（判定依据：新增键盘事件处理与二次防呆弹层）  
 
 **业务目标（Business Goal）**:
 - 落地 DEC-UI-014 的四个高频快捷键：`Cmd/Ctrl+S`（保存草稿）、`Cmd/Ctrl+Enter`（预填 + 二次防呆）、`Cmd/Ctrl+R`（刷新大盘，阻止浏览器硬刷新）、`Esc`（关闭抽屉 / 弹层）。
@@ -950,7 +956,7 @@
 **优先级:** P1  
 **预计时间:** 2 人日（规划估算）  
 **状态:** proposed  
-**变更类型（change_kind）:** `code`（判定依据：新增 `locale` 键与取词调用，替换组件内硬编码文案）
+**变更类型（change_kind）:** `code`（判定依据：新增 `locale` 键与取词调用，替换组件内硬编码文案）  
 
 **业务目标（Business Goal）**:
 - 按 DEC-UI-015 建立 `ops.<area>.<name>` 键空间，把工作台文案从组件内字面量迁到 `locale/zh.json` / `locale/en.json`。

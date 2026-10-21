@@ -24,7 +24,8 @@
 **Change ID:** `fix-not-found-error-code-unify`  
 **优先级:** P2  
 **预计时间:** 1 人日（规划估算）  
-**状态:** proposed
+**状态:** proposed  
+**变更类型（change_kind）:** `code`（判定依据：新增或修改宿主 / 客户端业务代码及其测试；契约文档同步属 SSoT-first 随附动作，不单独计为文档类交付）  
 
 **业务目标（Business Goal）**:
 - 消除同一语义「草稿不存在」的两个错误码（`ops/not-found` 与 `ops/draft-not-found`），使调用方只需处理一种「未找到」。
@@ -77,7 +78,8 @@
 **Change ID:** `fix-client-rpc-consumption-tests`  
 **优先级:** P1  
 **预计时间:** 2 人日（规划估算）  
-**状态:** proposed
+**状态:** proposed  
+**变更类型（change_kind）:** `code`（判定依据：新增或修改宿主 / 客户端业务代码及其测试；契约文档同步属 SSoT-first 随附动作，不单独计为文档类交付）  
 
 **业务目标（Business Goal）**:
 - 建立客户端消费（`callOpsRpc` / `unwrapRpcResult`）的自动化用例，使 `criterion.md` §7.2 所述「契约同步方式」在客户端侧成为既有保障，而非仅目标口径。

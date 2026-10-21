@@ -8,7 +8,7 @@
 > - **当前阶段**: Phase 0（安全与数据真实性修复）
 > - **生成日期**: 2026-10-17
 > - **基于文档**: `.context/criterion.md`、`.context/context-manifest.json`、`.context/architecture/*`（含 9 篇 ADR，含 `adr_009_browseros_capability_management.md`）、`.context/domain/*`
-> - **任务状态**: proposed
+> - **任务状态**: in-progress（36 条提案中 4 条已 `done`：`fix-overview-metrics-null-semantics`、`feat-storage-metrics-snapshot`、`fix-storage-file-permissions`、`fix-config-save-error-swallow`；其余 `proposed`）
 
 > **规划口径说明**
 > - **阶段划分依据**: 本项目 PRD 的 Phase 1–3（舆情需求提炼 / 技能工坊与出海 / Injoys 双向同步）属**未到阶段**，`.context/architecture/constraints.md`「阶段规划」明确「未到阶段的能力不提前实现」，故本路线图**只覆盖 Phase 0（双平台最小完整闭环）的达成**；PRD §七 Phase 1–3 的交付能力**不在本路线图范围**。
@@ -24,7 +24,7 @@
 |--------------|:-----------:|------------------------|
 | 视频号 / 抖音渠道与视频元数据模拟器、预填 | Phase 1 | `.context/domain/source/product_requirements.md` §四（分阶段交付）、§5.4.2、§七；`.context/architecture/constraints.md`「阶段规划」 |
 | `xiaohongshu` 渠道适配器 | 阶段未指定（源文档未提供） | `.context/architecture/risks_and_debt.md` TD-015（`PlatformId` 9 值但适配器未注册）；`.context/criterion.md` §5.5 注；`.context/architecture/container_component_view.md` 平台清单注 |
-| `ops_keyword_research`（策划与选题）/ `ops_generate_hooks`（创意与生成） | 阶段未定（源文档未提供） | `.context/domain/risks_and_debt.md` PD-006（偿还计划：阶段未定，需补阶段归属或显式标注移出）；`.context/architecture/api_strategy.md` §3.10（阶段列标「未定」） |
+| `ops_keyword_research`（策划与选题）/ `ops_generate_hooks`（创意与生成）的**完整能力** | 阶段未定（源文档未提供） | `.context/domain/risks_and_debt.md` PD-006（偿还计划：阶段未定，需补阶段归属或显式标注移出）；`.context/architecture/api_strategy.md` §3.10（阶段列标「未定」）。**口径说明**：本表指其**完整能力**不排提案；归属裁决（补阶段实现 / 显式标注移出）由 Phase 2 的 `feat-tools-lifecycle-gaps` 收口，不构成「已排入未到阶段能力」 |
 | 跨平台真实评论抓取与需求聚类反哺（`IssueExtractor` → Injoys 需求池） | Phase 1 | `.context/domain/business_rules.md` BR-054；`.context/domain/risks_and_debt.md` PD-005；`.context/domain/source/product_requirements.md` §5.6 |
 | 基于真实数据的周 / 月增长复盘报告 | Phase 1 | `.context/domain/business_rules.md` BR-055；`.context/domain/source/product_requirements.md` §5.6、§5.5.1 |
 | 海外四大渠道（YouTube / X / Product Hunt / TikTok）模拟与预填 | Phase 2 | `.context/domain/source/product_requirements.md` §5.2.1、§5.4.2、§七；`.context/domain/risks_and_debt.md` RISK-B003 |
@@ -72,7 +72,7 @@
 
 ## 🔗 依赖关系图
 
-> 覆盖全部 27 个提案（含跨 Phase 依赖）。
+> 覆盖全部 36 个提案（含跨 Phase 依赖）。
 
 ```mermaid
 graph LR

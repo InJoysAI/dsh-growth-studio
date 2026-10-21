@@ -2,7 +2,7 @@
 
 > **返回总纲**: [proposal-roadmap.md](./proposal-roadmap.md)
 > **文件名**: `proposal-roadmap-Phase-0.md`（编号与总纲阶段总览一致：Phase 0 → `Phase-0`）
-> **状态**: proposed
+> **状态**: in-progress（9 条提案中 4 条已 `done`、5 条 `proposed`）
 > **来源**: `.context/criterion.md` §3.1 / §3.2 / §4 / §5.4 / §5.5 / §6；`.context/architecture/risks_and_debt.md`（RISK-002 / RISK-003 / RISK-005 / RISK-006 / RISK-007；TD-007 / TD-008 / TD-009 / TD-012 / TD-013）；`.context/architecture/adr_009_browseros_capability_management.md`；`.context/architecture/api_strategy.md` §2.3 / §3.1 / §3.4 / §3.6 / §3.7 / §3.9 / §3.10；`.context/architecture/data_architecture.md`；`.context/architecture/security_policy.md`；`.context/domain/business_rules.md`（BR-052 / BR-074）；`.context/domain/risks_and_debt.md`（PD-006）；`.context/domain/testing_strategy.md` 模块 1 / 3 / 5 / 6 / 8
 > **预计工作量与周期**: ~17 人日（**规划估算**；源文档对 TD-007 ~ TD-013 的工作量字段一律标注 `N/A – 源文档未提供`）
 
@@ -26,7 +26,8 @@
 **Change ID:** `fix-overview-metrics-null-semantics`  
 **优先级:** P0  
 **预计时间:** 2 人日（规划估算）  
-**状态:** done
+**状态:** done  
+**变更类型（change_kind）:** `code`（判定依据：新增或修改宿主 / 客户端业务代码及其测试；契约文档同步属 SSoT-first 随附动作，不单独计为文档类交付）  
 
 **业务目标（Business Goal）**:
 - 消除「以部分平台数据冒充全网总量」的虚假结论，使驾驶舱指标满足 `criterion.md` §3.2 的数据真实性要求。
@@ -115,7 +116,8 @@
 **Change ID:** `feat-storage-metrics-snapshot`  
 **优先级:** P1  
 **预计时间:** 2 人日（规划估算）  
-**状态:** done
+**状态:** done  
+**变更类型（change_kind）:** `code`（判定依据：新增或修改宿主 / 客户端业务代码及其测试；契约文档同步属 SSoT-first 随附动作，不单独计为文档类交付）  
 
 **业务目标（Business Goal）**:
 - 落地 `$DSH_HOME/growth-studio/metrics/{YYYY-MM-DD}.json` 指标历史快照，使环比有真实基准，而非恒为 `null` 的占位语义。
@@ -198,7 +200,8 @@
 **Change ID:** `fix-unauthorized-injoys-doc-write`  
 **优先级:** P0  
 **预计时间:** 2.5 人日（规划估算）  
-**状态:** proposed
+**状态:** proposed  
+**变更类型（change_kind）:** `code`（判定依据：新增或修改宿主 / 客户端业务代码及其测试；契约文档同步属 SSoT-first 随附动作，不单独计为文档类交付）  
 
 **业务目标（Business Goal）**:
 - 使生成（图文 / 视频元数据 / 海外 Launch 物料）与复盘路径**只写本地**，符合 `criterion.md` §4 内容写入边界：写入 Injoys 必须由用户显式触发。
@@ -287,7 +290,8 @@
 **Change ID:** `fix-doc-id-fabrication`  
 **优先级:** P0  
 **预计时间:** 1.5 人日（规划估算）  
-**状态:** proposed
+**状态:** proposed  
+**变更类型（change_kind）:** `code`（判定依据：新增或修改宿主 / 客户端业务代码及其测试；契约文档同步属 SSoT-first 随附动作，不单独计为文档类交付）  
 
 **业务目标（Business Goal）**:
 - 消除「知识库未连通或写入失败时仍向用户播报不存在的文档编号」的虚报成功，满足 `criterion.md` §3.2。
@@ -355,7 +359,8 @@
 **Change ID:** `feat-browseros-capability-toggle`  
 **优先级:** P0  
 **预计时间:** 3 人日（规划估算）  
-**状态:** proposed
+**状态:** proposed  
+**变更类型（change_kind）:** `code`（判定依据：新增或修改宿主 / 客户端业务代码及其测试；契约文档同步属 SSoT-first 随附动作，不单独计为文档类交付）  
 
 **业务目标（Business Goal）**:
 - 落地 `adr_009_browseros_capability_management.md` 的**能力开关模型**，消除 TD-012 的「文档封闭白名单 / 实现开放集合」安全边界分叉。
@@ -441,7 +446,8 @@
 **Change ID:** `fix-browser-session-cookie-probe`  
 **优先级:** P0  
 **预计时间:** 2.5 人日（规划估算）  
-**状态:** proposed
+**状态:** proposed  
+**变更类型（change_kind）:** `code`（判定依据：新增或修改宿主 / 客户端业务代码及其测试；契约文档同步属 SSoT-first 随附动作，不单独计为文档类交付）  
 
 **业务目标（Business Goal）**:
 - 消除 RISK-003「会话状态假阳性」：移除读取宿主 Chrome / Chromium **Cookie 库**的会话探测分支（已证实存在根本缺陷），改为按 `criterion.md` §3.1 仅经**同一个** BrowserOS MCP 实例做轻量探测（当前活跃 Tab / 页面特征），并严格保持四态 `SessionState`（**严禁退化为 boolean**）。
@@ -543,7 +549,8 @@
 **Change ID:** `fix-storage-file-permissions`  
 **优先级:** P1  
 **预计时间:** 1.25 人日（规划估算；含统一落盘封装的写锁原语抽取，供提案 2 复用）  
-**状态:** done
+**状态:** done  
+**变更类型（change_kind）:** `code`（判定依据：新增或修改宿主 / 客户端业务代码及其测试；契约文档同步属 SSoT-first 随附动作，不单独计为文档类交付）  
 
 **业务目标（Business Goal）**:
 - 使 `criterion.md` §3.5「系统文件权限仅限当前操作系统用户」在实现层对**新写入**成立，避免多用户主机上草稿与配置（含 Injoys 令牌）被同机其他用户读取。
@@ -610,7 +617,8 @@
 **Change ID:** `feat-injoys-test-document-count`  
 **优先级:** P1  
 **预计时间:** 1.5 人日（规划估算）  
-**状态:** proposed
+**状态:** proposed  
+**变更类型（change_kind）:** `code`（判定依据：新增或修改宿主 / 客户端业务代码及其测试；契约文档同步属 SSoT-first 随附动作，不单独计为文档类交付）  
 
 **业务目标（Business Goal）**:
 - 补齐 `injoys.test` 契约中已定义、实现缺失的 `documentCount: number | null`，使引擎状态可展示真实文档数。
@@ -660,7 +668,8 @@
 **Change ID:** `fix-config-save-error-swallow`  
 **优先级:** P0  
 **预计时间:** 0.75 人日（规划估算）  
-**状态:** done
+**状态:** done  
+**变更类型（change_kind）:** `code`（判定依据：新增或修改宿主 / 客户端业务代码及其测试；契约文档同步属 SSoT-first 随附动作，不单独计为文档类交付）  
 
 **业务目标（Business Goal）**:
 - 消除 `config.save` 的虚报成功：配置文件不可写时用户必须当场看到保存失败，而不是在重启后才发现 Injoys 令牌 / 草稿目录 / 自动同步配置丢失。
@@ -719,9 +728,9 @@
 | 客户端零改动 | `ok: false` 时客户端解包抛错、`handleSave` 进入失败提示分支 | 代码审查（不新增客户端改动） |
 
 **依赖**:
-- 前置: 无（功能上与权限位提案无关；两者同改 `config-store.ts` 的 `save()`，建议在其后实施以减少变基）
-- 被依赖: 无。`feat-client-engine-config`（Phase 3）的「保存失败」提示分支需宿主如实上报才可达，但该分支已存在于客户端，**不构成硬前置**
-- 约束: 契约先行（criterion §6）：先落 `api_strategy.md` §3.6 与 `src/ops-rpc.ts` 的失败映射，再补测试；不得新增错误码；不得改动 `draftsDir` 预检（`config/invalid-drafts-dir`）语义
+- 前置: 无
+- 被依赖: 无
+- 约束: 契约先行（criterion §6）：先落 `api_strategy.md` §3.6 与 `src/ops-rpc.ts` 的失败映射，再补测试；不得新增错误码；不得改动 `draftsDir` 预检（`config/invalid-drafts-dir`）语义；与 `fix-storage-file-permissions` 功能无关，但两者同改 `config-store.ts` 的 `save()`，建议在其后实施以减少变基；`feat-client-engine-config`（Phase 3）的「保存失败」提示分支需宿主如实上报才可达，该分支已存在于客户端，不构成硬前置
 
 ---
 

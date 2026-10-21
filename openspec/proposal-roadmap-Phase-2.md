@@ -25,7 +25,8 @@
 **Change ID:** `feat-workbench-sink-to-injoys-doc`  
 **优先级:** P1  
 **预计时间:** 3 人日（规划估算）  
-**状态:** proposed
+**状态:** proposed  
+**变更类型（change_kind）:** `code`（判定依据：新增或修改宿主 / 客户端业务代码及其测试；契约文档同步属 SSoT-first 随附动作，不单独计为文档类交付）  
 
 **业务目标（Business Goal）**:
 - 交付 `workbench.sinkToInjoysDoc`，作为写入 Injoys 知识文档的**唯一**用户显式触发入口，恢复被 Phase 0 移除的沉淀能力。
@@ -102,7 +103,8 @@
 **Change ID:** `feat-tools-catalog-toggle`  
 **优先级:** P1  
 **预计时间:** 3 人日（规划估算）  
-**状态:** proposed
+**状态:** proposed  
+**变更类型（change_kind）:** `code`（判定依据：新增或修改宿主 / 客户端业务代码及其测试；契约文档同步属 SSoT-first 随附动作，不单独计为文档类交付）  
 
 **业务目标（Business Goal）**:
 - 交付 `tools.catalog` 与 `tools.toggle`，提供 AI 工具中枢的工具清单与启停治理，启停状态持久化到本地配置。
@@ -169,7 +171,8 @@
 **Change ID:** `feat-tools-sandbox-execute`  
 **优先级:** P1  
 **预计时间:** 3 人日（规划估算）  
-**状态:** proposed
+**状态:** proposed  
+**变更类型（change_kind）:** `code`（判定依据：新增或修改宿主 / 客户端业务代码及其测试；契约文档同步属 SSoT-first 随附动作，不单独计为文档类交付）  
 
 **业务目标（Business Goal）**:
 - 交付 `tools.executeSandbox`，支持用户填写参数单步运行某个工具（无需多轮对话），并如实返回结果与耗时。
@@ -232,7 +235,8 @@
 **Change ID:** `feat-tools-telemetry`  
 **优先级:** P2  
 **预计时间:** 2 人日（规划估算）  
-**状态:** proposed
+**状态:** proposed  
+**变更类型（change_kind）:** `code`（判定依据：新增或修改宿主 / 客户端业务代码及其测试；契约文档同步属 SSoT-first 随附动作，不单独计为文档类交付）  
 
 **业务目标（Business Goal）**:
 - 交付 `tools.telemetry`，记录工具执行（工具名 / 时间 / 耗时 / 成败 / 错误码）供性能审计。
@@ -283,7 +287,8 @@
 **Change ID:** `feat-tools-lifecycle-gaps`  
 **优先级:** P2  
 **预计时间:** 1.5 人日（规划估算）  
-**状态:** proposed
+**状态:** proposed  
+**变更类型（change_kind）:** `mixed`（判定依据：交付物可能是「补阶段归属并实现/登记」（代码）或「显式标注移出范围」（文档），二者并列且未裁决，故按混合计）  
 
 **业务目标（Business Goal）**:
 - 收口 PRD §5.5.1「工具全景与生命周期分类」中**阶段未定**、且未实现的 `ops_keyword_research`（策划与选题）、`ops_generate_hooks`（创意与生成）两个工具：或补阶段归属并实现 / 登记，或**显式标注移出范围**。
