@@ -537,7 +537,7 @@ Then 界面应明确提示该能力不可用
 | RISK-011 令牌明文暴露面扩大 | —（工程安全检查：RPC 暴露边界是否仅本机可达 + `config.get` 的 `hasToken` 返回策略；模块 6 场景 2 仅验证 BR-071 的界面掩码，不能证明响应体与可达范围安全） | **缺口**（非 BDD） |
 | RISK-012 Phase 2 CDP 能力未验证 | —（Phase 2 PoC） | **缺口**（非 Phase 0） |
 | TD-007 `workbench.overview` 缺失汇总语义 | 模块 5 场景 4 / 5 的宿主判定与场景 6 的无历史空值分支；`tests/overview-metrics.spec.ts` / `tests/metrics-window.spec.ts` / `tests/overview-window-passthrough.spec.ts` | **宿主修复已覆盖，TD-007 已关闭**；不代表驾驶舱 UI 或真实窗口增量采集已实现；历史快照读写已由 `feat-storage-metrics-snapshot` 落地，见 TD-010 与 `tests/metrics-snapshot.spec.ts` |
-| TD-008 生成路径未授权写入 Injoys 文档 | 模块 3 场景 1「未经用户明确要求不得创建或更新 Injoys 文档」（直接约束）；模块 8 场景 2 / 3（BR-033 / BR-073） | **缺口（待实现）** |
+| TD-008 生成路径未授权写入 Injoys 文档 | 模块 3 场景 1「未经用户明确要求不得创建或更新 Injoys 文档」（直接约束）；`tests/ops-manager.spec.ts` 的「未显式触发时不写远端」与海外 Launch 专项用例；模块 8 场景 2 / 3（BR-033 / BR-073） | **部分修复（2026-10-21，`fix-unauthorized-injoys-doc-write`）：5 处生成 / 复盘 / 海外 Launch 写入调用已移除并有工程自动化覆盖；唯一授权入口 `workbench.sinkToInjoysDoc` 未实现，模块 8 场景 2 / 3 属 Phase 2** |
 | TD-009 `ops_generate_review` 假文档编号 | 模块 8 场景 3「知识库未连通时沉淀不可用」 | **缺口（待实现）** |
 | TD-010 `calendar/` 与 `metrics/` 持久化契约未落地 | 模块 5 场景 6「历史不足时环比为空」（BR-052）；`tests/metrics-snapshot.spec.ts` | **部分修复（metrics 已覆盖，calendar 仍待 `feat-storage-calendar-items`）** |
 | TD-011 错误码 `ops/not-found` 与 `ops/draft-not-found` 语义重复 | —（错误码契约层，无对应 BDD 场景） | **缺口**（非 BDD） |

@@ -291,10 +291,10 @@
 |------|-----|
 | **类型** | 契约债务 / 实现债务 |
 | **严重性** | **高** |
-| **描述** | criterion §4「内容写入边界」与架构 §3.4 / §3.5.1 规定：生成只保存本地，写入 Injoys 文档必须由用户点击沉淀操作或明确要求（唯一授权入口为 `workbench.sinkToInjoysDoc`，尚未实现，见 TD-001）。但实现有 **5 处**站点在**生成/复盘阶段无条件**调用 `document.create` 写入 Injoys，无任何「用户显式触发」前置判定：① `src/ops-rpc.ts` 的 `workbench.generateArticleDraft`（`saveArticleDocument`，`:425`）；② `src/tools/index.ts` 的 `ops_draft_article`（`saveArticleDocument`，`:231`）；③ `src/tools/index.ts` 的 `ops_draft_video_meta`（`saveVideoDocument`，`:324`）；④ `src/tools/index.ts` 的 `ops_draft_launch_kit`（`saveLaunchKitDocument`，`:933`）；⑤ `src/analytics/review-reporter.ts` 的 `generateReview`（`saveReviewDocument`，`:92`）。 |
-| **影响** | 在用户未授权时即把物料（图文 / 视频元数据 / 海外 Launch 物料 / 复盘报告）写入其 Injoys 空间，越过 criterion §4 的内容写入边界；`api_strategy.md` 的 MVP 裁决说明已标注「本轮未改代码，尚未核查运行时是否已对齐」，即契约已声明、实现尚未完成核查闭环。第 ④ 处（`ops_draft_launch_kit`）此前未登记，导致债务清单与实现站点数不一致。 |
+| **描述** | criterion §4「内容写入边界」与架构 §3.4 / §3.5.1 规定：生成只保存本地，写入 Injoys 文档必须由用户点击沉淀操作或明确要求（唯一授权入口为 `workbench.sinkToInjoysDoc`，尚未实现，见 TD-001）。修复前，实现曾有 **5 处**站点在**生成/复盘阶段无条件**调用 `document.create` 写入 Injoys，无任何「用户显式触发」前置判定：① `src/ops-rpc.ts` 的 `workbench.generateArticleDraft`（`saveArticleDocument`，`:425`）；② `src/tools/index.ts` 的 `ops_draft_article`（`saveArticleDocument`，`:231`）；③ `src/tools/index.ts` 的 `ops_draft_video_meta`（`saveVideoDocument`，`:324`）；④ `src/tools/index.ts` 的 `ops_draft_launch_kit`（`saveLaunchKitDocument`，`:933`）；⑤ `src/analytics/review-reporter.ts` 的 `generateReview`（`saveReviewDocument`，`:92`）。上述调用已于 2026-10-21 由 `fix-unauthorized-injoys-doc-write` 全部移除。 |
+| **影响** | 修复前，在用户未授权时即把物料（图文 / 视频元数据 / 海外 Launch 物料 / 复盘报告）写入其 Injoys 空间，越过 criterion §4 的内容写入边界。2026-10-21 已完成 5 处写入调用移除，并由工程自动化覆盖（`tests/ops-manager.spec.ts`），代码路径已核查；剩余缺口是唯一授权入口 `workbench.sinkToInjoysDoc` 尚未实现（Phase 2，见 TD-001），Phase 0 期间用户需在 Injoys 侧手工沉淀。第 ④ 处（`ops_draft_launch_kit`）此前未登记，导致债务清单与实现站点数不一致，本轮已补登。 |
 | **目标解决时间** | N/A – 源文档未提供（建议按 SSoT-first 提案优先处理） |
-| **解决方案** | 按 criterion §6 顺序：① 先补齐 `workbench.sinkToInjoysDoc` 契约与实现，作为**唯一**的用户显式沉淀入口；② 从生成 / 复盘路径移除无条件的 `document.create` 调用；③ 同步修正 `src/tools/index.ts` 中与契约相悖的工具描述文案；④ 补测试覆盖「未显式触发时不写远端」。 |
+| **解决方案** | 按路线图顺序执行：① 从生成 / 复盘 / 海外 Launch 路径移除无条件的 `document.create` 调用，并同步修正 `src/tools/index.ts` 工具描述与 `README.md` 同源文案；② 补测试覆盖「未显式触发时不写远端」、海外 Launch 与真实 `ToolRuntime` 调度（①② 已于 2026-10-21 完成）；③ Phase 2 由 `feat-workbench-sink-to-injoys-doc` 实现 `workbench.sinkToInjoysDoc`，作为**唯一**的用户显式沉淀入口，复用 `fix-unauthorized-injoys-doc-write` 保留的 `InjoysClient` 写入能力。 |
 | **估算工作量** | N/A – 源文档未提供 |
 
 ### TD-009: `ops_generate_review` 以字面量 `doc_review` 冒充文档编号（**虚报成功**）

@@ -12,7 +12,7 @@
 
 ---
 
-> **MVP 裁决说明（2026-10-16）**：生成只保存本地、显式沉淀与取消草稿历史是本轮目标契约；本轮未改代码，尚未核查运行时是否已对齐。既有方法实现基线不能代替此项核查。
+> **MVP 裁决说明（2026-10-16）**：生成只保存本地、显式沉淀与取消草稿历史是本轮目标契约。生成 / 复盘 / 海外 Launch 路径的 5 处无条件写入已由 `fix-unauthorized-injoys-doc-write`（2026-10-21 归档）移除，生成路径实现已与本节契约一致；显式沉淀入口 `workbench.sinkToInjoysDoc` 仍属 Phase 2（未实现），Phase 0 期间用户需在 Injoys 侧手工沉淀。
 
 ## 1. 传输与协议
 
@@ -332,8 +332,9 @@ interface GenerateVideoMetaResponse {
 
 ---
 
-#### `workbench.sinkToInjoysDoc` `[Phase 0 首版]`
+#### `workbench.sinkToInjoysDoc` `[Phase 2]`
 
+> **阶段调整（2026-10-21）**：源 PRD §5.4.3 将「沉淀至 Injoys 知识文档」标为 `[Phase 0 首版]`，路线图已将入口实现延至 Phase 2（`feat-workbench-sink-to-injoys-doc`）。Phase 0 期间插件内无该入口，用户可在 Injoys 侧手工沉淀；本契约保留为目标口径。
 > 对应 PRD §5.4.3 的「💾 沉淀至 Injoys 知识文档」操作条。
 > 该动作**独立于自动存盘**：自动存盘只写本地草稿库，本接口才写入 Injoys。
 > **必须由用户点击沉淀操作或明确要求写入 Injoys 才触发**；生成、预览、本地保存与自动同步配置均不能替代这次要求。该请求从开始时捕获目录，贯穿读取、远端调用和 `injoysDocId` 回写。
@@ -749,9 +750,9 @@ interface BrowserOsCapabilityDescriptor {
 | `ops_plan_calendar` | `workbench.generateCalendar`（§3.1） | CalendarEngine | Injoys 读取/显式导出 | 本地 calendar | RPC 未实现 | Phase 0 |
 | `ops_discover_trends` | 无 | TrendsDiscoverer | 真实搜索 | — | 本地固定模板，未接搜索 | Phase 0 原型 |
 | `ops_keyword_research` | 无 | — | — | — | 未注册、无实现 | 未定 |
-| `ops_draft_article` | `workbench.generateArticleDraft`（§3.1） | ContentStudioEngine | Injoys 读取 | 本地 drafts | 无条件写 Injoys（TD-008） | Phase 0 |
-| `ops_draft_video_meta` | `workbench.generateVideoMeta`（§3.1） | ContentStudioEngine | — | 本地 drafts | 工具无条件写 Injoys（TD-008）；RPC 只存本地 | Phase 0 |
-| `ops_draft_launch_kit` | 无 | OverseasManager | Injoys 读取 | 本地草稿 | 无条件 saveLaunchKitDocument | Phase 2 |
+| `ops_draft_article` | `workbench.generateArticleDraft`（§3.1） | ContentStudioEngine | Injoys 读取 | 本地 drafts | 只写本地草稿；Injoys 写入须显式触发（TD-008 写入调用已于 2026-10-21 移除） | Phase 0 |
+| `ops_draft_video_meta` | `workbench.generateVideoMeta`（§3.1） | ContentStudioEngine | — | 本地 drafts | 工具与 RPC 均只写本地草稿；Injoys 写入须显式触发（TD-008 写入调用已于 2026-10-21 移除） | Phase 0 |
+| `ops_draft_launch_kit` | 无 | OverseasManager | Injoys 读取 | 本地草稿 | 只生成并返回，本轮不落盘、不写远端（TD-008 写入调用已于 2026-10-21 移除；持久化属 Phase 2） | Phase 2 |
 | `ops_generate_hooks` | 无 | ContentStudioEngine | — | 本地草稿 | 未注册、无实现 | 未定 |
 | `ops_push_drafts` | `workbench.prefillDraft`（§3.1，单草稿） | BrowserDriver/Adapter | BrowserOS | 平台草稿箱 | 批量入口无 RPC | Phase 0 |
 | `ops_fetch_metrics` | 与 `workbench.overview` 共用采集 | MetricsCollector | BrowserOS | 本地 metrics | 快照读写已落地（仅 verified 落盘）；`live` 采集窗口可证性待采集能力提案 | Phase 0 |

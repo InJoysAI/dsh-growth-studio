@@ -117,13 +117,16 @@
     "ordering": "ascending_by_synced_at"
   },
   "last_context_sync": {
-    "synced_at": "2026-10-21T13:22:18+08:00",
-    "source": ".context/architecture/risks_and_debt.md",
-    "workflow": ".agents/workflows/context-start.md fix-unauthorized-injoys-doc-write",
-    "authority": "提案 fix-unauthorized-injoys-doc-write 任务 4.2（TD-008 站点清单补齐）",
+    "synced_at": "2026-10-21T15:55:42+08:00",
+    "source": "openspec/changes/archive/2026-10-21-fix-unauthorized-injoys-doc-write/",
+    "workflow": ".agents/workflows/context-update.md sync proposal fix-unauthorized-injoys-doc-write --mode apply",
+    "authority": "已归档提案 fix-unauthorized-injoys-doc-write（proposal.md / tasks.md）",
     "mode": "apply",
     "updated_context_files": [
+      ".context/architecture/api_strategy.md",
       ".context/architecture/risks_and_debt.md",
+      ".context/domain/testing_strategy.md",
+      ".context/domain/business_rules.md",
       ".context/history/context-sync.jsonl",
       ".context/context-manifest.json"
     ],
