@@ -96,7 +96,7 @@
 | 风险 | 影响 | 处理决定及理由 |
 |------|------|----------|
 | 历史用户依赖「生成即沉淀」的隐性行为 | 行为变化 | 依 MVP 裁决（2026-10-16）：生成只保存本地、沉淀须用户明确触发；这是**目标契约**，不是回归。`.context/architecture/api_strategy.md:15` 已声明该裁决，本轮即为实现侧的核查闭环。 |
-| **RISK-004（高）** 配置切换竞态跨库覆盖 | 删除 `workbench.generateArticleDraft` 的第二次 `saveDraft`（仅为回写 `injoysDocId`）时，若误改或误移首次 `saveDraft` 的目录参数、或把 `getDirectory()` 移到 `await` 之后，会在配置切换时「A 库读、B 库写」并覆盖 B 库同 ID 草稿 | 保留请求开始处的 `articleStorageDir = actualDraftStore.getDirectory()` 与首次 `saveDraft(..., { dir: articleStorageDir })`（`tasks.md` 3.1），不在 `await` 后重新解析目录（`criterion.md` §3.5）；回归证据为既有 `U2: 图文生成在知识库等待期间切换目录，不得产生双库副本` 用例（`tests/ops-manager.spec.ts:2263`，见 `tasks.md` 5.4 / 6.3.2），不新增重复用例 |
+| **RISK-004（高）** 配置切换竞态跨库覆盖 | 删除 `workbench.generateArticleDraft` 的第二次 `saveDraft`（仅为回写 `injoysDocId`）时，若误改或误移首次 `saveDraft` 的目录参数、或把 `getDirectory()` 移到 `await` 之后，会在配置切换时「A 库读、B 库写」并覆盖 B 库同 ID 草稿 | 保留请求开始处的 `articleStorageDir = actualDraftStore.getDirectory()` 与首次 `saveDraft(..., { dir: articleStorageDir })`（`tasks.md` 3.1），不在 `await` 后重新解析目录（`criterion.md` §3.5）；回归证据为既有 `U2: 图文生成在知识库等待期间切换目录，不得产生双库副本` 用例（`tests/ops-manager.spec.ts:2261`，见 `tasks.md` 5.4 / 6.3.2），不新增重复用例 |
 | 移除调用后 `injoysDocId` / `docId` 字段仍被读取 | 字段为空 | 契约已将其保留为**可选兼容形状**（`api_strategy.md` §3.1；`src/types.ts` 中四处 `injoysDocId?: string \| undefined` 全部可选），不因生成而填充。客户端渲染已有 `*(未同步)*` 分支（`ops_draft_article` / `ops_draft_video_meta`）。 |
 | `ops_draft_launch_kit` 的 `injoysDocId` 因 schema 仍为 required 字符串而返回空串 | 用户可见文案出现空的「Injoys 文档编号」 | 依「不得编造编号」优先：空值优于假编号（`criterion.md` §3.2）。该字段的可空化、`required` 取消与渲染分支属 `fix-doc-id-fabrication`，本提案以代码注释标注并在此登记。 |
 | `ops_generate_review` 的 `doc_review` 回退在移除写入后于正常路径也命中 | 过渡期内仍播报假编号 | **已知并显式接受的过渡态**：移除该回退属 `fix-doc-id-fabrication` 的 In 范围（本提案的 Out）。两提案为严格顺序，A4 的前置即本提案，落地后即消除。 |

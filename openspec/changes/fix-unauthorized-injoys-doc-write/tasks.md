@@ -72,7 +72,7 @@
   - `tests/ops-manager.spec.ts:644` 的 `expect(result.injoysDocId).toBeDefined()` → `toBe('')`（与 5.3 同一过渡态口径）
   - `tests/ops-manager.spec.ts:2298` 的 `(injoys as any).saveArticleDocument = async () => undefined` 桩改为「记录调用 + 显式断言未调用」：`let articleSaves = 0`，桩体改为 `async () => { articleSaves += 1; return 'unexpected' }`，并在该用例末尾断言 `expect(articleSaves).toBe(0)`
     - 理由：该桩位于 `U2: 图文生成在知识库等待期间切换目录，不得产生双库副本` 用例中（`:2291` 配置了不可达 endpoint `http://127.0.0.1:1/mcp`）。删除 3.1 的调用点后该桩已不可达，**不会**因此产生真实网络请求；改为显式断言既不触网，又能防止「未来误加回该调用」，比直接删除多一条防回归证据
-  - **不新增**目录固定（RISK-004）回归用例：既有 `U2` 用例（`tests/ops-manager.spec.ts:2263`）已在 `getKnowledgeContext` 等待期间切换目录并断言「整个请求留在发起时的 A 库、B 库无副本」，即 RISK-004 的自动化证据；本提案只须保证该用例继续通过（见 6.3.2），不重复建设
+  - **不新增**目录固定（RISK-004）回归用例：既有 `U2` 用例（`tests/ops-manager.spec.ts:2261`）已在 `getKnowledgeContext` 等待期间切换目录并断言「整个请求留在发起时的 A 库、B 库无副本」，即 RISK-004 的自动化证据；本提案只须保证该用例继续通过（见 6.3.2），不重复建设
 
 ## 6. 验证与归档
 
@@ -84,7 +84,7 @@
 - [ ] 6.2 运行 `pnpm typecheck` 与 `pnpm test`，两者全部通过
 - [ ] 6.3 代码审查
   - [ ] 6.3.1 `grep` 确认 `src/` 内生成 / 复盘 / 海外 Launch 路径不再出现 `saveArticleDocument` / `saveVideoDocument` / `saveReviewDocument` / `saveLaunchKitDocument` 的**调用点**（仅 `src/injoys/client.ts` 的**定义**保留）
-  - [ ] 6.3.2 确认四条生成路径的本地落盘与目录固定语义未变（请求开始时捕获目录、无中途重新解析），以既有 `U2: 图文生成在知识库等待期间切换目录，不得产生双库副本` 用例（`tests/ops-manager.spec.ts:2263`）为自动化证据（RISK-004）
+  - [ ] 6.3.2 确认四条生成路径的本地落盘与目录固定语义未变（请求开始时捕获目录、无中途重新解析），以既有 `U2: 图文生成在知识库等待期间切换目录，不得产生双库副本` 用例（`tests/ops-manager.spec.ts:2261`）为自动化证据（RISK-004）
   - [ ] 6.3.3 确认未新增远端写入、未绕过 `InjoysClient` 直连、未改动客户端代码
 - [ ] 6.4 运行 node design/context-dev/tools/specflow/specflow.mjs validate fix-unauthorized-injoys-doc-write --strict
 - [ ] 6.5 运行 node design/context-dev/tools/specflow/specflow.mjs archive fix-unauthorized-injoys-doc-write --yes --no-validate
