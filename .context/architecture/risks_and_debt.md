@@ -4,8 +4,8 @@
 > - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.4.5）
 > - **Generated At**: `2026-10-16 09:44`
 > - **Generator**: `Context-Agent v1.0`
-> - **Last Synced At**: `2026-10-21T00:01:50+08:00`
-> - **Sync Authority**: `openspec/changes/archive/2026-10-20-feat-storage-metrics-snapshot/`
+> - **Last Synced At**: `2026-10-21T16:05:57+08:00`
+> - **Sync Authority**: `openspec/changes/archive/2026-10-21-fix-unauthorized-injoys-doc-write/`（第二次同步校正）
 
 > ⚠️ **本文只记录源文档中有明确依据的风险与债务**。源文档未提供的字段标注 `N/A – 源文档未提供`，
 > 不编造负责人、工作量或日期。业务层风险另见 `.context/domain/risks_and_debt.md`（本文聚焦**技术**风险）。
@@ -304,8 +304,9 @@
 | **类型** | 契约债务 / 实现债务 |
 | **严重性** | **高** |
 | **描述** | criterion §3.2「虚报成功（无客户端或执行失败时严禁返回成功）」与架构 §3.5.1「不得谎报成功，也不得静默写本地假 ID」。`src/injoys/client.ts` 的 `saveReviewDocument` 在失败 / 未配置时 `catch` 后返回 `null`；但 `src/tools/index.ts` 的 `ops_generate_review` 以 `report.injoysDocId ?? 'doc_review'` 回退为字面量假编号，并经 `output.schema` 将 `injoysDocId` 声明为 `required` 字符串，最终渲染进用户可见文案。 |
-| **影响** | 知识库未连通或写入失败时，向用户与 AI 会话播报一个不存在的文档编号，调用方无法区分「已沉淀」与「未沉淀」；`domain/testing_strategy.md` 模块 8 场景 3「知识库未连通时……不得显示『沉淀成功』」在实现侧必然失败。 |
+| **影响** | 修复前在未连通 / 写入失败时回退假编号；A3 移除复盘远端写入后，`ReviewReporter.generateReview` 不再设置编号，故 `ops_generate_review` 的 `doc_review` 在正常路径也必然命中。用户与 AI 会话无法据此区分已沉淀 / 未沉淀。完整模块 8 场景 3 仍依赖未来沉淀界面，当前宿主假编号问题不能因界面未实现而豁免。 |
 | **解决方案** | 按 criterion §6：① 将 `injoysDocId` 改为可空并取消 `required`；② 失败时如实返回未沉淀状态或抛错，不得回退占位编号；③ 补测试覆盖「知识库未连通时不得返回成功文档编号」。 |
+| **交付门禁** | A3 可独立合入 / 归档，但不单独作为用户可用版本交付；必须与 `fix-doc-id-fabrication`（A4）的两工具编号可空化、去回退、空值渲染及现状表同步组成同一版本。Launch 暂为空串、四个客户端写入方法仍保留；A4 与三情形组合验收均未完成。风险登记不构成对 criterion §3.2 的豁免。 |
 | **目标解决时间** | N/A – 源文档未提供 |
 | **估算工作量** | N/A – 源文档未提供 |
 

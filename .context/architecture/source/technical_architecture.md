@@ -8,7 +8,7 @@
 > | **对应 PRD 基线** | `.context/domain/source/product_requirements.md` **v1.2.2**（MVP 简化裁决版 Approved Baseline） |
 > | **状态** | 评审整改版 |
 > | **初次编写** | 2026-10-13 |
-> | **本次修订** | 2026-10-21（第二次同步已归档提案 `feat-storage-metrics-snapshot`：补齐 §3.1 基准选择 / 可空边界、§5.3 目录固定 / 追加 / 存储失败语义；保留此前配置保存失败与权限封装裁决，完整同步历史见 `.context/history/context-sync.jsonl`；此前 v1.4.5 修订记录见下） |
+> | **本次修订** | 2026-10-21（第二次同步已归档提案 `fix-unauthorized-injoys-doc-write`：补齐文档写入边界实现状态、沉淀阶段与组合交付门禁；保留指标快照、配置保存与权限裁决，历史见 `.context/history/context-sync.jsonl`） |
 >
 > **v1.4.5 的修订（2026-10-17，A1/A2/A3 源契约澄清）**：A1 排期库无乐观锁（`CalendarItem` 无 `version`）；A2 `browseros.capabilities` 只列实时暴露工具（删除 `available`/`unavailableReason`，消失的工具就消失）；A3 生成落盘失败（存储类）统一走 `drafts/storage-unavailable` 错误信封，`draftSaved:false` 仅表「已生成未落盘」、不包装存储错误。
 >
@@ -561,7 +561,9 @@ MVP 使用 `drafts.get` 读取当前内容、`drafts.save` 覆盖保存当前内
 
 ---
 
-### 3.5.1 `workbench.sinkToInjoysDoc`（主动沉淀物料至 Injoys 知识文档） `[Phase 0 首版]`
+### 3.5.1 `workbench.sinkToInjoysDoc`（主动沉淀物料至 Injoys 知识文档） `[Phase 2 宿主能力 / Phase 3 界面接入]`
+
+> **阶段同步依据**：原 PRD 首版目标为 Phase 0；已归档提案 `fix-unauthorized-injoys-doc-write` 及路线图改为先移除未授权写入，Phase 2 实现显式沉淀能力、Phase 3 接入内容创作室。当前接口仍未实现，Phase 0 用户在 Injoys 侧手工操作不等于插件内已有入口。
 
 > 对应 PRD §5.4.3 的「💾 沉淀至 Injoys 知识文档」操作条。
 > 该动作**独立于自动存盘**：自动存盘只写本地草稿库，本接口才写入 Injoys。
@@ -979,9 +981,9 @@ interface BrowserOsCapabilityDescriptor {
 | `ops_plan_calendar` | 多渠道排期规划 | `workbench.generateCalendar`（§3.3） | CalendarEngine | Injoys 知识库读取 / 排期表显式导出 | 本地 `calendar/`（黄金主数据源） | 工具已注册；`workbench.generateCalendar` RPC **未实现**（§3.10.2 待实现清单） | Phase 0 |
 | `ops_discover_trends` | 热点嗅探 | 无对应 RPC | TrendsDiscoverer | 真实搜索 | — | 工具已注册，但 `TrendsDiscoverer` 当前用**本地固定模板**（硬编码 heatScore/sampleTopic），**未接入真实搜索**（§1.1 标注 Phase 0 原型） | Phase 0 原型 |
 | `ops_keyword_research` | SEO 关键词挖掘 | 无对应 RPC | — | — | — | **未注册、无实现**（PRD 列出，无契约与工具） | 未定 |
-| `ops_draft_article` | 公众号图文生成 | `workbench.generateArticleDraft`（§3.4） | ContentStudioEngine | Injoys 知识库读取 | 本地草稿 `drafts/` | 工具与 RPC 均存在，但当前 execute **无条件调用 `injoys.saveArticleDocument`**，违反「生成只存本地、Injoys 写入须显式触发」（TD-008） | Phase 0 |
-| `ops_draft_video_meta` | 视频元数据生成 | `workbench.generateVideoMeta`（§3.5） | ContentStudioEngine | — | 本地草稿 `drafts/` | 工具与 RPC 均存在；工具 execute **无条件调用 `injoys.saveVideoDocument`**，违反「生成只存本地」目标（TD-008）；RPC 当前只保存本地，两个入口行为尚未对齐 | Phase 0 |
-| `ops_draft_launch_kit` | PH / X 推文串生成 | 无对应 RPC | OverseasManager | Injoys 知识库读取 | 本地草稿 | 工具已注册，execute **读取 Injoys 知识库并无条件调用 `injoys.saveLaunchKitDocument`**（与「沉淀须显式触发」不符）；无工作台 RPC | Phase 2 |
+| `ops_draft_article` | 公众号图文生成 | `workbench.generateArticleDraft`（§3.4） | ContentStudioEngine | Injoys 知识库读取 | 本地草稿 `drafts/` | 工具与 RPC 均只保存本地草稿，原无条件 `saveArticleDocument` 调用已由 A3 移除（TD-008 部分修复）；工具返回已声明的 `draftId`，未沉淀时省略可选 `docId`，真实 ToolRuntime 调度已覆盖 | Phase 0 |
+| `ops_draft_video_meta` | 视频元数据生成 | `workbench.generateVideoMeta`（§3.5） | ContentStudioEngine | — | 本地草稿 `drafts/` | 工具与 RPC 均只保存本地草稿，原工具 `saveVideoDocument` 调用已由 A3 移除；工具输出 `draftId` 并省略未设置的 `injoysDocId`，通过真实 ToolRuntime 校验；两个入口响应字段保持各自契约 | Phase 0 |
+| `ops_draft_launch_kit` | PH / X 推文串生成 | 无对应 RPC | OverseasManager | Injoys 知识库读取 | 本地草稿 | 工具已注册，只读知识库并返回生成结果，不写远端、不新增草稿持久化；原 `saveLaunchKitDocument` 调用已由 A3 移除，编号暂为空串；无工作台 RPC，持久化仍为目标能力 | Phase 2 |
 | `ops_generate_hooks` | 视频前 3 秒钩子 | 无对应 RPC | ContentStudioEngine | — | 本地草稿 | **未注册、无实现**（PRD 列出，无契约与工具） | 未定 |
 | `ops_push_drafts` | 批量预填草稿箱 | `workbench.prefillDraft`（§3.6，单草稿入口） | BrowserDriver / Adapter | BrowserOS | 平台后台草稿箱 | 工具已注册；`prefillDraft` RPC 已实现（单草稿）；**批量入口无对应 RPC** | Phase 0 |
 | `ops_fetch_metrics` | 多维指标采集 | 与 `workbench.overview`（§3.1）共用采集能力，返回范围不同 | MetricsCollector | BrowserOS | 本地指标快照 `metrics/` | 工具已注册；`overview` RPC 的**部分缺失汇总语义已实现**（TD-007 于 2026-10-20 关闭，`src/analytics/overview-aggregator.ts`）；`live` 采集的窗口可证性待采集能力提案 | Phase 0 |
@@ -990,6 +992,8 @@ interface BrowserOsCapabilityDescriptor {
 | `ops_extract_feedback` | Bug/Feature 聚类反哺 | 无对应 RPC | IssueExtractor | Injoys 需求池（写入须显式触发） | — | 工具已注册；无工作台 RPC（Phase 1） | Phase 1 |
 | `ops_setup_schedule` | 注册定时巡检 | **无对应 RPC**（宿主工具调用，§3.11） | schedule-bridge | DSH 自动化任务中心 | — | 工具已注册；工具调用面，非 `POST /api/ops` | Phase 0 |
 | `ops_inspect_sessions` | 会话探活 | `browser.sessions`（§3.7） | SessionGuard | BrowserOS | — | **工具名未注册**；当前已实现的是 `browser.sessions` RPC（含 `reuseHostBrowserProfile` 历史 Cookie 探测路径，见 §5.1.3），二者不是同一入口 | Phase 0 |
+
+> **A3 / A4 交付边界**：A3（`fix-unauthorized-injoys-doc-write`）已归档，只移除五处生成 / 复盘 / Launch 文档写入，保留 `InjoysClient` 四个 `save*Document` 能力。工具成功返回必须是无损 JSON，未设置的可选编号须省略键；`draftId` 是既有返回字段的 schema 补登。复盘只生成并返回，不读取知识库、不落盘，`doc_review` 在正常路径仍恒发；Launch 编号暂为空串。A3 不单独交付给用户，须与 A4（`fix-doc-id-fabrication`）的两工具可空化 / 去回退 / 空值渲染和现状表同步组成同一用户可用版本，组合验收待 A4。
 
 > **口径说明**：`目标外部依赖` 仅表示该工具**目标**调用/读取的外部能力，**不代表主数据存储位置，也不代表自动写入授权**（Injoys 写入须显式触发，见 §3.5.1、§3.10.2、PRD §5.4.3）。PRD 可描述目标行为，但不得据此宣称当前工具已具备该行为。
 

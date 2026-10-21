@@ -4,15 +4,15 @@
 > - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.4.5 §2.2、§3）
 > - **Generated At**: `2026-10-16 09:44`
 > - **Generator**: `Context-Agent v1.0`
-> - **Last Synced At**: `2026-10-21T00:01:50+08:00`
-> - **Sync Authority**: `openspec/changes/archive/2026-10-20-feat-storage-metrics-snapshot/`
+> - **Last Synced At**: `2026-10-21T16:05:57+08:00`
+> - **Sync Authority**: `openspec/changes/archive/2026-10-21-fix-unauthorized-injoys-doc-write/`（第二次同步校正）
 
 > ⚠️ 本文是源文档 §3 的**结构化总结**。契约的**权威定义在 `src/ops-rpc.ts` + `src/types.ts`**（criterion §7.1，手写 TS 契约）。
 > 若本文与源文档或 `../criterion.md` 冲突，**以它们为准**。
 
 ---
 
-> **MVP 裁决说明（2026-10-16）**：生成只保存本地、显式沉淀与取消草稿历史是本轮目标契约。生成 / 复盘 / 海外 Launch 路径的 5 处无条件写入已由 `fix-unauthorized-injoys-doc-write`（2026-10-21 归档）移除，生成路径实现已与本节契约一致；显式沉淀入口 `workbench.sinkToInjoysDoc` 仍属 Phase 2（未实现），Phase 0 期间用户需在 Injoys 侧手工沉淀。
+> **MVP 裁决说明（2026-10-16）**：生成只保存本地、显式沉淀与取消草稿历史是本轮目标契约。生成 / 复盘 / 海外 Launch 路径的 5 处无条件写入已由 `fix-unauthorized-injoys-doc-write`（2026-10-21 归档）移除，上述文档写入边界已修复，不表示生成能力、全部目录固定语义或客户端 UI 已全面实现；显式沉淀入口 `workbench.sinkToInjoysDoc` 仍属 Phase 2（未实现），Phase 0 期间用户需在 Injoys 侧手工沉淀。
 
 ## 1. 传输与协议
 
@@ -334,7 +334,7 @@ interface GenerateVideoMetaResponse {
 
 #### `workbench.sinkToInjoysDoc` `[Phase 2]`
 
-> **阶段调整（2026-10-21）**：源 PRD §5.4.3 将「沉淀至 Injoys 知识文档」标为 `[Phase 0 首版]`，路线图已将入口实现延至 Phase 2（`feat-workbench-sink-to-injoys-doc`）。Phase 0 期间插件内无该入口，用户可在 Injoys 侧手工沉淀；本契约保留为目标口径。
+> **阶段调整（2026-10-21）**：原 PRD §5.4.3 曾将「沉淀至 Injoys 知识文档」标为 `[Phase 0 首版]`；现已通过本次 context-update 同步阶段调整，路线图已将入口实现延至 Phase 2（`feat-workbench-sink-to-injoys-doc`）。Phase 0 期间插件内无该入口，用户可在 Injoys 侧手工沉淀；本契约保留为目标口径；宿主沉淀能力归 Phase 2，内容创作室沉淀按钮接入归 Phase 3（`feat-client-content-studio`）。
 > 对应 PRD §5.4.3 的「💾 沉淀至 Injoys 知识文档」操作条。
 > 该动作**独立于自动存盘**：自动存盘只写本地草稿库，本接口才写入 Injoys。
 > **必须由用户点击沉淀操作或明确要求写入 Injoys 才触发**；生成、预览、本地保存与自动同步配置均不能替代这次要求。该请求从开始时捕获目录，贯穿读取、远端调用和 `injoysDocId` 回写。
@@ -740,6 +740,8 @@ interface BrowserOsCapabilityDescriptor {
 ---
 
 ### 3.10 `ops_*` 工具 ↔ RPC 方法映射（追溯关系）
+
+> **A3（`fix-unauthorized-injoys-doc-write`）归档后的实现边界**：`ops_draft_article` / `ops_draft_video_meta` 的成功输出包含已声明的 `draftId`，未沉淀时省略可选 `docId` / `injoysDocId` 键；不得显式携带值为 `undefined` 的自有属性，以免真实 `ToolRuntime` 无损 JSON 校验拒绝。两工具的真实调度回归已覆盖。RPC 图文仍按既有信封序列化未设置编号，不能把工具输出限制误套到内部 RPC 对象。`ops_generate_review` 只生成并返回、不读取知识库、不写草稿；其 `doc_review` 回退会在正常路径命中。Launch 只生成并返回、不新增持久化，编号暂为空串。A3 可归档，但用户可用版本须包含 A4 的可空化、去回退、两处空值渲染及本表现状同步；组合验收尚未完成。表中的目标依赖与主数据列不代表这些行为已实现。
 
 > 对应源文档 TAD §3.13。`ops_*` 是 AI 调用入口，RPC 是客户端调用入口；可共享领域服务、不必互相调用。
 > 「领域服务 / 外部依赖 / 主数据位置」三列为**目标口径**，不代表当前实现已具备；现状以「当前实现差距」为准。

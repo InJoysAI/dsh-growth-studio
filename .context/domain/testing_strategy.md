@@ -4,8 +4,8 @@
 > - **Source**: `.context/domain/source/product_requirements.md`（PRD 基线 v1.2.2）、`.context/domain/source/development_plan.md`（验收条件）、`.context/architecture/source/technical_architecture.md` §3.10.2、`openspec/changes/archive/2026-10-20-fix-config-save-error-swallow/specs/ops-config/spec.md`（配置保存专项）
 > - **Generated At**: `2026-10-16 09:00`
 > - **Generator**: `Context-Agent v1.0`
-> - **Last Synced At**: `2026-10-21T00:01:50+08:00`
-> - **Sync Authority**: `openspec/changes/archive/2026-10-20-feat-storage-metrics-snapshot/`
+> - **Last Synced At**: `2026-10-21T16:05:57+08:00`
+> - **Sync Authority**: `openspec/changes/archive/2026-10-21-fix-unauthorized-injoys-doc-write/`（第二次同步校正）
 
 ---
 
@@ -185,6 +185,8 @@ Then 应生成结合产品知识库的多渠道物料
   And 重启工作台后该草稿仍可查看
   And 未经用户明确要求不得创建或更新 Injoys 文档
 ```
+
+> **本次自动化证据范围**：`fix-unauthorized-injoys-doc-write` 已覆盖 RPC 图文 / 工具图文 / 工具视频不写 `document.create` 且各自真实落盘；复盘不读取知识库、不产生草稿文件，Launch 只返回结果且不新增持久化。知识库只读 `knowledge.list` 可发生，不能断言远端调用总数为零。两工具另经真实 `ToolRuntime.register` / `execute` 验证成功输出为无损 JSON（省略未设置的可选编号键、声明既有 `draftId`）。U2 仅证明 RPC 图文等待知识库期间切库后 A 库 1 份、B 库 0 份，不能扩称工具路径也已固定目录。源码证据位于 `tests/ops-manager.spec.ts` 的同名用例；这些宿主工程测试不替代创作室 UI / Live 验收。
 
 #### 场景 2: 当前草稿编辑与覆盖保存
 ```gherkin
@@ -452,6 +454,8 @@ Then 界面应**直接切入创作室**
   And **不得**跳转到排期日历生成
 ```
 
+> **阶段范围**：以下沉淀场景 2 / 3 需 Phase 2 宿主接口与 Phase 3 界面接入，Phase 0 不验收完整点击链路；宿主复盘 / Launch 的不返回假编号仍须由 A4 收口。A3 与 A4 同一用户可用版本交付，正常 / 未连通 / 写入失败三情形的组合验收尚未完成。
+
 #### 场景 2: 物料沉淀至 Injoys 知识文档（BR-033）
 ```gherkin
 Given 用户已生成一份渠道物料
@@ -537,8 +541,8 @@ Then 界面应明确提示该能力不可用
 | RISK-011 令牌明文暴露面扩大 | —（工程安全检查：RPC 暴露边界是否仅本机可达 + `config.get` 的 `hasToken` 返回策略；模块 6 场景 2 仅验证 BR-071 的界面掩码，不能证明响应体与可达范围安全） | **缺口**（非 BDD） |
 | RISK-012 Phase 2 CDP 能力未验证 | —（Phase 2 PoC） | **缺口**（非 Phase 0） |
 | TD-007 `workbench.overview` 缺失汇总语义 | 模块 5 场景 4 / 5 的宿主判定与场景 6 的无历史空值分支；`tests/overview-metrics.spec.ts` / `tests/metrics-window.spec.ts` / `tests/overview-window-passthrough.spec.ts` | **宿主修复已覆盖，TD-007 已关闭**；不代表驾驶舱 UI 或真实窗口增量采集已实现；历史快照读写已由 `feat-storage-metrics-snapshot` 落地，见 TD-010 与 `tests/metrics-snapshot.spec.ts` |
-| TD-008 生成路径未授权写入 Injoys 文档 | 模块 3 场景 1「未经用户明确要求不得创建或更新 Injoys 文档」（直接约束）；`tests/ops-manager.spec.ts` 的「未显式触发时不写远端」与海外 Launch 专项用例；模块 8 场景 2 / 3（BR-033 / BR-073） | **部分修复（2026-10-21，`fix-unauthorized-injoys-doc-write`）：5 处生成 / 复盘 / 海外 Launch 写入调用已移除并有工程自动化覆盖；唯一授权入口 `workbench.sinkToInjoysDoc` 未实现，模块 8 场景 2 / 3 属 Phase 2** |
-| TD-009 `ops_generate_review` 假文档编号 | 模块 8 场景 3「知识库未连通时沉淀不可用」 | **缺口（待实现）** |
+| TD-008 生成路径未授权写入 Injoys 文档 | 模块 3 场景 1「未经用户明确要求不得创建或更新 Injoys 文档」（直接约束）；`tests/ops-manager.spec.ts` 的「未显式触发时不写远端」与海外 Launch 专项用例；模块 8 场景 2 / 3（BR-033 / BR-073） | **部分修复（2026-10-21，`fix-unauthorized-injoys-doc-write`）：5 处生成 / 复盘 / 海外 Launch 写入调用已移除并有工程自动化覆盖；唯一授权入口 `workbench.sinkToInjoysDoc` 未实现，模块 8 场景 2 / 3 依赖 Phase 2 宿主能力与 Phase 3 界面接入** |
+| TD-009 `ops_generate_review` 假文档编号 | 宿主复盘正常 / 未连通 / 写入失败时不得返回假编号；模块 8 场景 3 为未来完整界面验收 | **缺口（待 A4）**：A3 后正常复盘也命中 `doc_review`，Launch 仍为空串；现有 A3 工程用例只证明不写远端，不证明无假编号或组合验收已通过 |
 | TD-010 `calendar/` 与 `metrics/` 持久化契约未落地 | 模块 5 场景 6「历史不足时环比为空」（BR-052）；`tests/metrics-snapshot.spec.ts` | **部分修复（metrics 已覆盖，calendar 仍待 `feat-storage-calendar-items`）** |
 | TD-011 错误码 `ops/not-found` 与 `ops/draft-not-found` 语义重复 | —（错误码契约层，无对应 BDD 场景） | **缺口**（非 BDD） |
 | TD-012 BrowserOS 能力开关与统一执行检查契约（原「动作白名单」口径已由 PRD §5.7.1 / criterion §4 取代） | —（执行检查：能力存在 / 启用 / 连接可用集中校验；对应 BR-074 场景 5–8，含双开关同时开启的正常执行） | **缺口**（契约已同步、实现待补） |

@@ -4,6 +4,8 @@
 > - **Source**: `.context/ui/source/ui-design-direction.md`
 > - **Generated At**: `2026-10-21 01:12`
 > - **Generator**: `Context-Agent v1.0`
+> - **Last Synced At**: `2026-10-21T16:05:57+08:00`
+> - **Sync Authority**: `openspec/changes/archive/2026-10-21-fix-unauthorized-injoys-doc-write/`（第二次同步校正）
 
 ---
 
@@ -125,7 +127,7 @@ UI 批次 1 **仅公众号 + B 站两张**。原地探活；`needs_login` 才出
 ### 物料与预填栏
 
 - `📋 一键复制物料`（**项目 Phase 0** 首版，剪贴板）
-- `💾 沉淀至 Injoys 知识文档`（仅用户显式点击）
+- `💾 沉淀至 Injoys 知识文档`（宿主能力 Phase 2、界面接入 Phase 3，当前未实现；仅用户显式点击，不由生成自动触发）
 - `💾 保存本地草稿`（`drafts.save`，不得传 `published`）
 - `🚀 一键预填` + `前往平台草稿箱 ↗`
 - URL 回填 → `drafts.updatePublishUrl`

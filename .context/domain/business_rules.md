@@ -4,6 +4,8 @@
 > - **Source**: `.context/domain/source/product_requirements.md`（PRD 基线 v1.2.2）
 > - **Generated At**: `2026-10-16 09:00`
 > - **Generator**: `Context-Agent v1.0`
+> - **Last Synced At**: `2026-10-21T16:05:57+08:00`
+> - **Sync Authority**: `openspec/changes/archive/2026-10-21-fix-unauthorized-injoys-doc-write/`（第二次同步校正）
 
 ---
 
@@ -198,12 +200,12 @@
 - **验收点**: 在模拟器中修改标题，预览卡片同步更新
 
 ### BR-033: 物料一键复制与知识沉淀
-- **强制等级**: SHOULD（一键复制为 Phase 0 首版交付；沉淀入口延至 Phase 2，执行须用户显式触发）
+- **强制等级**: SHOULD（一键复制为 Phase 0 首版交付；沉淀宿主能力延至 Phase 2、界面接入属 Phase 3，执行须用户显式触发）
 - **规则**:
   - 提供「一键复制物料」，便于用户手工粘贴到其他位置（Phase 0 首版交付）
-  - 提供「沉淀至 Injoys 知识文档」入口（**路线图调整：延至 Phase 2**，由 `feat-workbench-sink-to-injoys-doc` 交付；Phase 0 期间插件内无该入口，用户可在 Injoys 侧手工沉淀），但**仅在用户点击该操作或明确要求时执行**，生成/预览/本地保存本身不授权上传
-- **来源**: PRD §5.4.3（两项均标 `[Phase 0 首版]`）；入口阶段调整见 `openspec/proposal-roadmap.md`（Phase 2）与 `fix-unauthorized-injoys-doc-write` 的「上游规划差异」
-- **验收点**: Phase 0：复制后剪贴板内容与预览一致；Phase 2：沉淀入口存在，且仅在用户显式触发后写入 Injoys
+  - 提供「沉淀至 Injoys 知识文档」入口（**路线图调整：Phase 2 宿主能力**由 `feat-workbench-sink-to-injoys-doc` 交付，**Phase 3 界面接入**由 `feat-client-content-studio` 交付；Phase 0 期间插件内无该入口，用户可在 Injoys 侧手工沉淀），但**仅在用户点击该操作或明确要求时执行**，生成/预览/本地保存本身不授权上传
+- **来源**: PRD §5.4.3（原首版两项均为 Phase 0；现已同步沉淀能力与界面的阶段调整）；阶段依据见 `openspec/proposal-roadmap.md`（Phase 2）与 `fix-unauthorized-injoys-doc-write` 的「上游规划差异」
+- **验收点**: Phase 0：复制后剪贴板内容与预览一致；Phase 2：宿主沉淀能力可用且须明确授权；Phase 3：工作台入口接入，仅在用户显式触发后写入 Injoys
 
 ---
 

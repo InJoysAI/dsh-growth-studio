@@ -4,8 +4,8 @@
 > - **Source**: `.context/architecture/source/technical_architecture.md`（TAD v1.4.5 §3、§4.2、§5）
 > - **Generated At**: `2026-10-16 09:44`
 > - **Generator**: `Context-Agent v1.0`
-> - **Last Synced At**: `2026-10-21T00:01:50+08:00`
-> - **Sync Authority**: `openspec/changes/archive/2026-10-20-feat-storage-metrics-snapshot/`
+> - **Last Synced At**: `2026-10-21T16:05:57+08:00`
+> - **Sync Authority**: `openspec/changes/archive/2026-10-21-fix-unauthorized-injoys-doc-write/`（第二次同步校正）
 
 ---
 
@@ -86,6 +86,8 @@ sequenceDiagram
 ## 📊 场景 2: 内容生成只存本地，用户明确触发后沉淀
 
 **对应接口**：`workbench.generateArticleDraft` / `workbench.generateVideoMeta`；独立的 `workbench.sinkToInjoysDoc`
+
+> **实现范围**：生成阶段的未授权文档写入已由 `fix-unauthorized-injoys-doc-write` 移除。下图是目标时序，不代表当前 UI 已接入；沉淀 opt 分支须待 Phase 2 的宿主接口与 Phase 3 的界面。现有 U2 只证明 RPC 图文在知识库等待期间切库仍写起始目录；工具图文 / 视频的请求级目录固定仍属既有未覆盖面。复盘只生成并返回，Launch 不新增草稿持久化；二者不纳入图中的本地草稿存盘承诺。
 
 ```mermaid
 sequenceDiagram

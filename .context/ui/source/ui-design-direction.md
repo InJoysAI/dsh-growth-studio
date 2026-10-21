@@ -243,7 +243,7 @@ graph TD
 - **MVP 草稿边界**（BR-030）：只保留当前草稿；覆盖保存；**不提供**历史查看 / 版本恢复 / 版本快照。`version` 仅并发控制。
 - **物料操作条**（BR-033 / PRD §5.4.3）：
   - `📋 一键复制物料`（**项目 Phase 0** 首版，纯客户端剪贴板）。
-  - `💾 沉淀至 Injoys 知识文档`（**项目 Phase 0** 首版入口；**仅用户显式点击后**才写入 Injoys）。
+  - `💾 沉淀至 Injoys 知识文档`（宿主能力属**项目 Phase 2**，本界面按钮接入属**项目 Phase 3**；按已归档提案 `fix-unauthorized-injoys-doc-write` 与路线图调整，原 Phase 0 首版目标尚未交付；**仅用户显式点击后**才写入 Injoys）。
   - `💾 保存本地草稿`（`drafts.save`；不得传 `status: 'published'`）。
 - **预填与发布闭环栏 (Human-in-the-loop Guard)**：
   - `🚀 一键预填至草稿箱 (BrowserOS)`：Loading + 成功通知「已成功预填，请前往平台人工审核发布」+ `前往平台草稿箱 ↗`。

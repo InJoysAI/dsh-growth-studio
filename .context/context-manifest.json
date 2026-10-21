@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generated_at": "2026-10-21T13:22:18+08:00",
+  "generated_at": "2026-10-21T16:05:57+08:00",
   "generator": "Context-Agent v1.0",
   "generation_pipeline": {
     "root_assets": "Context-Dev-Agent v1.0",
@@ -16,7 +16,7 @@
       "path": ".context/domain/source/product_requirements.md",
       "archived_to": ".context/domain/source/product_requirements.md",
       "type": "product_requirements",
-      "content_hash": "eafb3e678917abccfb8a4b807c4d1abf006797285129996f7ee85a79cff2734c",
+      "content_hash": "153c0b533d9eca8f6f7868b0960e2d4177ef182e099855baab841f90f2980e5d",
       "status": "archived"
     },
     "DEVELOPMENT_PLAN": {
@@ -30,14 +30,14 @@
       "path": ".context/architecture/source/technical_architecture.md",
       "archived_to": ".context/architecture/source/technical_architecture.md",
       "type": "system_architecture",
-      "content_hash": "a0d9d2143ddce941b8338f0fb09e411b59f8837ee8eddf9d26a8ede5042bd8b6",
+      "content_hash": "7dd258320c08f05f32cdcc8a5545fc4ad5b39501ea1a889f07d288c747c020ab",
       "status": "archived"
     },
     "UI_SPEC": {
       "path": ".context/ui/source/ui-design-direction.md",
       "archived_to": ".context/ui/source/ui-design-direction.md",
       "type": "ui_specification",
-      "content_hash": "4e2b624fe5070cc5644a1e174de2edbfc773bc5aa10ff6f0c914b59a01d4ecb3",
+      "content_hash": "24e72eff49c758c843aac50d19478c4de28c22587098a215917a55e3f37e40e3",
       "status": "archived"
     }
   },
@@ -117,16 +117,22 @@
     "ordering": "ascending_by_synced_at"
   },
   "last_context_sync": {
-    "synced_at": "2026-10-21T15:55:42+08:00",
+    "synced_at": "2026-10-21T16:05:57+08:00",
     "source": "openspec/changes/archive/2026-10-21-fix-unauthorized-injoys-doc-write/",
     "workflow": ".agents/workflows/context-update.md sync proposal fix-unauthorized-injoys-doc-write --mode apply",
-    "authority": "已归档提案 fix-unauthorized-injoys-doc-write（proposal.md / tasks.md）",
+    "change_id": "fix-unauthorized-injoys-doc-write",
+    "authority": "已归档提案及用户第二次同步校正指令",
     "mode": "apply",
     "updated_context_files": [
       ".context/architecture/api_strategy.md",
+      ".context/architecture/source/technical_architecture.md",
+      ".context/domain/source/product_requirements.md",
+      ".context/domain/business_rules.md",
+      ".context/ui/source/ui-design-direction.md",
+      ".context/ui/atomic_components.md",
+      ".context/architecture/runtime_view.md",
       ".context/architecture/risks_and_debt.md",
       ".context/domain/testing_strategy.md",
-      ".context/domain/business_rules.md",
       ".context/history/context-sync.jsonl",
       ".context/context-manifest.json"
     ],
