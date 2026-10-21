@@ -200,7 +200,7 @@
 **Change ID:** `fix-unauthorized-injoys-doc-write`  
 **优先级:** P0  
 **预计时间:** 2.5 人日（规划估算）  
-**状态:** proposed  
+**状态:** in-progress  
 **变更类型（change_kind）:** `code`（判定依据：新增或修改宿主 / 客户端业务代码及其测试；契约文档同步属 SSoT-first 随附动作，不单独计为文档类交付）  
 
 **业务目标（Business Goal）**:
