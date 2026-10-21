@@ -8,7 +8,7 @@
 > - **当前阶段**: Phase 0（安全与数据真实性修复）
 > - **生成日期**: 2026-10-17
 > - **基于文档**: `.context/criterion.md`、`.context/context-manifest.json`、`.context/architecture/*`（含 9 篇 ADR，含 `adr_009_browseros_capability_management.md`）、`.context/domain/*`
-> - **任务状态**: in-progress（36 条提案中 4 条已 `done`：`fix-overview-metrics-null-semantics`、`feat-storage-metrics-snapshot`、`fix-storage-file-permissions`、`fix-config-save-error-swallow`；其余 `proposed`）
+> - **任务状态**: in-progress（37 条提案中 4 条已 `done`：`fix-overview-metrics-null-semantics`、`feat-storage-metrics-snapshot`、`fix-storage-file-permissions`、`fix-config-save-error-swallow`；其余 33 条 `proposed`）
 
 > **规划口径说明**
 > - **阶段划分依据**: 本项目 PRD 的 Phase 1–3（舆情需求提炼 / 技能工坊与出海 / Injoys 双向同步）属**未到阶段**，`.context/architecture/constraints.md`「阶段规划」明确「未到阶段的能力不提前实现」，故本路线图**只覆盖 Phase 0（双平台最小完整闭环）的达成**；PRD §七 Phase 1–3 的交付能力**不在本路线图范围**。
@@ -46,11 +46,11 @@
 > **`ops_draft_launch_kit`（出海 Launch 物料）的阶段边界**：该工具所属**能力**属 Phase 2，但它**当前实现中已存在**且存在越权写入 Injoys 与时间戳伪造编号两处合规缺陷（`docs/implementation-gaps-report.md` §1 / §2）。依「触碰铁律的实现缺口全部置于 Phase 0」，其**减法**合规修复已并入 Phase 0 的 `fix-unauthorized-injoys-doc-write` 与 `fix-doc-id-fabrication`；本路线图**不**提前实现 Phase 2 的出海模拟 / 预填能力。
 >
 > [!NOTE]
-> **UI 基础层提案的追加口径（`plan add ui`）**：2026-10-21 依据 `.context/ui/*` 追加 `fix-ui-token-violations`、`feat-ui-workbench-shell`、`feat-ui-primitives-button-badge-card`、`feat-ui-metricbox-kpi`、`feat-ui-empty-state`、`feat-ui-interaction-states`、`feat-ui-responsive-breakpoints`、`feat-ui-shortcuts-guardrails`、`feat-ui-i18n-dictionary` 共 9 条，全部落在 **Phase 3**（`.context/ui/README.md`「客户端交付在项目 Phase 3」）。**只增不改**：已有 27 条提案的范围、优先级、依赖与状态均未改动。
+> **UI 基础层提案的追加口径（`plan add ui`）**：2026-10-21 依据 `.context/ui/*` 追加 `fix-ui-token-violations`、`feat-ui-workbench-shell`、`feat-ui-primitives-button-badge-card`、`feat-ui-metricbox-kpi`、`feat-ui-empty-state`、`feat-ui-interaction-states`、`feat-ui-responsive-breakpoints`、`feat-ui-shortcuts-guardrails`、`feat-ui-i18n-dictionary` 共 9 条，全部落在 **Phase 3**（`.context/ui/README.md`「客户端交付在项目 Phase 3」）。**追加时只增不改**：当时未改动已有 27 条提案的范围、优先级、依赖与状态。（该纪律仅约束 `plan add ui` 这一次追加；后续 `context-check plan` 的修复轮已按检查结论调整 D1–D6 的依赖字段，见下方「待协调」与「结构影响」两段的现状描述。）
 >
 > **待协调（只报告，不改已有提案）**：Phase 3 提案 1–6 各自带「样式令牌化 / 硬编码色值清理」子任务（0.25–0.75 人日），与 `fix-ui-token-violations` 范围重叠——实施时令牌基线统一由该提案提供，提案 1–6 复用即可，不必各自另建。另 `feat-client-dashboard` 已含「`null` → 暂无数据 / 暂无环比 + 覆盖范围」的**数据语义**，`feat-ui-metricbox-kpi` 只做**组件结构与排布**，两者是「组件 → 接入」关系，不重复实现。
 >
-> **结构影响（只报告）**：本 Phase 原有 6 条提案均为「Tab 内容接入」，但仓库现行 `plugin-src/client/ops-page.js` 无 Tab 容器、无 KPI Ribbon、无快捷键处理。`feat-ui-workbench-shell` 建议**先于**提案 1–6 实施，否则 6 个 Tab 缺容器承载；本路线图**不修改**提案 1–6 的依赖字段。
+> **结构影响（只报告）**：本 Phase 原有 6 条提案均为「Tab 内容接入」，但仓库现行 `plugin-src/client/ops-page.js` 无 Tab 容器、无 KPI Ribbon、无快捷键处理。`feat-ui-workbench-shell` **先于**提案 1–6 实施，否则 6 个 Tab 缺容器承载；该前置已作为正式依赖写入 D1–D6 的前置字段、总纲索引与依赖图（2026-10-21 检查修复轮），不再只是建议。
 
 > **`.context` 登记补登**：`architecture/risks_and_debt.md` 的 TD-008 仅登记 4 处写入站点、TD-009 仅登记 `ops_generate_review` 一处假编号（见 `docs/implementation-gaps-report.md` §5 的「已知覆盖缺口」）。上述两个 Phase 0 提案已把「补登第 5 处 / 第 2 处站点」列入 In-scope，实施时须同轮刷新 `.context` 资产、Manifest 与 `history`。
 
@@ -63,7 +63,7 @@
 | Phase 0 | 安全与数据真实性修复 | 消除触碰铁律 2 / 铁律 3 / 铁律 4、内容写入边界、安全边界与配置落盘真实性的实现缺口，让既有接口先「不说假话、不越界」 | ~21 人日 | 10 | [Phase-0](./proposal-roadmap-Phase-0.md) |
 | Phase 1 | 排期主数据与 Injoys 单向同步 | 让排期成为本地黄金主数据源，并打通生成 / 状态推进 / 单向导出 / 显式导入 | ~15 人日 | 5 | [Phase-1](./proposal-roadmap-Phase-1.md) |
 | Phase 2 | 内容沉淀与 AI 工具中枢 | 补齐「用户显式触发」的唯一沉淀入口，并落地工具目录 / 白名单 / 沙箱 / 遥测 | ~12.5 人日 | 5 | [Phase-2](./proposal-roadmap-Phase-2.md) |
-| Phase 3 | 客户端工作台 UI 接入 | 把宿主侧契约接进 6 大 Tab 中 Phase 0 所需的 5 个 Tab，补齐 PD-004 的界面缺口 | ~36.5 人日 | 15 | [Phase-3](./proposal-roadmap-Phase-3.md) |
+| Phase 3 | 客户端工作台 UI 接入 | 把宿主侧契约接进 6 大 Tab 中 Phase 0 所需的 5 个 Tab，补齐 PD-004 的界面缺口 | ~37 人日 | 15 | [Phase-3](./proposal-roadmap-Phase-3.md) |
 | Phase 4 | 契约收口与端到端验收 | 统一重复错误码、补齐客户端 RPC 消费测试，为 Phase 0 Live 实测与签收做准备 | ~3 人日 | 2 | [Phase-4](./proposal-roadmap-Phase-4.md) |
 
 > Phase 顺序按 **SSoT-first 依赖**而非严重性单独排序：Phase 0 是必须最先做的合规修复；Phase 1 / 2 提供后续 UI 所依赖的宿主契约；Phase 3 的客户端 UI 之所以不在 Phase 0，是因为它**依赖**前序契约（`criterion.md` §6：类型契约 → 宿主 RPC 契约 → 领域实现 → 客户端 UI 与测试）。PD-004（高严重性）的界面缺口在 Phase 3 集中偿还。
@@ -72,7 +72,7 @@
 
 ## 🔗 依赖关系图
 
-> 覆盖全部 36 个提案（含跨 Phase 依赖）。
+> 覆盖全部 37 个提案（含跨 Phase 依赖）。
 
 ```mermaid
 graph LR
@@ -128,6 +128,7 @@ graph LR
     A7 --> A2
     A1 --> A10
     A2 --> A10
+    A10 --> D2
     A7 --> B1
     A1 --> B2
     A1 --> D2
@@ -164,12 +165,12 @@ graph LR
     D3 --> D4
 
     D7 --> D8
-    D7 --> D1
-    D7 --> D2
-    D7 --> D3
-    D7 --> D4
-    D7 --> D5
-    D7 --> D6
+    D8 --> D1
+    D8 --> D2
+    D8 --> D3
+    D8 --> D4
+    D8 --> D5
+    D8 --> D6
     D7 --> D9
     D9 --> D10
     D10 --> D2
@@ -209,7 +210,7 @@ graph LR
 | `feat-tools-telemetry` | 2 | 工具执行遥测（脱敏） | P2 | `feat-tools-sandbox-execute` | proposed | [Phase-2](./proposal-roadmap-Phase-2.md) |
 | `feat-tools-lifecycle-gaps` | 2 | 补齐生命周期分类未定阶段的 2 个工具 | P2 | `feat-tools-catalog-toggle` | proposed | [Phase-2](./proposal-roadmap-Phase-2.md) |
 | `feat-client-engine-config` | 3 | 引擎策略配置页接入（含 BrowserOS 能力管理） | P0 | `feat-browseros-capability-toggle`、`fix-browser-session-cookie-probe`、`feat-injoys-test-document-count`、`feat-ui-workbench-shell` | proposed | [Phase-3](./proposal-roadmap-Phase-3.md) |
-| `feat-client-dashboard` | 3 | 运营驾驶舱接入 | P0 | `fix-overview-metrics-null-semantics`、`feat-storage-metrics-snapshot`、`feat-calendar-generate-list`、`fix-browser-session-cookie-probe`、`feat-injoys-test-document-count`、`feat-ui-workbench-shell`、`feat-ui-metricbox-kpi` | proposed | [Phase-3](./proposal-roadmap-Phase-3.md) |
+| `feat-client-dashboard` | 3 | 运营驾驶舱接入 | P0 | `fix-overview-metrics-null-semantics`、`feat-storage-metrics-snapshot`、`feat-metrics-window-verified-capture`、`feat-calendar-generate-list`、`fix-browser-session-cookie-probe`、`feat-injoys-test-document-count`、`feat-ui-workbench-shell`、`feat-ui-metricbox-kpi` | proposed | [Phase-3](./proposal-roadmap-Phase-3.md) |
 | `feat-client-content-studio` | 3 | 内容创作室与草稿库接入 | P0 | `feat-workbench-sink-to-injoys-doc`、`feat-calendar-status-transitions`、`feat-ui-workbench-shell` | proposed | [Phase-3](./proposal-roadmap-Phase-3.md) |
 | `feat-client-feed-simulators` | 3 | 公众号 / B站 真实样式模拟器 | P1 | `feat-client-content-studio`、`feat-ui-workbench-shell` | proposed | [Phase-3](./proposal-roadmap-Phase-3.md) |
 | `feat-client-schedule-view` | 3 | 排期日历流水与回填入口 | P1 | `feat-calendar-generate-list`、`feat-calendar-status-transitions`、`feat-calendar-injoys-export`、`feat-calendar-injoys-import`、`feat-ui-workbench-shell` | proposed | [Phase-3](./proposal-roadmap-Phase-3.md) |

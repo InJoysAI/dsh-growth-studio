@@ -4,7 +4,7 @@
 > **文件名**: `proposal-roadmap-Phase-3.md`（编号与总纲阶段总览一致：Phase 3 → `Phase-3`）
 > **状态**: proposed
 > **来源**: `.context/architecture/risks_and_debt.md`（TD-002 / TD-012）；`.context/domain/risks_and_debt.md`（PD-004）；`.context/architecture/adr_003_custom_rpc_envelope.md` / `adr_007_manual_refresh_no_persistent_connection.md` / `adr_009_browseros_capability_management.md`；`.context/architecture/api_strategy.md` §3.4 / §3.6 / §3.7 / §3.9 / §4；`.context/domain/business_rules.md`（BR-052 / BR-074）；`.context/domain/testing_strategy.md` 模块 1 / 2 / 3 / 6 / 7
-> **预计工作量与周期**: ~36.5 人日（**规划估算**；源文档工作量字段为 `N/A – 源文档未提供`。其中 19 人日来自提案 1–6，17.5 人日来自 `plan add ui` 追加的提案 7–15）
+> **预计工作量与周期**: ~37 人日（**规划估算**；源文档工作量字段为 `N/A – 源文档未提供`。其中提案 1–6 合计 19.5 人日（含 `feat-client-tools-console` 检查修复轮由 3 调为 3.5），提案 7–15 合计 17.5 人日）
 
 ## 阶段目标与范围
 
@@ -185,7 +185,7 @@
 ```
 
 **依赖**:
-- 前置: `fix-overview-metrics-null-semantics`、`feat-storage-metrics-snapshot`、`feat-calendar-generate-list`、`fix-browser-session-cookie-probe`、`feat-injoys-test-document-count`、`feat-ui-workbench-shell`、`feat-ui-metricbox-kpi`
+- 前置: `fix-overview-metrics-null-semantics`、`feat-storage-metrics-snapshot`、`feat-metrics-window-verified-capture`、`feat-calendar-generate-list`、`fix-browser-session-cookie-probe`、`feat-injoys-test-document-count`、`feat-ui-workbench-shell`、`feat-ui-metricbox-kpi`
 - 被依赖: 无
 - 约束: 依赖 Phase 0 的汇总语义、环比基准、统一会话四态与 `documentCount` 契约，以及 Phase 1 的 `weeklyPipeline` 周聚合；UI 只呈现，不自行计算全网汇总
 
@@ -435,7 +435,7 @@
 
 **Change ID:** `feat-client-tools-console`  
 **优先级:** P2  
-**预计时间:** 3 人日（规划估算）  
+**预计时间:** 3.5 人日（规划估算）  
 **状态:** proposed  
 **变更类型（change_kind）:** `code`（判定依据：新增或修改宿主 / 客户端业务代码及其测试；契约文档同步属 SSoT-first 随附动作，不单独计为文档类交付）  
 
@@ -564,8 +564,8 @@
 
 **依赖**:
 - 前置: 无
-- 被依赖: `feat-ui-workbench-shell`、`feat-ui-primitives-button-badge-card`、`feat-ui-metricbox-kpi`、`feat-ui-empty-state`、`feat-ui-interaction-states`、`feat-ui-responsive-breakpoints`（均以本提案的合规基线为准）
-- 约束: 不得为消除违规而新增令牌或宿主 alias；未授权语义须先提案登记再使用
+- 被依赖: `feat-ui-workbench-shell`、`feat-ui-primitives-button-badge-card`
+- 约束: 不得为消除违规而新增令牌或宿主 alias；未授权语义须先提案登记再使用。指标卡 / 空状态 / 交互状态经 `feat-ui-primitives-button-badge-card`、断点经 `feat-ui-workbench-shell` **传递**复用本提案的令牌基线，故不列为直接下游
 
 ---
 

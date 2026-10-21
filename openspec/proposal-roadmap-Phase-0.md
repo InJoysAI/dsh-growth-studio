@@ -2,9 +2,9 @@
 
 > **返回总纲**: [proposal-roadmap.md](./proposal-roadmap.md)
 > **文件名**: `proposal-roadmap-Phase-0.md`（编号与总纲阶段总览一致：Phase 0 → `Phase-0`）
-> **状态**: in-progress（9 条提案中 4 条已 `done`、5 条 `proposed`）
+> **状态**: in-progress（10 条提案中 4 条已 `done`、6 条 `proposed`）
 > **来源**: `.context/criterion.md` §3.1 / §3.2 / §4 / §5.4 / §5.5 / §6；`.context/architecture/risks_and_debt.md`（RISK-002 / RISK-003 / RISK-005 / RISK-006 / RISK-007；TD-007 / TD-008 / TD-009 / TD-012 / TD-013）；`.context/architecture/adr_009_browseros_capability_management.md`；`.context/architecture/api_strategy.md` §2.3 / §3.1 / §3.4 / §3.6 / §3.7 / §3.9 / §3.10；`.context/architecture/data_architecture.md`；`.context/architecture/security_policy.md`；`.context/domain/business_rules.md`（BR-052 / BR-074）；`.context/domain/risks_and_debt.md`（PD-006）；`.context/domain/testing_strategy.md` 模块 1 / 3 / 5 / 6 / 8
-> **预计工作量与周期**: ~17 人日（**规划估算**；源文档对 TD-007 ~ TD-013 的工作量字段一律标注 `N/A – 源文档未提供`）
+> **预计工作量与周期**: ~21 人日（**规划估算**；源文档对 TD-007 ~ TD-013 的工作量字段一律标注 `N/A – 源文档未提供`）
 
 ## 阶段目标与范围
 
@@ -190,7 +190,7 @@
 
 **依赖**:
 - 前置: `fix-overview-metrics-null-semantics`、`fix-storage-file-permissions`
-- 被依赖: `feat-client-dashboard`、`feat-client-dashboard`、`feat-metrics-window-verified-capture`
+- 被依赖: `feat-client-dashboard`、`feat-metrics-window-verified-capture`
 - 约束: 快照写入须经**统一落盘封装**（其 `mode` 权限位由 `fix-storage-file-permissions` 提供，该前置已归档 2026-10-20、封装落地为 `src/storage/local-fs.ts`），复用 `drafts/storage-unavailable` 类错误映射口径
 
 ---
@@ -607,7 +607,7 @@
 
 **依赖**:
 - 前置: 无
-- 被依赖: `feat-storage-metrics-snapshot`（快照写入复用本提案的统一落盘封装，含写锁与权限位）；Phase 1 `feat-storage-calendar-items`（`calendar/` 落盘复用同一封装）
+- 被依赖: `feat-storage-metrics-snapshot`（快照写入复用本提案的统一落盘封装，含写锁与权限位）、`feat-storage-calendar-items`（Phase 1，`calendar/` 落盘复用同一封装）
 - 约束: 后续 `metrics/` / `calendar/` 落盘须复用同一封装（Phase 1 / 本 Phase 提案 2）；`metrics/` 部分即 `feat-storage-metrics-snapshot` 的显式前置；**既有对象权限位的一次性收紧不在本提案范围**（既有目录不回改，须另立迁移提案）
 
 ---
@@ -797,7 +797,8 @@
 | 不可证仍空 | 无法证实窗口时保持 `unverified`，汇总仍为 `null`，`note` 说明原因 | 单元测试 |
 | 不冒充增量 | 累计值 / 昨日增量不得被当作窗口增量计入 | 代码审查 + 夹具测试 |
 | 落盘链路 | `verified` 结果按 `(platform, capturedAt)` 写入 `metrics/{YYYY-MM-DD}.json`；`unverified` 不写 | 单元测试 |
-| 环比可达 | 历史充足时 `comparison` 给出非空 delta（不再恒 `null`） | 单元测试（夹具构造两个等长窗口） |
+| 环比可达 | **仅在**窗口长度匹配、`windowStart` / `windowEnd` 的 UTC 日历日对齐、当前值与基准值**均已知**、且基准值**非 0** 时，对应 delta 为非空百分比 | 单元测试（夹具构造两个等长窗口） |
+| 环比空值例外保留 | 当前值或基准值未知 → 对应 delta 为 `null`；基准为 0 而当前非 0 → `null`（不输出无穷百分比）；基准为 0 且当前也为 0 → `0%`；任一应采平台缺基准 → `period` 与四个 delta 全部 `null` | 单元测试（逐例外各一条夹具） |
 | 平台范围 | 仅 `wechat_mp` / `bilibili`；不新增平台 | 代码审查 |
 
 **验收场景（按需，建议 BDD）**:
@@ -820,8 +821,25 @@
 
 场景: 生产环比可用
   Given 本地已积累覆盖上一个等长窗口的可证快照
+    And 两个应采平台在该窗口与上一等长窗口的对应指标均已知
+    And 上一窗口的基准值均非 0
   When 用户查看指标卡环比
   Then 应给出真实 delta 而非「暂无环比」
+
+场景: 环比在数据不可比时仍为空
+  Given 历史快照已覆盖上一个等长窗口
+    And 某指标在当前窗口或基准窗口中未知
+  When 用户查看该指标环比
+  Then 该指标 delta 应为空（「暂无环比」）
+    And 不得因为「历史充足」就给出百分比
+
+场景: 零基准的环比边界
+  Given 上一等长窗口某指标基准值为 0
+  When 当前窗口该指标也为 0
+  Then 该指标 delta 应为 0%
+  When 当前窗口该指标非 0
+  Then 该指标 delta 应为空
+    And 不得输出无穷百分比
 ```
 
 **依赖**:
