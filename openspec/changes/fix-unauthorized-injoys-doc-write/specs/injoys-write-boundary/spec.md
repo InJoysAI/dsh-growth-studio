@@ -10,7 +10,7 @@
 - **WHEN** 调用 `workbench.generateArticleDraft` 或 `ops_draft_article`
 - **THEN** MUST NOT 向 Injoys 发出 `document.create` 请求
 - **AND** 物料 MUST 仍保存至本地草稿库，响应中的 `id` / `title` / `wordCount` / `draftSaved` 语义不变
-- **AND** 响应的 `injoysDocId` / `docId` MUST 为空（未沉淀），MUST NOT 为任何文档编号
+- **AND** 响应的 `injoysDocId`（`workbench.generateArticleDraft`）与 `docId`（`ops_draft_article`）MUST 为**未设置状态（`undefined`）**，MUST NOT 为任何文档编号（二者在 `output.schema` 中均非 required）
 
 #### Scenario: 生成视频元数据后不产生远端写入
 
@@ -24,7 +24,8 @@
 - **GIVEN** 海外 Launch 物料生成路径已存在（`ops_draft_launch_kit`）
 - **WHEN** 用户仅触发物料生成
 - **THEN** MUST NOT 经 `InjoysClient.saveLaunchKitDocument` 发出 `document.create` 请求
-- **AND** MUST NOT 返回任何形式的文档编号（在该字段可空化契约落地前，以空值表示未沉淀）
+- **AND** MUST NOT 返回真实文档编号，也 MUST NOT 返回时间戳伪造编号（如 `doc_launch_<时间戳>`）
+- **AND** 在 `output.schema` 仍把 `injoysDocId` 声明为 `required` 字符串期间，该字段 MUST 为空串（`''`）以表示未沉淀；该字段的可空化与 `required` 取消属 `fix-doc-id-fabrication` 的收口范围
 
 ### Requirement: 复盘路径不得写入 Injoys 文档
 
@@ -38,9 +39,9 @@
 - **AND** 复盘结果 MUST 照常返回（`totalViews` / `overallEngagementRate` / `viralRate` / `topPerformers` / `keyLearnings` / `nextActions`）
 - **AND** `report.injoysDocId` MUST 为未设置状态（生成阶段不填充该字段）
 
-### Requirement: 工具描述必须与「生成只保存本地」一致
+### Requirement: 工具描述与 README 功能说明必须与「生成只保存本地」一致
 
-`ops_*` 工具的 `description` MUST 如实描述写入边界，MUST NOT 把「沉淀至 Injoys 文档」描述为生成的副作用（`.context/criterion.md` §4「内容写入边界」；`.context/domain/business_rules.md` BR-030 / BR-033）。本要求对应验收项「文案一致」。
+`ops_*` 工具的 `description` 与 `README.md` 的功能说明 MUST 如实描述写入边界，MUST NOT 把「沉淀至 Injoys 文档」描述为生成的副作用（`.context/criterion.md` §4「内容写入边界」；`.context/domain/business_rules.md` BR-030 / BR-033 / BR-040）。本要求对应验收项「文案一致」。
 
 #### Scenario: 描述文案不再暗示生成即沉淀
 
@@ -48,6 +49,13 @@
 - **WHEN** 读取两者的 `description`
 - **THEN** MUST 明确说明产物只保存到本地草稿库
 - **AND** MUST NOT 出现「保存为 Injoys 文档」「沉淀至 Injoys 文档」这类把远端写入描述为生成副作用的措辞
+
+#### Scenario: README 功能说明不再声称生成即沉淀
+
+- **GIVEN** 本变更落地后生成与复盘路径均不再写入 Injoys 文档
+- **WHEN** 检索 `README.md` 的核心功能与工具列表
+- **THEN** `README.md` MUST NOT 再出现「存入 Injoys 文档」或「沉淀至 Injoys 文档」这类把远端写入描述为生成副作用的表述
+- **AND** 相关条目 MUST 说明产物保存至本地草稿库（沉淀须用户显式触发）
 
 ### Requirement: Injoys 文档写入能力必须保留
 

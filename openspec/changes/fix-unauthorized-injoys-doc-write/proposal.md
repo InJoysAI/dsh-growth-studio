@@ -52,6 +52,8 @@
 - 海外四大渠道（YouTube / X / Product Hunt / TikTok）**模拟与预填能力本身**（Phase 2）。本提案只对**已存在**的 `ops_draft_launch_kit` 做减法合规修复，不提前实现 Phase 2 能力。
 - 文档编号的可空化契约与假编号回退（`ops_generate_review` 的 `report.injoysDocId ?? 'doc_review'` 字面量、`ops_draft_launch_kit` 的 `output.schema.injoysDocId.required`、`saveLaunchKitDocument` 的 `doc_launch_${Date.now()}` 时间戳兜底）——属紧随的 `fix-doc-id-fabrication`（本提案的被依赖方）。
 - 知识库读取能力（生成时读取知识库属允许行为，不动）。
+- **知识库未连通时的「沉淀不可用」场景的 Phase 0 验收**：本提案移除写入后，Phase 0 期间已不存在任何文档沉淀入口，故 `edge_cases.md` §5「知识库中枢未连通 → 文档沉淀不执行」与 `testing_strategy.md` 模块 8 场景 2 / 3 在 Phase 0 **不可触发**，其验收属 Phase 2（`proposal-roadmap-Phase-0.md` 阶段整体验收已声明「模块 8 场景 2 / 3 不在本 Phase 验收」）。
+- **生成侧在知识库未连通时返回兜底上下文**（`src/injoys/client.ts` 的 `getKnowledgeContext` 默认上下文分支）属既有行为，本提案不移除也不核查；本提案只处理写入边界。
 - 任何客户端 UI 改动（Phase 3）。
 
 > [!IMPORTANT]
@@ -59,16 +61,18 @@
 > - `ops_draft_launch_kit` 因 schema 仍要求字符串，`injoysDocId` 返回**空串**（并在代码注释中指向 `fix-doc-id-fabrication`），不编造任何编号。
 > - `ops_generate_review` 的 `report.injoysDocId ?? 'doc_review'` 字面量回退**保持原样**（移除该回退属 `fix-doc-id-fabrication` 的 In 范围）。移除写入后，该回退在正常路径也会命中，这是本提案引入的、**已知且必须在 A4 消除**的过渡态。
 >
+> 同理，`ops_draft_launch_kit` 的渲染分支（`src/tools/index.ts:922` 的 `**Injoys 文档编号**: \`${value.injoysDocId}\`` 无 `?` 判定）与两处工具的 `output.schema` 可空化同属 A4 收口范围，本提案不修改；`spec/injoys-write-boundary` 已把这三处的过渡态口径写清（`undefined` 与 `''` 分别对应哪些工具）。
+>
 > 因此本提案**不应单独长期停留**，须由 `fix-doc-id-fabrication` 紧随落地（A4 的前置即为本提案）。本提案的交付不宣称已解决 `TD-009`（虚报成功）。
 
 > [!NOTE]
-> **覆盖边界的如实声明**：本提案只覆盖 `document.create`（Injoys 文档）写入，口径与 `TD-008` 一致。`ops_plan_calendar` 的「同步写入 Injoys 表格」、`ops_fetch_metrics` 的「同步至 Injoys 指标表格」、`ops_extract_feedback` 的「沉淀至 Injoys 需求池」同属对用户 Injoys 空间的远端写入，但**不在 `TD-008` 口径与本提案范围内**，也不因本提案而被认为已合规。
+> **覆盖边界的如实声明**：本提案只覆盖 `document.create`（Injoys 文档）写入，口径与 `TD-008` 一致。`ops_plan_calendar` 的「同步写入 Injoys 表格」、`ops_fetch_metrics` 的「同步至 Injoys 指标表格」、`ops_extract_feedback` 的「沉淀至 Injoys 需求池」同属对用户 Injoys 空间的远端写入，但**不在 `TD-008` 口径与本提案范围内**，也不因本提案而被认为已合规。这些站点是否构成缺陷取决于「工具被调用是否即视为用户显式触发」（`business_rules.md` BR-NFR-002 把这三类写入列为用户主动触发的业务功能），本提案不做裁决；建议由后续 `context-check` / `context-update` 轮次判定是否为其单列债务登记。
 
 ## Impact
 
 ### 涉及的规范（Specs）
 
-- **新增**：`specs/injoys-write-boundary/spec.md` — 生成 / 复盘路径的 Injoys 文档写入边界（4 条 Requirement：生成不写远端、复盘不写远端、工具描述一致、写入能力保留）。
+- **新增**：`specs/injoys-write-boundary/spec.md` — 生成 / 复盘路径的 Injoys 文档写入边界（4 条 Requirement：生成不写远端、复盘不写远端、工具描述与 README 功能说明一致、写入能力保留；共 7 个 Scenario）。
 
 ### 涉及的代码
 
@@ -76,6 +80,7 @@
   - `src/ops-rpc.ts`（`workbench.generateArticleDraft` 分支）
   - `src/tools/index.ts`（`ops_draft_article` / `ops_draft_video_meta` / `ops_draft_launch_kit`，含两处 `description` 文案）
   - `src/analytics/review-reporter.ts`（`generateReview`）
+  - `README.md`（`:24` / `:27` / `:39` 三处把「沉淀至 Injoys 文档」描述为生成副作用的对外文案）
   - `tests/ops-manager.spec.ts`（既有断言改写 + 新增用例）
 - **不修改**（明确保留）：`src/injoys/client.ts` 的四个 `save*Document` 方法；`src/types.ts` 的领域类型；`plugin-src/` 客户端代码。
 - **新增**：无。
@@ -91,6 +96,7 @@
 | 风险 | 影响 | 处理决定及理由 |
 |------|------|----------|
 | 历史用户依赖「生成即沉淀」的隐性行为 | 行为变化 | 依 MVP 裁决（2026-10-16）：生成只保存本地、沉淀须用户明确触发；这是**目标契约**，不是回归。`.context/architecture/api_strategy.md:15` 已声明该裁决，本轮即为实现侧的核查闭环。 |
+| **RISK-004（高）** 配置切换竞态跨库覆盖 | 删除 `workbench.generateArticleDraft` 的第二次 `saveDraft`（仅为回写 `injoysDocId`）时，若误改或误移首次 `saveDraft` 的目录参数、或把 `getDirectory()` 移到 `await` 之后，会在配置切换时「A 库读、B 库写」并覆盖 B 库同 ID 草稿 | 保留请求开始处的 `articleStorageDir = actualDraftStore.getDirectory()` 与首次 `saveDraft(..., { dir: articleStorageDir })`（`tasks.md` 3.1），不在 `await` 后重新解析目录（`criterion.md` §3.5）；回归证据为既有 `U2: 图文生成在知识库等待期间切换目录，不得产生双库副本` 用例（`tests/ops-manager.spec.ts:2263`，见 `tasks.md` 5.4 / 6.3.2），不新增重复用例 |
 | 移除调用后 `injoysDocId` / `docId` 字段仍被读取 | 字段为空 | 契约已将其保留为**可选兼容形状**（`api_strategy.md` §3.1；`src/types.ts` 中四处 `injoysDocId?: string \| undefined` 全部可选），不因生成而填充。客户端渲染已有 `*(未同步)*` 分支（`ops_draft_article` / `ops_draft_video_meta`）。 |
 | `ops_draft_launch_kit` 的 `injoysDocId` 因 schema 仍为 required 字符串而返回空串 | 用户可见文案出现空的「Injoys 文档编号」 | 依「不得编造编号」优先：空值优于假编号（`criterion.md` §3.2）。该字段的可空化、`required` 取消与渲染分支属 `fix-doc-id-fabrication`，本提案以代码注释标注并在此登记。 |
 | `ops_generate_review` 的 `doc_review` 回退在移除写入后于正常路径也命中 | 过渡期内仍播报假编号 | **已知并显式接受的过渡态**：移除该回退属 `fix-doc-id-fabrication` 的 In 范围（本提案的 Out）。两提案为严格顺序，A4 的前置即本提案，落地后即消除。 |
@@ -101,9 +107,9 @@
 
 - ✅ 调用 4 处生成方法（`workbench.generateArticleDraft`、`ops_draft_article`、`ops_draft_video_meta`、`ops_draft_launch_kit`）后，无 `document.create` 请求发出，且本地草稿仍落盘。
 - ✅ 复盘路径（`ReviewReporter.generateReview` / `ops_generate_review`）无无条件 `saveReviewDocument` 请求。
-- ✅ `ops_draft_article` / `ops_generate_review` 的工具描述不再暗示「生成即沉淀」。
+- ✅ `ops_draft_article` / `ops_generate_review` 的工具描述不再暗示「生成即沉淀」；`README.md` 的 `:24` / `:27` / `:39` 三处同源文案同步修正。
 - ✅ `InjoysClient` 的四个 `save*Document` 方法仍可被显式调用并返回值（能力保留）。
-- ✅ `README.md` 之外的项目文档无需改动（本提案不涉及接口设计变更，故不更新 `.context/architecture/api_strategy.md` 的请求/响应示例）。
+- ✅ `README.md` 三处文案修正后，其余项目文档无需改动（本提案不涉及接口设计变更，故不更新 `.context/architecture/api_strategy.md` 的请求/响应示例）。
 - ✅ `pnpm typecheck` + `pnpm test` 通过。
 
 ### 关联 Context 资产
@@ -117,7 +123,7 @@
 | architecture | `.context/architecture/runtime_view.md` | 生成路径时序「不创建或更新远端文档」；Injoys 沉淀失败不得谎报成功 |
 | architecture | `.context/architecture/cross_cutting_concepts.md` | 「不谎报」「不伪造」（不得静默写本地假 ID） |
 | architecture | `.context/architecture/constraints.md` | 阶段边界：未到阶段的能力不提前实现（本提案只做减法，不提前实现 Phase 2 出海能力） |
-| domain | `.context/domain/business_rules.md` | BR-030（物料生成与本地存盘，主数据留本机不自动上传）、BR-033（沉淀仅在用户显式触发时执行）、BR-073（知识库未连通时不得返回看似成功的结果）、BR-NFR-002（内容留存边界） |
+| domain | `.context/domain/business_rules.md` | BR-030（物料生成与本地存盘，主数据留本机不自动上传）、BR-033（沉淀仅在用户显式触发时执行）、BR-040（工具「外部依赖」标注语义不代表自动写入授权——工具描述文案修正的直接依据）、BR-073（知识库未连通时不得返回看似成功的结果）、BR-NFR-002（内容留存边界） |
 | domain | `.context/domain/testing_strategy.md` | 模块 3 场景 1「物料生成与本地存盘」（未经用户明确要求不得创建或更新 Injoys 文档）；模块 8 场景 2 / 3 属 Phase 2 / 3，不在本 Phase 验收 |
 | domain | `.context/domain/edge_cases.md` | §5「知识库中枢未连通」：依赖知识库的动作（含文档沉淀）不执行、不展示为成功 |
 | openspec | `openspec/proposal-roadmap.md` + `openspec/proposal-roadmap-Phase-0.md` | Phase 0 提案 3 的大纲条目（本提案的命中的 roadmap 条目） |
@@ -131,10 +137,10 @@
 | phase | Phase 0（安全与数据真实性修复） |
 | change_kind | `code` |
 | business_goal | 使生成（图文 / 视频元数据 / 海外 Launch 物料）与复盘路径**只写本地**，符合 `criterion.md` §4 内容写入边界；消除「用户未授权即把物料写入其 Injoys 空间」的越界行为 |
-| in_scope | 移除 5 处无条件 `document.create` 调用（含 `ops_draft_launch_kit` 的 `saveLaunchKitDocument`）；修正 `src/tools/index.ts` 相悖文案；同轮补登 TD-008 第 5 处站点；补「未显式触发时不写远端」测试（含海外 Launch 路径）；保留四个 `InjoysClient.save*Document` 能力 |
+| in_scope | 移除 5 处无条件 `document.create` 调用（含 `ops_draft_launch_kit` 的 `saveLaunchKitDocument`）；修正 `src/tools/index.ts` 相悖文案；同轮补登 TD-008 第 5 处站点（含追踪看板行）；补「未显式触发时不写远端」测试（含海外 Launch 路径）；保留四个 `InjoysClient.save*Document` 能力。**相对大纲 In ③ 的一处最小扩充**：一并修正 `README.md:24` / `:27` / `:39` 三处同源文案（理由：这三处与 `src/tools/index.ts` 的 `description` 是同一缺陷的对外表述，本提案落地后由真变假；不扩及 `README.md:28` / `:61`） |
 | out_of_scope | `workbench.sinkToInjoysDoc` 唯一授权入口的实现（Phase 2）；海外四大渠道模拟与预填能力本身（Phase 2）；知识库读取能力；文档编号可空化与假编号回退（属被依赖提案 `fix-doc-id-fabrication`） |
 | dependencies | 前置：无。被依赖：`fix-doc-id-fabrication`（严格顺序）、`feat-workbench-sink-to-injoys-doc`（Phase 2） |
-| acceptance_criteria | 生成路径无 `document.create`（4 处站点）；复盘路径无无条件 `saveReviewDocument`；`ops_draft_launch_kit` 不再经 `saveLaunchKitDocument` 触发远端写入；工具描述不再暗示「生成即沉淀」（验证方式：单元测试 mock `InjoysClient` + `grep` + 代码审查） |
+| acceptance_criteria | 生成路径无 `document.create`（4 处站点）；复盘路径无无条件 `saveReviewDocument`；`ops_draft_launch_kit` 不再经 `saveLaunchKitDocument` 触发远端写入；工具描述与 `README.md` 文案不再暗示「生成即沉淀」；既有 `U2` 目录固定用例（RISK-004）继续通过（验证方式：单元测试 mock `InjoysClient` + `grep` + 代码审查） |
 | key_tasks | ①定位并移除生成路径 4 处无条件 `document.create`；②移除 `review-reporter.ts` 的无条件 `saveReviewDocument`；③修正工具描述文案并补登 TD-008 第 5 处站点；④补测试「未显式触发时无远端写入」（1 条通用 + 1 条覆盖海外 Launch） |
 | risks | 见上文「风险与注意事项」：历史隐性行为依赖（属目标契约变更）、`injoysDocId` 字段变空、launch kit 空串过渡态、`doc_review` 回退过渡态、`api_strategy.md` §3.10 现状列过时、`ReviewReporter.injoys` 变为未使用参数 |
 | related_context_assets | 见上文「关联 Context 资产」表 |
