@@ -8,7 +8,6 @@
 > - **当前阶段**: Phase 0（安全与数据真实性修复）
 > - **生成日期**: 2026-10-17
 > - **基于文档**: `.context/criterion.md`、`.context/context-manifest.json`、`.context/architecture/*`（含 9 篇 ADR，含 `adr_009_browseros_capability_management.md`）、`.context/domain/*`
-> - **任务状态**: in-progress（37 条提案中 4 条已 `done`：`fix-overview-metrics-null-semantics`、`feat-storage-metrics-snapshot`、`fix-storage-file-permissions`、`fix-config-save-error-swallow`；其余 33 条 `proposed`）
 
 > **规划口径说明**
 > - **阶段划分依据**: 本项目 PRD 的 Phase 1–3（舆情需求提炼 / 技能工坊与出海 / Injoys 双向同步）属**未到阶段**，`.context/architecture/constraints.md`「阶段规划」明确「未到阶段的能力不提前实现」，故本路线图**只覆盖 Phase 0（双平台最小完整闭环）的达成**；PRD §七 Phase 1–3 的交付能力**不在本路线图范围**。
