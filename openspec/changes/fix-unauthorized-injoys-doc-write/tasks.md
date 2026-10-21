@@ -95,7 +95,7 @@
   - [x] 6.1.3 文案一致：`ops_draft_article` 与 `ops_generate_review` 的 `description`、以及 `README.md` 均不再出现「保存为 Injoys 文档」「存入 Injoys 文档」「沉淀至 Injoys 文档」；且**按入口区分落盘承诺**——图文 / 视频条目说明保存至本地草稿库，复盘条目只说明生成并返回结果（不得声称落盘），两者均说明写入 Injoys 文档须用户显式触发（见 4.4 的三步门禁）
   - [x] 6.1.4 能力保留：`InjoysClient.saveArticleDocument` / `saveVideoDocument` / `saveReviewDocument` / `saveLaunchKitDocument` 四个方法仍存在且可被显式调用
 - [x] 6.2 运行 `pnpm typecheck` 与 `pnpm test`，两者全部通过
-  - `pnpm typecheck:tests` 不在 `criterion.md` §7.2 的校验命令内且为既有红基（`tests/ops-manager.spec.ts` 75 处 + `tests/metrics-snapshot.spec.ts` 1 处，均为测试侧 `ToolRunContext` / `unknown` 类型噪声）；本轮新增用例未增加错误数，清理属独立事项
+  - `pnpm typecheck:tests` 不在 `criterion.md` §7.2 的校验命令内。主体提交曾因新增用例引入 9 处 `TS18046`（既有红基 67 → 76）；D-1 收口轮已为 `runTool` 与 Launch 结果显式标注返回类型，消除这 9 处，现回到既有红基 **67 处**（`tests/ops-manager.spec.ts` 66 处 + `tests/metrics-snapshot.spec.ts` 1 处，均为测试侧 `ToolRunContext` / `unknown` 类型噪声）。剩余红基属独立清理事项，本轮未新增类型债务
 - [x] 6.3 代码审查
   - [x] 6.3.1 `grep` 确认 `src/` 内生成 / 复盘 / 海外 Launch 路径不再出现 `saveArticleDocument` / `saveVideoDocument` / `saveReviewDocument` / `saveLaunchKitDocument` 的**调用点**（仅 `src/injoys/client.ts` 的**定义**保留）
   - [x] 6.3.2 确认目录固定语义未被破坏，**按证据范围如实声明、不得扩大**：只有 RPC 图文由既有 `U2: 图文生成在知识库等待期间切换目录，不得产生双库副本` 用例（`tests/ops-manager.spec.ts:2261`）证明（RISK-004）；工具图文 / 视频在 `await getKnowledgeContext` **之后**才以默认目录调用 `saveDraft`（`src/tools/index.ts:205`→`:239`、`:310`→`:333`），**不经**请求开始处的目录捕获，属**既有未覆盖面**；`ops_draft_launch_kit` 无落盘。本提案不新增目录机制，只如实标注该未覆盖面

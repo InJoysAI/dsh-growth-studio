@@ -271,7 +271,7 @@ describe('Ops Manager (Stage 1 & 2)', () => {
       draftStore,
       new MetricsCollector({ mockOffline: true }),
     )
-    const runTool = (name: string, args: any) =>
+    const runTool = (name: string, args: any): Promise<any> =>
       tools.find(t => t.name === name)!.execute(args, execContext as any)
 
     const draftFiles = () => fs.readdirSync(draftsDir).filter(f => f.endsWith('.json'))
@@ -339,7 +339,10 @@ describe('Ops Manager (Stage 1 & 2)', () => {
 
     const execContext = { signal: new AbortController().signal, token: 'test-token' }
     try {
-      const result = await kitTool!.execute({ productName: 'DeepSeek Harness', targetRegion: 'global' }, execContext as any)
+      const result = (await kitTool!.execute(
+        { productName: 'DeepSeek Harness', targetRegion: 'global' },
+        execContext as any,
+      )) as any
 
       expect(calledTools).toContain('knowledge.list')
       expect(calledTools).not.toContain('document.create')
