@@ -88,12 +88,7 @@ export class ReviewReporter {
       nextActions,
     }
 
-    // Save formatted report to Injoys Documents if connected
-    const docId = await this.injoys.saveReviewDocument(report)
-    if (docId) {
-      report.injoysDocId = docId
-    }
-
+    // 复盘只生成并返回结果：写入 Injoys 文档须用户显式触发（criterion §4）
     return report
   }
 }

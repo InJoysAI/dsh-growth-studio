@@ -291,8 +291,8 @@
 |------|-----|
 | **类型** | 契约债务 / 实现债务 |
 | **严重性** | **高** |
-| **描述** | criterion §4「内容写入边界」与架构 §3.4 / §3.5.1 规定：生成只保存本地，写入 Injoys 文档必须由用户点击沉淀操作或明确要求（唯一授权入口为 `workbench.sinkToInjoysDoc`，尚未实现，见 TD-001）。但 `src/ops-rpc.ts` 的 `workbench.generateArticleDraft`、`src/tools/index.ts` 的 `ops_draft_article` / `ops_draft_video_meta`、`src/analytics/review-reporter.ts` 经 `InjoysClient.saveArticleDocument` / `saveVideoDocument` / `saveReviewDocument` 在**生成/复盘阶段无条件**调用 `document.create` 写入 Injoys，无任何「用户显式触发」前置判定。 |
-| **影响** | 在用户未授权时即把物料写入其 Injoys 空间，越过 criterion §4 的内容写入边界；`api_strategy.md` 的 MVP 裁决说明已标注「本轮未改代码，尚未核查运行时是否已对齐」，即契约已声明、实现尚未完成核查闭环。 |
+| **描述** | criterion §4「内容写入边界」与架构 §3.4 / §3.5.1 规定：生成只保存本地，写入 Injoys 文档必须由用户点击沉淀操作或明确要求（唯一授权入口为 `workbench.sinkToInjoysDoc`，尚未实现，见 TD-001）。但实现有 **5 处**站点在**生成/复盘阶段无条件**调用 `document.create` 写入 Injoys，无任何「用户显式触发」前置判定：① `src/ops-rpc.ts` 的 `workbench.generateArticleDraft`（`saveArticleDocument`，`:425`）；② `src/tools/index.ts` 的 `ops_draft_article`（`saveArticleDocument`，`:231`）；③ `src/tools/index.ts` 的 `ops_draft_video_meta`（`saveVideoDocument`，`:324`）；④ `src/tools/index.ts` 的 `ops_draft_launch_kit`（`saveLaunchKitDocument`，`:933`）；⑤ `src/analytics/review-reporter.ts` 的 `generateReview`（`saveReviewDocument`，`:92`）。 |
+| **影响** | 在用户未授权时即把物料（图文 / 视频元数据 / 海外 Launch 物料 / 复盘报告）写入其 Injoys 空间，越过 criterion §4 的内容写入边界；`api_strategy.md` 的 MVP 裁决说明已标注「本轮未改代码，尚未核查运行时是否已对齐」，即契约已声明、实现尚未完成核查闭环。第 ④ 处（`ops_draft_launch_kit`）此前未登记，导致债务清单与实现站点数不一致。 |
 | **目标解决时间** | N/A – 源文档未提供（建议按 SSoT-first 提案优先处理） |
 | **解决方案** | 按 criterion §6 顺序：① 先补齐 `workbench.sinkToInjoysDoc` 契约与实现，作为**唯一**的用户显式沉淀入口；② 从生成 / 复盘路径移除无条件的 `document.create` 调用；③ 同步修正 `src/tools/index.ts` 中与契约相悖的工具描述文案；④ 补测试覆盖「未显式触发时不写远端」。 |
 | **估算工作量** | N/A – 源文档未提供 |
@@ -423,7 +423,7 @@
 | TD-005 | 技术债 | `views` 兼容字段误用 | 中 | N/A | 监控中 | 2026-10-16 |
 | TD-006 | 技术债 | 排期无双向同步 | 低 | N/A | 计划 Phase 3 | 2026-10-16 |
 | TD-007 | 技术债 | `workbench.overview` 未实现部分缺失汇总语义（**违反铁律 3**） | **高** | N/A | **已修复（2026-10-20，`fix-overview-metrics-null-semantics`）** | 2026-10-20 |
-| TD-008 | 技术债 | 生成路径未授权写入 Injoys 文档（**越过内容写入边界**） | **高** | N/A | **待处理（优先）** | 2026-10-16 |
+| TD-008 | 技术债 | 生成路径未授权写入 Injoys 文档（**越过内容写入边界**） | **高** | N/A | **部分修复（2026-10-21，站点清单已补齐、写入调用已移除；唯一授权入口 workbench.sinkToInjoysDoc 待 Phase 2）** | 2026-10-21 |
 | TD-009 | 技术债 | `ops_generate_review` 以字面量 `doc_review` 冒充文档编号（**虚报成功**） | **高** | N/A | **待处理（优先）** | 2026-10-16 |
 | TD-010 | 技术债 | `calendar/` 与 `metrics/` 持久化契约未落地 | 中 | N/A | **部分修复（2026-10-20，`feat-storage-metrics-snapshot` 偿还 metrics；calendar 仍待 `feat-storage-calendar-items`）** | 2026-10-20 |
 | TD-011 | 技术债 | 错误码 `ops/not-found` 与 `ops/draft-not-found` 语义重复 | 低 | N/A | 待处理 | 2026-10-16 |

@@ -392,8 +392,8 @@ export function registerOpsRpc(
           case 'workbench.generateArticleDraft': {
             const topic = String(payload.topic ?? '新特性发布')
             const targetPlatform = (payload.targetPlatform as PlatformId) || 'wechat_mp'
-            // 同样固定目录：本路径落盘草稿后 await Injoys，再回写 injoysDocId。
-            // 若在 await 之后重新解析目录，会把 docId 写进另一个库的同 ID 草稿。
+            // 同样固定目录：本路径在 await 知识库之后落盘草稿。
+            // 若在 await 之后重新解析目录，会写到另一个库的同 ID 草稿。
             const articleStorageDir = actualDraftStore.getDirectory()
             const cfg = configStore.load()
             const kb = await injoys.getKnowledgeContext(cfg.defaultProduct)
@@ -422,24 +422,6 @@ export function registerOpsRpc(
               { dir: articleStorageDir },
             )
 
-            const docId = await injoys.saveArticleDocument({
-              id: draft.id,
-              title,
-              digest,
-              contentMarkdown,
-              suggestedTags: ['技术分享', 'AI'],
-            })
-
-            if (docId) {
-              await actualDraftStore.saveDraft(
-                {
-                  ...draft,
-                  injoysDocId: docId,
-                },
-                { dir: articleStorageDir },
-              )
-            }
-
             result = {
               ok: true,
               value: {
@@ -449,7 +431,8 @@ export function registerOpsRpc(
                 contentMarkdown,
                 wordCount: contentMarkdown.length,
                 draftSaved: true,
-                injoysDocId: docId,
+                // 生成只保存本地：写入 Injoys 文档须用户显式触发（criterion §4）
+                injoysDocId: undefined,
               },
             }
             break

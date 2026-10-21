@@ -155,12 +155,12 @@ describe('Ops Manager (Stage 1 & 2)', () => {
     expect(result.summary).toContain('bilibili')
   })
 
-  it('drafts WeChat article and saves to Injoys via ops_draft_article tool', async () => {
-    const injoys = new InjoysClient()
+  it('drafts WeChat article locally without writing to Injoys via ops_draft_article tool', async () => {
+    const injoys = new InjoysClient({ endpoint: 'http://127.0.0.1:1/mcp', token: 't' })
+    // 记录调用序列：生成只保存本地，不得出现 document.create（criterion §4）
+    const calledTools: string[] = []
     injoys.invokeTool = async (name: string) => {
-      if (name === 'document.create') {
-        return { document: { documentId: 'injoys_doc_real_456' } }
-      }
+      calledTools.push(name)
       return null
     }
     const registry = new AdapterRegistry()
@@ -187,7 +187,8 @@ describe('Ops Manager (Stage 1 & 2)', () => {
       execContext,
     )
 
-    expect(result.docId).toBe('injoys_doc_real_456')
+    expect(calledTools).not.toContain('document.create')
+    expect(result.docId).toBeUndefined()
     expect(result.title).toContain('如何实现个人产品的多渠道自动化运营')
     expect(result.wordCount).toBeGreaterThan(1000)
   })
@@ -224,6 +225,137 @@ describe('Ops Manager (Stage 1 & 2)', () => {
     expect(result.titleVariant2).toBeDefined()
     expect(result.titleVariant3).toBeDefined()
     expect(result.tags).toContain('#独立开发')
+  })
+
+  it('未显式触发时不写远端：RPC 图文 / 工具图文 / 工具视频 / 复盘均不发出 document.create', async () => {
+    const os = await import('node:os')
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const mod = await import('../src/ops-rpc.js')
+    const conn = await import('../src/config-store.js')
+    const { DraftStore } = await import('../src/storage/draft-store.js')
+
+    const base = fs.mkdtempSync(path.join(os.tmpdir(), 'gs-no-remote-'))
+    const draftsDir = path.join(base, 'drafts')
+
+    const calledTools: string[] = []
+    const injoys = new InjoysClient({ endpoint: 'http://127.0.0.1:1/mcp', token: 't' })
+    injoys.invokeTool = async (name: string) => {
+      calledTools.push(name)
+      return null
+    }
+
+    let handler: ((req: Request) => Promise<Response>) | undefined
+    const ctx: any = {
+      connection: { fetch: { register: (o: any) => { handler = o.fetch } } },
+      get: (name: string) => (name === 'profileContext' ? { home: base } : undefined),
+    }
+    const configStore = new conn.ConfigStore(ctx, { draftsDir })
+    const draftStore = new DraftStore(ctx, draftsDir)
+    mod.registerOpsRpc(ctx, configStore, injoys, new AdapterRegistry(), draftStore as any)
+
+    const call = async (method: string, payload: any) => {
+      const res = await handler!(new Request('http://localhost/api/ops', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'client-request', rpcId: 'x', method: 'ops', payload: { method, payload } }),
+      }))
+      return (await res.json()) as any
+    }
+
+    const execContext = { signal: new AbortController().signal, token: 'test-token' }
+    const tools = createOpsTools(
+      injoys,
+      new AdapterRegistry(),
+      undefined,
+      draftStore,
+      new MetricsCollector({ mockOffline: true }),
+    )
+    const runTool = (name: string, args: any) =>
+      tools.find(t => t.name === name)!.execute(args, execContext as any)
+
+    const draftFiles = () => fs.readdirSync(draftsDir).filter(f => f.endsWith('.json'))
+    /** 按入口分开取证：返回本次调用产生的工具名序列 */
+    const observe = async <T>(run: () => Promise<T>) => {
+      const start = calledTools.length
+      const value = await run()
+      return { value, names: calledTools.slice(start) }
+    }
+
+    try {
+      // 1. RPC 图文：本地落盘、无远端写入
+      const rpcArticle = await observe(() => call('workbench.generateArticleDraft', { topic: 'A3 取证' }))
+      expect(rpcArticle.value.result.ok).toBe(true)
+      expect(rpcArticle.value.result.value.injoysDocId).toBeUndefined()
+      expect(rpcArticle.names).toContain('knowledge.list')
+      expect(rpcArticle.names).not.toContain('document.create')
+      expect(draftFiles().length).toBe(1)
+
+      // 2. 工具图文：本地落盘、无远端写入
+      const article = await observe(() => runTool('ops_draft_article', { topic: 'A3 取证' }))
+      expect(article.value.docId).toBeUndefined()
+      expect(article.names).toContain('knowledge.list')
+      expect(article.names).not.toContain('document.create')
+      expect(draftFiles().length).toBe(2)
+
+      // 3. 工具视频：本地落盘、无远端写入
+      const video = await observe(() => runTool('ops_draft_video_meta', { videoPath: '/tmp/a3.mp4' }))
+      expect(video.value.injoysDocId).toBeUndefined()
+      expect(video.names).toContain('knowledge.list')
+      expect(video.names).not.toContain('document.create')
+      expect(draftFiles().length).toBe(3)
+
+      // 4. 复盘：不落盘、不读取知识库、无远端写入，结果照常返回
+      const review = await observe(() => runTool('ops_generate_review', { timeRange: '7d' }))
+      expect(review.names).not.toContain('document.create')
+      expect(review.names).not.toContain('knowledge.list')
+      expect(review.value.summaryMarkdown).toContain('高光内容')
+      expect(draftFiles().length).toBe(3)
+    } finally {
+      fs.rmSync(base, { recursive: true, force: true })
+    }
+  })
+
+  it('海外 Launch 生成不写远端，并保留生成结果（第 5 处站点）', async () => {
+    const os = await import('node:os')
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const { DraftStore } = await import('../src/storage/draft-store.js')
+
+    const base = fs.mkdtempSync(path.join(os.tmpdir(), 'gs-launch-no-remote-'))
+    const draftsDir = path.join(base, 'drafts')
+
+    const calledTools: string[] = []
+    const injoys = new InjoysClient({ endpoint: 'http://127.0.0.1:1/mcp', token: 't' })
+    injoys.invokeTool = async (name: string) => {
+      calledTools.push(name)
+      return null
+    }
+
+    const draftStore = new DraftStore(undefined, draftsDir)
+    const tools = createOpsTools(injoys, new AdapterRegistry(), undefined, draftStore)
+    const kitTool = tools.find(t => t.name === 'ops_draft_launch_kit')
+    expect(kitTool).toBeDefined()
+
+    const execContext = { signal: new AbortController().signal, token: 'test-token' }
+    try {
+      const result = await kitTool!.execute({ productName: 'DeepSeek Harness', targetRegion: 'global' }, execContext as any)
+
+      expect(calledTools).toContain('knowledge.list')
+      expect(calledTools).not.toContain('document.create')
+      // src/tools/index.ts 仍为 required: string，实现只能返回字符串；A4（fix-doc-id-fabrication）落地后改为 toBeUndefined()
+      expect(result.injoysDocId).toBe('')
+      expect(result.tagline.length).toBeGreaterThan(0)
+      expect(result.makerComment).toContain('Product Hunt')
+      expect(result.twitterThread.length).toBe(6)
+      expect(result.timezoneAdvice).toContain('Product Hunt')
+      expect(result.summaryMarkdown).toContain('Product Hunt Launch Kit')
+      // 本提案只做减法：不新增 Launch 草稿持久化
+      const draftFiles = fs.existsSync(draftsDir) ? fs.readdirSync(draftsDir).filter(f => f.endsWith('.json')) : []
+      expect(draftFiles.length).toBe(0)
+    } finally {
+      fs.rmSync(base, { recursive: true, force: true })
+    }
   })
 
   it('prefills platform draft boxes and returns review URLs via ops_push_drafts tool', async () => {
@@ -338,7 +470,8 @@ describe('Ops Manager (Stage 3: Analytics, Feedback & Schedule)', () => {
     expect(report.topPerformers.length).toBe(4)
     expect(report.keyLearnings.length).toBeGreaterThan(0)
     expect(report.nextActions.length).toBeGreaterThan(0)
-    expect(report.injoysDocId).toBeDefined()
+    // 复盘不再回写编号：生成阶段不填充 injoysDocId
+    expect(report.injoysDocId).toBeUndefined()
   })
 
   it('crawls audience comments across platforms via CommentsCrawler', async () => {
@@ -641,7 +774,8 @@ describe('Ops Manager (Stage 4: Overseas Expansion & Multi-Language)', () => {
     )
 
     expect(result.tagline.length).toBeLessThanOrEqual(60)
-    expect(result.injoysDocId).toBeDefined()
+    // 与 5.3 同一过渡态口径：schema 仍 required 字符串，未沉淀以空串表示；A4 落地后改为 toBeUndefined()
+    expect(result.injoysDocId).toBe('')
     expect(result.makerComment).toContain('Product Hunt')
     expect(result.twitterThread.length).toBe(6) // 1 hook + 4 body + 1 cta
     expect(result.timezoneAdvice).toContain('Product Hunt')
@@ -2295,7 +2429,12 @@ describe('Ops Manager (Stage 4: Overseas Expansion & Multi-Language)', () => {
         await gate
         return { productName: 'P', coreFeatures: [], targetPersona: [], brandTone: '' }
       }
-      ;(injoys as any).saveArticleDocument = async () => undefined
+      // 写入调用已移除：桩改为「记录调用 + 显式断言未调用」，防止未来误加回该调用
+      let articleSaves = 0
+      ;(injoys as any).saveArticleDocument = async () => {
+        articleSaves += 1
+        return 'unexpected'
+      }
 
       mod.registerOpsRpc(ctx, configStore, injoys, new AdapterRegistry(), drafts as any)
 
@@ -2322,6 +2461,7 @@ describe('Ops Manager (Stage 4: Overseas Expansion & Multi-Language)', () => {
       // 整个请求必须留在发起时的 A 库，B 库不得出现任何副本
       expect(inA.length).toBe(1)
       expect(inB.length).toBe(0)
+      expect(articleSaves).toBe(0)
     })
 
     it.skipIf(!permissionBitsEnforced)('T3: 写盘失败在所有写入口统一返回 drafts/storage-unavailable', async () => {

@@ -164,7 +164,7 @@ export function createOpsTools(
   /** 2. Draft WeChat official article */
   const draftArticleTool = defineTool({
     name: 'ops_draft_article',
-    description: '结合 Injoys 知识库撰写微信公众号深度图文，生成吸引人的标题、摘要、Markdown 正文并保存为 Injoys 文档。',
+    description: '结合 Injoys 知识库撰写微信公众号深度图文，生成吸引人的标题、摘要、Markdown 正文并保存为本地草稿（写入 Injoys 文档须用户显式触发）。',
     parameters: {
       topic: {
         type: 'string',
@@ -228,19 +228,11 @@ export function createOpsTools(
       ].join('\n')
 
       const draftId = `draft_article_${Date.now()}`
-      const injoysDocId = await injoys.saveArticleDocument({
-        id: draftId,
-        title,
-        digest,
-        contentMarkdown,
-        suggestedTags: ['AI技术', '独立开发', '架构演进'],
-      })
 
       await actualDraftStore.saveDraft({
         id: draftId,
         title,
         topic: args.topic,
-        injoysDocId: injoysDocId ?? undefined,
         channelVariants: [
           {
             platform: 'wechat_mp',
@@ -255,7 +247,7 @@ export function createOpsTools(
 
       return {
         draftId,
-        docId: injoysDocId ?? undefined,
+        docId: undefined,
         title,
         digest,
         wordCount: contentMarkdown.length,
@@ -321,20 +313,11 @@ export function createOpsTools(
 
       const draftId = `meta_video_${Date.now()}`
       const partition = '科技/软件开发'
-      const injoysDocId = await injoys.saveVideoDocument({
-        id: draftId,
-        localVideoPath: args.videoPath,
-        titleVariants,
-        tags,
-        description,
-        partition,
-      })
 
       await actualDraftStore.saveDraft({
         id: draftId,
         title: titleVariants[0],
         topic: args.videoPath,
-        injoysDocId: injoysDocId ?? undefined,
         channelVariants: [
           {
             platform: 'bilibili',
@@ -358,7 +341,7 @@ export function createOpsTools(
         titleVariant3: titleVariants[2],
         tags,
         description,
-        injoysDocId: injoysDocId ?? undefined,
+        injoysDocId: undefined,
       }
     },
   })
@@ -567,7 +550,7 @@ export function createOpsTools(
   /** 6. Generate operational review */
   const generateReviewTool = defineTool({
     name: 'ops_generate_review',
-    description: '基于全渠道运营数据与历史排期计算爆款率、互动率与转化漏斗，生成周度/月度运营复盘总结并沉淀至 Injoys 文档。',
+    description: '基于全渠道运营数据与历史排期计算爆款率、互动率与转化漏斗，生成周度/月度运营复盘总结并返回结果（写入 Injoys 文档须用户显式触发）。',
     parameters: {
       productName: {
         type: 'string',
@@ -930,7 +913,10 @@ export function createOpsTools(
       const phTz = overseasStrategy.getTimezoneStrategy('product_hunt')
       const xTz = overseasStrategy.getTimezoneStrategy('twitter_x')
 
-      const injoysDocId = await injoys.saveLaunchKitDocument(phKit)
+      // 生成只保存本地：写入 Injoys 文档须用户显式触发（criterion §4）。
+      // output.schema 仍将 injoysDocId 声明为 required 字符串，故仅能以空串表示未沉淀；
+      // 该字段的可空化与 required 取消属 fix-doc-id-fabrication 的收口范围。
+      const injoysDocId = ''
 
       const allTweets = [
         twitterThread.hookTweet,

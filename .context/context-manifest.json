@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generated_at": "2026-10-21T01:10:35+08:00",
+  "generated_at": "2026-10-21T13:22:18+08:00",
   "generator": "Context-Agent v1.0",
   "generation_pipeline": {
     "root_assets": "Context-Dev-Agent v1.0",
@@ -117,15 +117,13 @@
     "ordering": "ascending_by_synced_at"
   },
   "last_context_sync": {
-    "synced_at": "2026-10-21T01:10:35+08:00",
-    "source": ".context/ui/source/ui-design-direction.md",
-    "workflow": ".agents/workflows/context-check.md review scope ui",
-    "authority": "用户指令收口 F4 同步偏差",
+    "synced_at": "2026-10-21T13:22:18+08:00",
+    "source": ".context/architecture/risks_and_debt.md",
+    "workflow": ".agents/workflows/context-start.md fix-unauthorized-injoys-doc-write",
+    "authority": "提案 fix-unauthorized-injoys-doc-write 任务 4.2（TD-008 站点清单补齐）",
     "mode": "apply",
     "updated_context_files": [
-      ".context/ui/source/ui-design-direction.md",
-      ".context/ui/accessibility_checklist.md",
-      ".context/ui/atomic_components.md",
+      ".context/architecture/risks_and_debt.md",
       ".context/history/context-sync.jsonl",
       ".context/context-manifest.json"
     ],
